@@ -1,18 +1,19 @@
 package org.jitsi;
 
 import java.io.IOException;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.PatternLayout;
+import org.jitsi.dnssec.validator.ValidatingResolver;
 import org.junit.Before;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.DClass;
-import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.RRset;
@@ -21,7 +22,7 @@ import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
 public abstract class TestBase {
-    protected DnssecResolver resolver;
+    protected ValidatingResolver resolver;
 
     private Map<String, Message> queryResponsePairs = new HashMap<String, Message>();
 
@@ -31,50 +32,30 @@ public abstract class TestBase {
 
     @Before
     public void setup() throws NumberFormatException, IOException, DNSSECException {
+        Logger root = Logger.getRootLogger();
+        root.setLevel(Level.ALL);
+        root.addAppender(new ConsoleAppender(new PatternLayout("%r %c{2} - %m%n")));
+
         if (offline) {
             // TODO: read all not already existing queries into the query-response map
         }
 
-        resolver = new DnssecResolver("62.192.5.131") {
+        resolver = new ValidatingResolver("62.192.5.131") {
             @Override
-            public Message send(Message query, boolean validate, Set<DNSKEYRecord> trustedKeys) throws IOException {
+            protected Message prepareResponse(Message query) {
                 Message response = queryResponsePairs.get(query.getQuestion().getName() + "/" + Type.string(query.getQuestion().getType()));
-                if (response == null) {
-                    if (offline) {
-                        throw new IOException("Response for " + query.getQuestion().toString() + " not found.");
-                    }
-                    else {
-                        response = super.send(query, validate, trustedKeys);
-                    }
+                if (response != null) {
+                    return response;
+                }
+                else if (offline) {
+                    throw new RuntimeException("Response for " + query.getQuestion().toString() + " not found.");
                 }
 
-                if (validate) {
-                    try {
-                        validateDnssec(query, response, trustedKeys);
-                    }
-                    catch (DNSSECException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-
-//                System.out.println(result);
-                return response;
-            }
-
-            @Override
-            protected Date getCurrentDate() {
-                if (offline) {
-                    Calendar c = Calendar.getInstance();
-                    c.set(2013, 3, 20); // 3 is actually April. Brain-burned java idiots...
-                    return c.getTime();
-                }
-
-                return new Date();
+                return query;
             }
         };
 
-        resolver.addTrustAnchor(".   0   IN  DS  19036 8 1 B256BD09DC8DD59F0E0F0D8541B8328DD986DF6E");
-        resolver.addTrustAnchor(". IN DS 19036 8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5");
+        resolver.loadTrustAnchors(getClass().getResourceAsStream( "/trust_anchors"));
     }
 
     protected void add(String query, String response) throws IOException {

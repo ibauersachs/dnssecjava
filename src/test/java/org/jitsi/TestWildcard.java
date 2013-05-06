@@ -7,9 +7,10 @@ import java.io.IOException;
 import org.junit.Test;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
+import org.xbill.DNS.Rcode;
 
 public class TestWildcard extends TestBase {
-    @Test(expected = GenericDNSSECException.class)
+    @Test
     public void testNameNotExpandedFromWildcardWhenNonWildcardExists() throws IOException {
 //        ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 60176
 //        ;; flags: qr aa rd ra ; qd: 1 an: 2 au: 4 ad: 3 
@@ -40,5 +41,6 @@ public class TestWildcard extends TestBase {
         // a.d.ingotronic.ch./A exists, but the response is faked from *.d.ingotronic.ch. which must be detected by the NSEC proof
         Message response = resolver.send(createMessage("a.d.ingotronic.ch./A"));
         assertFalse(response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getHeader().getRcode());
     }
 }

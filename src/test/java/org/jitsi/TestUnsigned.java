@@ -20,7 +20,6 @@ public class TestUnsigned extends TestBase {
     public void testUnsignedBelowSignedZoneSwitch() throws IOException {
         Message response = resolver.send(createMessage("20min.ch./A"));
         assertFalse(response.getHeader().getFlag(Flags.AD));
-        assertEquals(localhost, firstA(response));
     }
 
     @Test

@@ -54,6 +54,7 @@ package org.jitsi.dnssec.validator;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.*;
 
@@ -774,11 +775,17 @@ public class ValidatingResolver implements Resolver {
             event.setResponse(new SMessage(resp));
             processResponse(event);
         }
+        catch (SocketTimeoutException e) {
+            log.error("Query timed out, returning fail", e);
+            event.setResponse(Util.errorMessage(local_request, Rcode.SERVFAIL));
+        }
         catch (UnknownHostException e) {
             log.error("failed to send query", e);
+            event.setResponse(Util.errorMessage(local_request, Rcode.SERVFAIL));
         }
         catch (IOException e) {
             log.error("failed to send query", e);
+            event.setResponse(Util.errorMessage(local_request, Rcode.SERVFAIL));
         }
     }
 

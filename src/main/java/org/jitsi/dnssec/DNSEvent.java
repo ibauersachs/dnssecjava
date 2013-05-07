@@ -51,10 +51,8 @@
 
 package org.jitsi.dnssec;
 
-import java.util.*;
-
+import org.jitsi.dnssec.validator.ValEventState;
 import org.xbill.DNS.Message;
-import org.xbill.DNS.Resolver;
 
 /**
  * This is the core event class. A DNSEvent represents either a request or a
@@ -95,12 +93,9 @@ public class DNSEvent implements Cloneable {
     private DNSEvent forEvent;
 
     /**
-     * This is a map of per-module state. Each resolver module has the
-     * opportunity to create a custom per-event state object that it can attach
-     * to this event. The keys for this map are references to the module itself,
-     * typically.
+     * State of the validation.
      */
-    private Map<Resolver, Object> moduleStateMap;
+    private ValEventState state;
 
     /**
      * This is the dependency depth of this event -- in other words, the length
@@ -109,19 +104,11 @@ public class DNSEvent implements Cloneable {
     private int depth;
 
     /**
-     * Create a empty event. This is typically only used internally.
-     */
-    protected DNSEvent() {
-        moduleStateMap = new HashMap<Resolver, Object>();
-    }
-
-    /**
      * Create a request event.
      * 
      * @param request The initial request.
      */
     public DNSEvent(Message request) {
-        this();
         originalRequest = request;
         currentRequest = (Message) request.clone();
     }
@@ -188,11 +175,10 @@ public class DNSEvent implements Cloneable {
     /**
      * Fetch any attached per-module state for this event.
      * 
-     * @param module A reference for the module itself. This is the key.
      * @return A state object for the module, or null if one wasn't attached.
      */
-    public Object getModuleState(Resolver module) {
-        return moduleStateMap.get(module);
+    public ValEventState getModuleState() {
+        return state;
     }
 
     /**
@@ -201,8 +187,8 @@ public class DNSEvent implements Cloneable {
      * @param module A reference for the module itself. This is the key.
      * @param state A state object.
      */
-    public void setModuleState(Resolver module, Object state) {
-        moduleStateMap.put(module, state);
+    public void setModuleState(ValEventState state) {
+        this.state = state;
     }
 
     /**

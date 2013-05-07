@@ -187,11 +187,6 @@ public class ValidatingResolver implements Resolver {
     }
 
     // ---------------- Request/ResponseType Preparation ------------
-
-    private ValEventState getModuleState(DNSEvent event) {
-        return (ValEventState) event.getModuleState(this);
-    }
-
     /**
      * Given a request, decorate the request to fetch DNSSEC information.
      * 
@@ -362,7 +357,7 @@ public class ValidatingResolver implements Resolver {
         state.state = initial_state;
         state.finalState = final_state;
 
-        event.setModuleState(this, state);
+        event.setModuleState(state);
 
         return event;
     }
@@ -759,10 +754,10 @@ public class ValidatingResolver implements Resolver {
 
         // Add a module state object to every request.
         // Locally generated requests will already have state.
-        ValEventState state = getModuleState(event);
+        ValEventState state = event.getModuleState();
         if (state == null) {
             state = new ValEventState();
-            event.setModuleState(this, state);
+            event.setModuleState(state);
         }
 
         // (Possibly) modify the request to add the CD bit.
@@ -791,9 +786,7 @@ public class ValidatingResolver implements Resolver {
 
     private void processResponse(DNSEvent event) {
         log.trace("processing response");
-
-        ValEventState state = getModuleState(event);
-        handleResponse(event, state);
+        handleResponse(event, event.getModuleState());
     }
 
     private void handleResponse(DNSEvent event, ValEventState state) {
@@ -977,7 +970,7 @@ public class ValidatingResolver implements Resolver {
      */
     private boolean processPrimeResponse(DNSEvent event, ValEventState state) {
         DNSEvent forEvent = event.forEvent();
-        ValEventState forState = (ValEventState) forEvent.getModuleState(this);
+        ValEventState forState = forEvent.getModuleState();
 
         SMessage resp = event.getResponse();
 
@@ -990,7 +983,7 @@ public class ValidatingResolver implements Resolver {
             forState.state = ValEventState.VALIDATE_STATE;
         }
 
-        // Continue pocessing our 'forEvent'. This event is finished.
+        // Continue processing our 'forEvent'. This event is finished.
         processResponse(forEvent);
 
         return false;
@@ -1218,7 +1211,7 @@ public class ValidatingResolver implements Resolver {
         Name qname = ds_request.getQuestion().getName();
 
         DNSEvent forEvent = event.forEvent();
-        ValEventState forState = (ValEventState) forEvent.getModuleState(this);
+        ValEventState forState = forEvent.getModuleState();
 
         forState.emptyDSName = null;
         forState.dsRRset = null;
@@ -1254,7 +1247,7 @@ public class ValidatingResolver implements Resolver {
         int qclass = dnskey_request.getQuestion().getDClass();
 
         DNSEvent forEvent = event.forEvent();
-        ValEventState forState = (ValEventState) forEvent.getModuleState(this);
+        ValEventState forState = forEvent.getModuleState();
 
         SRRset ds_rrset = forState.dsRRset;
         SRRset dnskey_rrset = dnskey_resp.findAnswerRRset(qname, Type.DNSKEY, qclass);
@@ -1424,7 +1417,7 @@ public class ValidatingResolver implements Resolver {
 
     private boolean processCNAMEResponse(DNSEvent event, ValEventState state) {
         DNSEvent forEvent = event.forEvent();
-        ValEventState forState = getModuleState(forEvent);
+        ValEventState forState = forEvent.getModuleState();
 
         SMessage resp = event.getResponse();
         if (resp.getStatus() != SecurityStatus.SECURE) {
@@ -1441,7 +1434,7 @@ public class ValidatingResolver implements Resolver {
 
     private boolean processCNAMEAnswer(DNSEvent event, ValEventState state) {
         DNSEvent forEvent = event.forEvent();
-        ValEventState forState = getModuleState(forEvent);
+        ValEventState forState = forEvent.getModuleState();
 
         SMessage resp = event.getResponse();
         SMessage forResp = forEvent.getResponse();

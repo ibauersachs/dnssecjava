@@ -74,6 +74,7 @@ public class DNSEvent implements Cloneable {
      * the current needs of a module.
      */
     private Message currentRequest;
+
     /**
      * This is the original, immutable request. This request must not be changed
      * after being set.
@@ -91,7 +92,7 @@ public class DNSEvent implements Cloneable {
      * original event. That is, if this is not null, some other event is
      * (possibly) waiting on the completion of this one.
      */
-    private DNSEvent mForEvent;
+    private DNSEvent forEvent;
 
     /**
      * This is a map of per-module state. Each resolver module has the
@@ -99,7 +100,7 @@ public class DNSEvent implements Cloneable {
      * to this event. The keys for this map are references to the module itself,
      * typically.
      */
-    private Map<Resolver, Object> mModuleStateMap;
+    private Map<Resolver, Object> moduleStateMap;
 
     /**
      * This is the dependency depth of this event -- in other words, the length
@@ -111,7 +112,7 @@ public class DNSEvent implements Cloneable {
      * Create a empty event. This is typically only used internally.
      */
     protected DNSEvent() {
-        mModuleStateMap = new HashMap<Resolver, Object>();
+        moduleStateMap = new HashMap<Resolver, Object>();
     }
 
     /**
@@ -122,7 +123,7 @@ public class DNSEvent implements Cloneable {
     public DNSEvent(Message request) {
         this();
         originalRequest = request;
-        currentRequest = (Message)request.clone();
+        currentRequest = (Message) request.clone();
     }
 
     /**
@@ -134,7 +135,7 @@ public class DNSEvent implements Cloneable {
     public DNSEvent(Message request, DNSEvent forEvent) {
         this(request);
 
-        mForEvent = forEvent;
+        this.forEvent = forEvent;
         depth = forEvent.getDepth() + 1;
     }
 
@@ -163,7 +164,7 @@ public class DNSEvent implements Cloneable {
      * @return The "for" event. I.e., the event that is depending on this event.
      */
     public DNSEvent forEvent() {
-        return mForEvent;
+        return forEvent;
     }
 
     /**
@@ -191,7 +192,7 @@ public class DNSEvent implements Cloneable {
      * @return A state object for the module, or null if one wasn't attached.
      */
     public Object getModuleState(Resolver module) {
-        return mModuleStateMap.get(module);
+        return moduleStateMap.get(module);
     }
 
     /**
@@ -201,7 +202,7 @@ public class DNSEvent implements Cloneable {
      * @param state A state object.
      */
     public void setModuleState(Resolver module, Object state) {
-        mModuleStateMap.put(module, state);
+        moduleStateMap.put(module, state);
     }
 
     /**
@@ -218,7 +219,6 @@ public class DNSEvent implements Cloneable {
     public Object clone() {
         try {
             DNSEvent event = (DNSEvent) super.clone();
-
             return event;
         }
         catch (CloneNotSupportedException e) {

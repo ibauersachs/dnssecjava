@@ -46,8 +46,22 @@ public class TestNonExistence extends TestBase {
     }
 
     @Test
+    public void testSingleLabelABelowSignedNsec3() throws IOException {
+        Message response = resolver.send(createMessage("gibtsnicht.nsec3.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
+
+    @Test
     public void testDoubleLabelABelowSigned() throws IOException {
         Message response = resolver.send(createMessage("gibtsnicht.gibtsnicht.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
+
+    @Test
+    public void testDoubleLabelABelowSignedNsec3() throws IOException {
+        Message response = resolver.send(createMessage("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
     }
@@ -61,8 +75,26 @@ public class TestNonExistence extends TestBase {
     }
 
     @Test
+    public void testSingleLabelMXBelowSignedForExistingANsec3() throws IOException {
+        Message response = resolver.send(createMessage("www.nsec3.ingotronic.ch./MX"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(0, response.getSectionRRsets(Section.ANSWER).length);
+        assertEquals(Rcode.NOERROR, response.getRcode());
+    }
+
+    @Test
     public void testDoubleLabelMXBelowSignedForExistingA() throws IOException {
+        // a.b.ingotronic.ch./A exists
         Message response = resolver.send(createMessage("a.b.ingotronic.ch./MX"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(0, response.getSectionRRsets(Section.ANSWER).length);
+        assertEquals(Rcode.NOERROR, response.getRcode());
+    }
+
+    @Test
+    public void testDoubleLabelMXBelowSignedForExistingANsec3() throws IOException {
+        // a.b.nsec3.ingotronic.ch./A exists
+        Message response = resolver.send(createMessage("a.b.nsec3.ingotronic.ch./MX"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(0, response.getSectionRRsets(Section.ANSWER).length);
         assertEquals(Rcode.NOERROR, response.getRcode());
@@ -72,6 +104,15 @@ public class TestNonExistence extends TestBase {
     public void testDoubleLabelMXBelowSignedForExistingWildcardA() throws IOException {
         // *.d.ingotronic.ch./A exists
         Message response = resolver.send(createMessage("b.d.ingotronic.ch./MX"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(0, response.getSectionRRsets(Section.ANSWER).length);
+        assertEquals(Rcode.NOERROR, response.getRcode());
+    }
+
+    @Test
+    public void testDoubleLabelMXBelowSignedForExistingWildcardANsec3() throws IOException {
+        // *.d.nsec3.ingotronic.ch./A exists
+        Message response = resolver.send(createMessage("b.d.nsec3.ingotronic.ch./MX"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(0, response.getSectionRRsets(Section.ANSWER).length);
         assertEquals(Rcode.NOERROR, response.getRcode());

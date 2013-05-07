@@ -29,34 +29,46 @@ import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Rcode;
 
-public class TestUnsigned extends TestBase {
+public class TestCNames extends TestBase {
     @Test
-    public void testUnsignedBelowSignedZoneBind() throws IOException {
-        Message response = resolver.send(createMessage("www.unsigned.ingotronic.ch./A"));
-        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.NOERROR, response.getRcode());
-        assertEquals(localhost, firstA(response));
-    }
-
-    @Test
-    public void testUnsignedBelowSignedTldNsec3NoOptOut() throws IOException {
-        Message response = resolver.send(createMessage("20min.ch./A"));
+    public void testCNameToUnsigned() throws IOException {
+        Message response = resolver.send(createMessage("cunsinged.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
     }
 
     @Test
-    public void testUnsignedBelowSignedTldNsec3OptOut() throws IOException {
-        Message response = resolver.send(createMessage("yahoo.com./A"));
+    public void testCNameToSigned() throws IOException {
+        Message response = resolver.send(createMessage("csigned.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+    }
+
+    @Test
+    public void testCNameToInvalidSigned() throws IOException {
+        Message response = resolver.send(createMessage("cfailed.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+    }
+
+    @Test
+    public void testCNameToUnsignedNsec3() throws IOException {
+        Message response = resolver.send(createMessage("cunsinged.nsec3.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
     }
 
     @Test
-    public void testUnsignedBelowUnsignedZone() throws IOException {
-        Message response = resolver.send(createMessage("www.sub.unsigned.ingotronic.ch./A"));
-        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    public void testCNameToSignedNsec3() throws IOException {
+        Message response = resolver.send(createMessage("csigned.nsec3.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
-        assertEquals(localhost, firstA(response));
+    }
+
+    @Test
+    public void testCNameToInvalidSignedNsec3() throws IOException {
+        Message response = resolver.send(createMessage("cfailed.nsec3.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
     }
 }

@@ -175,8 +175,12 @@ public class SMessage {
     }
 
     public int getRcode() {
-        // FIXME: might want to do what Message does and handle extended rcodes.
-        return header.getRcode();
+        int rcode = header.getRcode();
+        if (oPTRecord != null) {
+            rcode += (oPTRecord.getExtendedRcode() << 4);
+    }
+
+        return rcode;
     }
 
     public SecurityStatus getStatus() {

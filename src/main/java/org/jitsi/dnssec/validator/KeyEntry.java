@@ -55,35 +55,29 @@ import org.jitsi.dnssec.SRRset;
 import org.xbill.DNS.Name;
 
 public class KeyEntry {
-    private SRRset mRRset;
-    private Name mName;
-    private int mDClass;
-    private long mTTL;
-    private boolean mIsBad;
-
-    private KeyEntry() {
-        mIsBad = false;
-    }
+    private SRRset rrset;
+    private Name name;
+    private int dclass;
+    private long ttl;
+    private boolean isBad = false;
 
     /**
-     * Create a new, postive key entry
+     * Create a new, positive key entry
      * 
      * @param rrset
      */
     private KeyEntry(SRRset rrset) {
-        this();
-        mRRset = rrset;
-        mName = rrset.getName();
-        mDClass = rrset.getDClass();
+        this.rrset = rrset;
+        name = rrset.getName();
+        dclass = rrset.getDClass();
     }
 
-    private KeyEntry(Name n, int dclass, long ttl, boolean isBad) {
-        this();
-        mRRset = null;
-        mName = n;
-        mDClass = dclass;
-        mTTL = ttl;
-        mIsBad = isBad;
+    private KeyEntry(Name name, int dclass, long ttl, boolean isBad) {
+        rrset = null;
+        this.name = name;
+        this.dclass = dclass;
+        this.ttl = ttl;
+        this.isBad = isBad;
     }
 
     public static KeyEntry newKeyEntry(SRRset rrset) {
@@ -99,30 +93,30 @@ public class KeyEntry {
     }
 
     public SRRset getRRset() {
-        return mRRset;
+        return rrset;
     }
 
     public Name getName() {
-        return mName;
+        return name;
     }
 
     public int getDClass() {
-        return mDClass;
+        return dclass;
     }
 
     public long getTTL() {
-        return mTTL;
+        return ttl;
     }
 
     public boolean isNull() {
-        return !mIsBad && mRRset == null;
+        return !isBad && rrset == null;
     }
 
     public boolean isBad() {
-        return mIsBad;
+        return isBad;
     }
 
     public boolean isGood() {
-        return !mIsBad && mRRset != null;
+        return !isBad && rrset != null;
     }
 }

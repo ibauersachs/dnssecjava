@@ -73,7 +73,7 @@ public class NSEC3ValUtils {
     // instead of having to skip NSEC3 RRs with the wrong parameters.
 
     // The logger to use in static methods.
-    private static Logger st_log = Logger.getLogger(NSEC3ValUtils.class);
+    private static Logger log = Logger.getLogger(NSEC3ValUtils.class);
 
     private static Name asterisk_label = Name.fromConstantString("*");
 
@@ -199,7 +199,7 @@ public class NSEC3ValUtils {
             return NSEC3Record.hashName(name, params.alg, params.iterations, params.salt);
         }
         catch (NoSuchAlgorithmException e) {
-            st_log.debug("Did not recognize hash algorithm: " + params.alg);
+            log.debug("Did not recognize hash algorithm: " + params.alg);
             return null;
         }
     }
@@ -365,13 +365,13 @@ public class NSEC3ValUtils {
         CEResponse candidate = findClosestEncloser(qname, zonename, nsec3s, params, bac);
 
         if (candidate == null) {
-            st_log.debug("proveClosestEncloser: could not find a " + "candidate for the closest encloser.");
+            log.debug("proveClosestEncloser: could not find a " + "candidate for the closest encloser.");
             return null;
         }
 
         if (candidate.closestEncloser.equals(qname)) {
             if (proveDoesNotExist) {
-                st_log.debug("proveClosestEncloser: proved that qname existed!");
+                log.debug("proveClosestEncloser: proved that qname existed!");
                 return null;
             }
 
@@ -385,12 +385,12 @@ public class NSEC3ValUtils {
         // been
         // a DNAME response.
         if (candidate.ce_nsec3.hasType(Type.NS) && !candidate.ce_nsec3.hasType(Type.SOA)) {
-            st_log.debug("proveClosestEncloser: closest encloser " + "was a delegation!");
+            log.debug("proveClosestEncloser: closest encloser " + "was a delegation!");
             return null;
         }
 
         if (candidate.ce_nsec3.hasType(Type.DNAME)) {
-            st_log.debug("proveClosestEncloser: closest encloser was a DNAME!");
+            log.debug("proveClosestEncloser: closest encloser was a DNAME!");
             return null;
         }
 
@@ -400,7 +400,7 @@ public class NSEC3ValUtils {
         byte[] nc_hash = hash(nextClosest, params);
         candidate.nc_nsec3 = findCoveringNSEC3(nc_hash, zonename, nsec3s, params, bac);
         if (candidate.nc_nsec3 == null) {
-            st_log.debug("Could not find proof that the " + "closest encloser was the closest encloser");
+            log.debug("Could not find proof that the " + "closest encloser was the closest encloser");
             return null;
         }
 
@@ -504,7 +504,7 @@ public class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            st_log.debug("Could not find a single set of " + "NSEC3 parameters (multiple parameters present).");
+            log.debug("Could not find a single set of " + "NSEC3 parameters (multiple parameters present).");
             return false;
         }
 
@@ -515,7 +515,7 @@ public class NSEC3ValUtils {
         CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, bac, true);
 
         if (ce == null) {
-            st_log.debug("proveNameError: failed to prove a closest encloser.");
+            log.debug("proveNameError: failed to prove a closest encloser.");
             return false;
         }
 
@@ -526,7 +526,7 @@ public class NSEC3ValUtils {
         byte[] wc_hash = hash(wc, nsec3params);
         NSEC3Record nsec3 = findCoveringNSEC3(wc_hash, zonename, nsec3s, nsec3params, bac);
         if (nsec3 == null) {
-            st_log.debug("proveNameError: could not prove that the " + "applicable wildcard did not exist.");
+            log.debug("proveNameError: could not prove that the " + "applicable wildcard did not exist.");
             return false;
         }
 
@@ -565,7 +565,7 @@ public class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            st_log.debug("could not find a single set of " + "NSEC3 parameters (multiple parameters present)");
+            log.debug("could not find a single set of " + "NSEC3 parameters (multiple parameters present)");
             return false;
         }
         ByteArrayComparator bac = new ByteArrayComparator();
@@ -574,11 +574,11 @@ public class NSEC3ValUtils {
         // Cases 1 & 2.
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
-                st_log.debug("proveNodata: Matching NSEC3 proved that type existed!");
+                log.debug("proveNodata: Matching NSEC3 proved that type existed!");
                 return false;
             }
             if (nsec3.hasType(Type.CNAME)) {
-                st_log.debug("proveNodata: Matching NSEC3 proved " + "that a CNAME existed!");
+                log.debug("proveNodata: Matching NSEC3 proved " + "that a CNAME existed!");
                 return false;
             }
             return true;
@@ -592,7 +592,7 @@ public class NSEC3ValUtils {
         // At this point, not finding a match or a proven closest encloser is a
         // problem.
         if (ce == null) {
-            st_log.debug("proveNodata: did not match qname, " + "nor found a proven closest encloser.");
+            log.debug("proveNodata: did not match qname, " + "nor found a proven closest encloser.");
             return false;
         }
 
@@ -604,7 +604,7 @@ public class NSEC3ValUtils {
 
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
-                st_log.debug("proveNodata: matching wildcard had qtype!");
+                log.debug("proveNodata: matching wildcard had qtype!");
                 return false;
             }
             return true;
@@ -612,13 +612,13 @@ public class NSEC3ValUtils {
 
         // Case 5.
         if (qtype != Type.DS) {
-            st_log.debug("proveNodata: could not find matching NSEC3, " + "nor matching wildcard, and qtype is not DS -- no more options.");
+            log.debug("proveNodata: could not find matching NSEC3, " + "nor matching wildcard, and qtype is not DS -- no more options.");
             return false;
         }
 
         // We need to make sure that the covering NSEC3 is opt-in.
         if (ce.nc_nsec3.getFlags() == 0) {
-            st_log.debug("proveNodata: covering NSEC3 was not " + "opt-in in an opt-in DS NOERROR/NODATA case.");
+            log.debug("proveNodata: covering NSEC3 was not " + "opt-in in an opt-in DS NOERROR/NODATA case.");
             return false;
         }
 
@@ -643,7 +643,7 @@ public class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            st_log.debug("couldn't find a single set of NSEC3 parameters (multiple parameters present).");
+            log.debug("couldn't find a single set of NSEC3 parameters (multiple parameters present).");
             return false;
         }
 
@@ -660,7 +660,7 @@ public class NSEC3ValUtils {
         candidate.nc_nsec3 = findCoveringNSEC3(hash(nextClosest, nsec3params), zonename, nsec3s, nsec3params, bac);
 
         if (candidate.nc_nsec3 == null) {
-            st_log.debug("proveWildcard: did not find a covering NSEC3 that covered the next closer name to " + qname + " from " + candidate.closestEncloser + " (derived from wildcard " + wildcard + ")");
+            log.debug("proveWildcard: did not find a covering NSEC3 that covered the next closer name to " + qname + " from " + candidate.closestEncloser + " (derived from wildcard " + wildcard + ")");
             return false;
         }
 
@@ -689,7 +689,7 @@ public class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            st_log.debug("couldn't find a single set of " + "NSEC3 parameters (multiple parameters present).");
+            log.debug("couldn't find a single set of " + "NSEC3 parameters (multiple parameters present).");
             return SecurityStatus.BOGUS;
         }
         ByteArrayComparator bac = new ByteArrayComparator();

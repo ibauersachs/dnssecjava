@@ -92,8 +92,7 @@ public class ValUtils {
     /** A response to a qtype=ANY query. */
     public static final int ANY = 6;
 
-    private Logger log = Logger.getLogger(this.getClass());
-    private static Logger st_log = Logger.getLogger(ValUtils.class);
+    private static Logger log = Logger.getLogger(ValUtils.class);
 
     /** A local copy of the verifier object. */
     private DnsSecVerifier mVerifier;
@@ -142,7 +141,7 @@ public class ValUtils {
                 return CNAME;
         }
 
-        st_log.warn("Failed to classify response message:\n" + m);
+        log.warn("Failed to classify response message:\n" + m);
         return UNKNOWN;
     }
 

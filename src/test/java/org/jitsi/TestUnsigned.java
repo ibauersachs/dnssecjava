@@ -27,25 +27,29 @@ import java.io.IOException;
 import org.junit.Test;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
+import org.xbill.DNS.Rcode;
 
 public class TestUnsigned extends TestBase {
     @Test
     public void testUnsignedBelowSignedZoneBind() throws IOException {
         Message response = resolver.send(createMessage("www.unsigned.ingotronic.ch./A"));
-        assertFalse(response.getHeader().getFlag(Flags.AD));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals(localhost, firstA(response));
     }
 
     @Test
     public void testUnsignedBelowSignedZoneSwitch() throws IOException {
         Message response = resolver.send(createMessage("20min.ch./A"));
-        assertFalse(response.getHeader().getFlag(Flags.AD));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
     }
 
     @Test
     public void testUnsignedBelowUnsignedZone() throws IOException {
         Message response = resolver.send(createMessage("www.sub.unsigned.ingotronic.ch./A"));
-        assertFalse(response.getHeader().getFlag(Flags.AD));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals(localhost, firstA(response));
     }
 }

@@ -223,42 +223,6 @@ public class ValidatingResolver implements Resolver {
         return false;
     }
 
-    /**
-     * Apply any final massaging to a response before returning up the pipeline.
-     * Primarily this means setting the AD bit or not and possibly stripping
-     * DNSSEC data.
-     * 
-     * @param response The response to modify. The response should have a
-     *            reference to the query that generated the response.
-     * @return The massaged response.
-     */
-    private void normalizeResponse(DNSEvent event, ValEventState state) {
-        SMessage resp = event.getResponse();
-        Message origRequest = event.getOrigRequest();
-
-        // If the CD bit is set, do not process the (cached) validation status.
-        if (!origRequest.getHeader().getFlag(Flags.CD)) {
-            // If the response message validated, set the AD bit.
-            SecurityStatus status = resp.getStatus();
-            switch (status) {
-                case BOGUS:
-                    // For now, in the absence of any other API information, we
-                    // return SERVFAIL.
-                    resp = Util.errorMessage(origRequest, Rcode.SERVFAIL);
-                    event.setResponse(resp);
-                    break;
-                case SECURE:
-                    resp.getHeader().setFlag(Flags.AD);
-                    break;
-                case UNCHECKED:
-                case INSECURE:
-                    break;
-                default:
-                    throw new RuntimeException("unexpected security status");
-            }
-        }
-    }
-
     // ----------------- Validation Support ----------------------
 
     /**
@@ -316,7 +280,7 @@ public class ValidatingResolver implements Resolver {
         Message req = generateLocalRequest(qname, Type.DNSKEY, qclass);
         DNSEvent priming_query_event = generateLocalEvent(forEvent, req, ValEventState.PRIME_RESP_STATE, ValEventState.PRIME_RESP_STATE);
 
-        processRequest(priming_query_event);
+        sendRequest(priming_query_event);
     }
 
     // ----------------- Resolution Support -----------------------
@@ -749,8 +713,9 @@ public class ValidatingResolver implements Resolver {
 
     // ----------------- Resolution Support -----------------------
 
-    private void processRequest(DNSEvent event) {
-        log.trace("processing request: <" + event.getRequest() + ">");
+    private void sendRequest(DNSEvent event) {
+        Record q = event.getRequest().getQuestion();
+        log.trace("sending request: <" + q.getName() + "/" + Type.string(q.getType()) + "/" + DClass.string(q.getDClass()) + ">");
 
         // Add a module state object to every request.
         // Locally generated requests will already have state.
@@ -768,7 +733,6 @@ public class ValidatingResolver implements Resolver {
         try {
             Message resp = headResolver.send(local_request);
             event.setResponse(new SMessage(resp));
-            processResponse(event);
         }
         catch (SocketTimeoutException e) {
             log.error("Query timed out, returning fail", e);
@@ -782,15 +746,14 @@ public class ValidatingResolver implements Resolver {
             log.error("failed to send query", e);
             event.setResponse(Util.errorMessage(local_request, Rcode.SERVFAIL));
         }
+
+        processResponse(event);
     }
 
     private void processResponse(DNSEvent event) {
         log.trace("processing response");
-        handleResponse(event, event.getModuleState());
-    }
-
-    private void handleResponse(DNSEvent event, ValEventState state) {
         boolean cont = true;
+        ValEventState state = event.getModuleState();
 
         // Loop on event states. If a processing routine returns false, that
         // means
@@ -1037,14 +1000,14 @@ public class ValidatingResolver implements Resolver {
         if (state.dsRRset == null || !state.dsRRset.getName().equals(nextKeyName)) {
             Message ds_request = generateLocalRequest(nextKeyName, Type.DS, qclass);
             DNSEvent ds_event = generateLocalEvent(event, ds_request, ValEventState.FINDKEY_DS_RESP_STATE, ValEventState.FINDKEY_DS_RESP_STATE);
-            processRequest(ds_event);
+            sendRequest(ds_event);
             return false;
         }
 
         // Otherwise, it is time to query for the DNSKEY
         Message dnskey_request = generateLocalRequest(state.dsRRset.getName(), Type.DNSKEY, qclass);
         DNSEvent dnskey_event = generateLocalEvent(event, dnskey_request, ValEventState.FINDKEY_DNSKEY_RESP_STATE, ValEventState.FINDKEY_DNSKEY_RESP_STATE);
-        processRequest(dnskey_event);
+        sendRequest(dnskey_event);
 
         return false;
     }
@@ -1406,7 +1369,7 @@ public class ValidatingResolver implements Resolver {
             DNSEvent localEvent = generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, final_state);
 
             // ...and send it along.
-            processRequest(localEvent);
+            sendRequest(localEvent);
             return false;
         }
 
@@ -1423,12 +1386,12 @@ public class ValidatingResolver implements Resolver {
         if (resp.getStatus() != SecurityStatus.SECURE) {
             forEvent.getResponse().setStatus(resp.getStatus());
             forState.state = forState.finalState;
-            handleResponse(forEvent, forState);
+            processResponse(forEvent);
             return false;
         }
 
         forState.state = ValEventState.CNAME_STATE;
-        handleResponse(forEvent, forState);
+        processResponse(forEvent);
         return false;
     }
 
@@ -1442,12 +1405,44 @@ public class ValidatingResolver implements Resolver {
         forResp.setStatus(resp.getStatus());
 
         forState.state = forState.finalState;
-        handleResponse(forEvent, forState);
+        processResponse(forEvent);
         return false;
     }
 
+    /**
+     * Apply any final massaging to a response before returning up the pipeline.
+     * Primarily this means setting the AD bit or not and possibly stripping
+     * DNSSEC data.
+     * 
+     * @param response The response to modify. The response should have a
+     *            reference to the query that generated the response.
+     * @return The massaged response.
+     */
     private boolean processFinishedState(DNSEvent event, ValEventState state) {
-        normalizeResponse(event, state);
+        SMessage resp = event.getResponse();
+        Message origRequest = event.getOrigRequest();
+
+        // If the CD bit is set, do not process the (cached) validation status.
+        if (!origRequest.getHeader().getFlag(Flags.CD)) {
+            // If the response message validated, set the AD bit.
+            SecurityStatus status = resp.getStatus();
+            switch (status) {
+                case BOGUS:
+                    // For now, in the absence of any other API information, we
+                    // return SERVFAIL.
+                    resp = Util.errorMessage(origRequest, Rcode.SERVFAIL);
+                    event.setResponse(resp);
+                    break;
+                case SECURE:
+                    resp.getHeader().setFlag(Flags.AD);
+                    break;
+                case UNCHECKED:
+                case INSECURE:
+                    break;
+                default:
+                    throw new RuntimeException("unexpected security status");
+            }
+        }
 
         return false;
     }
@@ -1520,7 +1515,7 @@ public class ValidatingResolver implements Resolver {
 
         // This should synchronously process the request, based on the way the
         // resolver tail is configured.
-        processRequest(event);
+        sendRequest(event);
 
         return event.getResponse().getMessage();
     }

@@ -95,8 +95,7 @@ public class SRRset extends RRset {
     }
 
     /**
-     * Set the current security status for this SRRset. This status will be
-     * shared amongst all copies of this SRRset (created with cloneSRRset())
+     * Set the current security status for this SRRset.
      */
     public void setSecurityStatus(SecurityStatus status) {
         securityStatus = status;

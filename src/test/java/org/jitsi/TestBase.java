@@ -1,3 +1,23 @@
+/*
+ * dnssecjava - a DNSSEC validating stub resolver for Java
+ * Copyright (C) 2013 Ingo Bauersachs. All rights reserved.
+ *
+ * This file is part of dnssecjava.
+ *
+ * Dnssecjava is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * Dnssecjava is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with dnssecjava.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package org.jitsi;
 
 import java.io.IOException;
@@ -5,6 +25,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.log4j.Appender;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -19,6 +40,7 @@ import org.xbill.DNS.Name;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
+import org.xbill.DNS.SimpleResolver;
 import org.xbill.DNS.Type;
 
 public abstract class TestBase {
@@ -30,19 +52,25 @@ public abstract class TestBase {
 
     private final static boolean offline = false;
 
+    {
+        Logger root = Logger.getRootLogger();
+        if (root.getAppender("junit") == null) {
+            root.setLevel(Level.ALL);
+            Appender junit = new ConsoleAppender(new PatternLayout("%r %c{2} - %m%n"));
+            junit.setName("junit");
+            root.addAppender(junit);
+        }
+    }
+
     @Before
     public void setup() throws NumberFormatException, IOException, DNSSECException {
-        Logger root = Logger.getRootLogger();
-        root.setLevel(Level.ALL);
-        root.addAppender(new ConsoleAppender(new PatternLayout("%r %c{2} - %m%n")));
-
         if (offline) {
             // TODO: read all not already existing queries into the query-response map
         }
 
-        resolver = new ValidatingResolver("62.192.5.131") {
+        resolver = new ValidatingResolver(new SimpleResolver("62.192.5.131") {
             @Override
-            protected Message prepareResponse(Message query) {
+            public Message send(Message query) throws IOException {
                 Message response = queryResponsePairs.get(query.getQuestion().getName() + "/" + Type.string(query.getQuestion().getType()));
                 if (response != null) {
                     return response;
@@ -51,9 +79,9 @@ public abstract class TestBase {
                     throw new RuntimeException("Response for " + query.getQuestion().toString() + " not found.");
                 }
 
-                return query;
+                return super.send(query);
             }
-        };
+        });
 
         resolver.loadTrustAnchors(getClass().getResourceAsStream( "/trust_anchors"));
     }

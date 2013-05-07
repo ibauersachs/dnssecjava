@@ -1,32 +1,52 @@
 /*
- * $Id: ValidatingResolver.java 361 2007-04-09 00:56:14Z davidb $
+ * dnssecjava - a DNSSEC validating stub resolver for Java
+ * Copyright (C) 2013 Ingo Bauersachs. All rights reserved.
  *
- * Copyright (c) 2004 USC Project SRO. All rights reserved.
- * Copyright (c) 2005 VeriSign, Inc. All rights reserved.
+ * This file is part of dnssecjava.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * Dnssecjava is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
+ * Dnssecjava is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with dnssecjava.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ * 
+ * This file is based on work under the following copyright and permission
+ * notice:
+ * 
+ *     Copyright (c) 2005 VeriSign. All rights reserved.
+ * 
+ *     Redistribution and use in source and binary forms, with or without
+ *     modification, are permitted provided that the following conditions are
+ *     met:
+ * 
+ *     1. Redistributions of source code must retain the above copyright
+ *        notice, this list of conditions and the following disclaimer.
+ *     2. Redistributions in binary form must reproduce the above copyright
+ *        notice, this list of conditions and the following disclaimer in the
+ *        documentation and/or other materials provided with the distribution.
+ *     3. The name of the author may not be used to endorse or promote
+ *        products derived from this software without specific prior written
+ *        permission.
+ * 
+ *     THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ *     IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ *     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ *     ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+ *     INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ *     (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ *     SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ *     HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ *     STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ *     IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *     POSSIBILITY OF SUCH DAMAGE.
  */
 
 package org.jitsi.dnssec.validator;
@@ -52,7 +72,7 @@ import org.xbill.DNS.*;
  * @author davidb
  * @version $Revision: 361 $
  */
-public class ValidatingResolver extends SimpleResolver {
+public class ValidatingResolver implements Resolver {
     /**
      * This is a cache of validated, but expirable DNSKEY rrsets.
      */
@@ -75,10 +95,12 @@ public class ValidatingResolver extends SimpleResolver {
     // will be primed no more often than this interval.
     private static final long DEFAULT_TA_NULL_KEY_TTL = 60;
 
-    public ValidatingResolver(String hostname) throws UnknownHostException {
-        super(hostname);
-        super.setEDNS(0, 0, ExtendedFlags.DO, null);
-        super.setIgnoreTruncation(false);
+    private Resolver headResolver;
+
+    public ValidatingResolver(Resolver headResolver) throws UnknownHostException {
+        this.headResolver = headResolver;
+        headResolver.setEDNS(0, 0, ExtendedFlags.DO, null);
+        headResolver.setIgnoreTruncation(false);
 
         keyCache = new KeyCache();
         valUtils = new ValUtils(new DnsSecVerifier());
@@ -182,17 +204,6 @@ public class ValidatingResolver extends SimpleResolver {
         // some upstream DNS software from validating for us.
 
         req.getHeader().setFlag(Flags.CD);
-    }
-
-    /**
-     * Method to allow unit-tests to inject customized response-data. This
-     * implementation returns the input unmodified.
-     * 
-     * @param response
-     * @return
-     */
-    protected Message prepareResponse(Message response) {
-        return response;
     }
 
     /**
@@ -741,17 +752,6 @@ public class ValidatingResolver extends SimpleResolver {
     }
 
     // ----------------- Resolution Support -----------------------
-    @Override
-    public Message send(Message request) throws IOException {
-        // Message request = generateLocalRequest(qname, qtype, qclass);
-        DNSEvent event = new DNSEvent(request);
-
-        // This should synchronously process the request, based on the way the
-        // resolver tail is configured.
-        processRequest(event);
-
-        return event.getResponse().getMessage();
-    }
 
     private void processRequest(DNSEvent event) {
         log.trace("processing request: <" + event.getRequest() + ">");
@@ -764,14 +764,13 @@ public class ValidatingResolver extends SimpleResolver {
             event.setModuleState(this, state);
         }
 
-        // (Possibly) modify the request to add the DO bit.
+        // (Possibly) modify the request to add the CD bit.
         prepareRequest(event.getRequest());
 
-        // Send the request along.
-        // Get a local copy of the request.
+        // Send the request along by using a local copy of the request
         Message local_request = (Message) event.getRequest().clone();
         try {
-            Message resp = prepareResponse(super.send(local_request));
+            Message resp = headResolver.send(local_request);
             event.setResponse(new SMessage(resp));
             processResponse(event);
         }
@@ -1453,4 +1452,72 @@ public class ValidatingResolver extends SimpleResolver {
         return false;
     }
 
+    // Resolver-interface implementation --------------------------------------
+    /**
+     * Forwards the data to the head resolver passed at construction time.
+     * @see org.xbill.DNS.Resolver#setPort(int)
+     */
+    public void setPort(int port) {
+        headResolver.setPort(port);
+    }
+
+    /** Forwards the data to the head resolver passed at construction time.
+     * @see org.xbill.DNS.Resolver#setTCP(boolean)
+     */
+    public void setTCP(boolean flag) {
+        headResolver.setTCP(flag);
+    }
+
+    /**
+     * This is a no-op, truncation is never ignored.
+     * @param flag unused
+     */
+    public void setIgnoreTruncation(boolean flag) {
+    }
+
+    /**
+     * This is a no-op, EDNS is always set to level 0.
+     * @param level unused
+     */
+    public void setEDNS(int level) {
+    }
+
+    /**
+     * The method is forwarded to the resolver, but always ensure that the level is 0 and the flags contains DO.
+     * @param level unused, always set to 0.
+     * @see org.xbill.DNS.Resolver#setEDNS(int, int, int, java.util.List)
+     */
+    public void setEDNS(int level, int payloadSize, int flags, @SuppressWarnings("rawtypes") List options) {
+        headResolver.setEDNS(0, payloadSize, flags | ExtendedFlags.DO, options);
+    }
+
+    /**
+     * Forwards the data to the head resolver passed at construction time.
+     * @see org.xbill.DNS.Resolver#setTSIGKey(org.xbill.DNS.TSIG)
+     */
+    public void setTSIGKey(TSIG key) {
+        headResolver.setTSIGKey(key);
+    }
+
+    public void setTimeout(int secs, int msecs) {
+        headResolver.setTimeout(secs, msecs);
+    }
+
+    public void setTimeout(int secs) {
+        headResolver.setTimeout(secs);
+    }
+
+    public Message send(Message request) throws IOException {
+        DNSEvent event = new DNSEvent(request);
+
+        // This should synchronously process the request, based on the way the
+        // resolver tail is configured.
+        processRequest(event);
+
+        return event.getResponse().getMessage();
+    }
+
+    public Object sendAsync(Message query, ResolverListener listener) {
+        throw new RuntimeException("Not implemented");
+    }
 }

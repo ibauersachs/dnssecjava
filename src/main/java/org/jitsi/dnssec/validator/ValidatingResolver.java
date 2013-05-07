@@ -1455,13 +1455,16 @@ public class ValidatingResolver implements Resolver {
     // Resolver-interface implementation --------------------------------------
     /**
      * Forwards the data to the head resolver passed at construction time.
+     * 
      * @see org.xbill.DNS.Resolver#setPort(int)
      */
     public void setPort(int port) {
         headResolver.setPort(port);
     }
 
-    /** Forwards the data to the head resolver passed at construction time.
+    /**
+     * Forwards the data to the head resolver passed at construction time.
+     * 
      * @see org.xbill.DNS.Resolver#setTCP(boolean)
      */
     public void setTCP(boolean flag) {
@@ -1470,6 +1473,7 @@ public class ValidatingResolver implements Resolver {
 
     /**
      * This is a no-op, truncation is never ignored.
+     * 
      * @param flag unused
      */
     public void setIgnoreTruncation(boolean flag) {
@@ -1477,13 +1481,16 @@ public class ValidatingResolver implements Resolver {
 
     /**
      * This is a no-op, EDNS is always set to level 0.
+     * 
      * @param level unused
      */
     public void setEDNS(int level) {
     }
 
     /**
-     * The method is forwarded to the resolver, but always ensure that the level is 0 and the flags contains DO.
+     * The method is forwarded to the resolver, but always ensure that the level
+     * is 0 and the flags contains DO.
+     * 
      * @param level unused, always set to 0.
      * @see org.xbill.DNS.Resolver#setEDNS(int, int, int, java.util.List)
      */
@@ -1493,6 +1500,7 @@ public class ValidatingResolver implements Resolver {
 
     /**
      * Forwards the data to the head resolver passed at construction time.
+     * 
      * @see org.xbill.DNS.Resolver#setTSIGKey(org.xbill.DNS.TSIG)
      */
     public void setTSIGKey(TSIG key) {

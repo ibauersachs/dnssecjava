@@ -992,6 +992,12 @@ public class ValidatingResolver implements Resolver {
         int current_labels = currentKeyName.labels();
         int l = target_labels - current_labels - 1;
 
+        // the next key name would be trying to invent a name, so we stop here
+        if (l < 0) {
+            state.state = ValEventState.VALIDATE_STATE;
+            return true;
+        }
+
         Name nextKeyName = new Name(targetKeyName, l);
         log.trace("findKey: targetKeyName = " + targetKeyName + ", currentKeyName = " + currentKeyName + ", nextKeyName = " + nextKeyName);
         // The next step is either to query for the next DS, or to query for the

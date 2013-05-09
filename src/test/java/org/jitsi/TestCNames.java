@@ -71,4 +71,18 @@ public class TestCNames extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
     }
+
+    @Test
+    public void testCNameToVoid() throws IOException {
+        Message response = resolver.send(createMessage("cvoid.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
+
+    @Test
+    public void testCNameToVoidNsec3() throws IOException {
+        Message response = resolver.send(createMessage("cvoid.nsec3.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
 }

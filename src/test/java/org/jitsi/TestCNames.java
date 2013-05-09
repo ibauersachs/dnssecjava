@@ -73,8 +73,22 @@ public class TestCNames extends TestBase {
     }
 
     @Test
+    public void testCNameToVoid3Chain() throws IOException {
+        Message response = resolver.send(createMessage("cvoid3.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
+
+    @Test
+    public void testCNameToVoid2Chain() throws IOException {
+        Message response = resolver.send(createMessage("cvoid2.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
+
+    @Test
     public void testCNameToVoid() throws IOException {
-        Message response = resolver.send(createMessage("cvoid.ingotronic.ch./A"));
+        Message response = resolver.send(createMessage("cvoid1.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
     }

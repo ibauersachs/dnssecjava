@@ -627,15 +627,11 @@ public class ValidatingResolver implements Resolver {
      * trusted DNSKEY rrset that signs this response must already have been
      * completed.
      * 
+     * @param qname The name to be proved to not exist.
      * @param response The response to validate.
-     * @param request The request that generated this response.
      * @param key_rrset The trusted DNSKEY rrset that signs this response.
      */
-    private void validateNameErrorResponse(SMessage response, Message req, SRRset key_rrset) {
-        Name qname = req.getQuestion().getName();
-
-        SMessage m = response;
-
+    private void validateNameErrorResponse(Name qname, SMessage response, SRRset key_rrset) {
         // FIXME: should we check to see if there is anything in the answer
         // section? if so, what should the result be?
 
@@ -645,7 +641,7 @@ public class ValidatingResolver implements Resolver {
 
         boolean hasValidNSEC = false;
         boolean hasValidWCNSEC = false;
-        SRRset[] rrsets = m.getSectionRRsets(Section.AUTHORITY);
+        SRRset[] rrsets = response.getSectionRRsets(Section.AUTHORITY);
         List<NSEC3Record> nsec3s = null;
         Name nsec3Signer = null;
 
@@ -653,7 +649,7 @@ public class ValidatingResolver implements Resolver {
             SecurityStatus status = valUtils.verifySRRset(rrsets[i], key_rrset);
             if (status != SecurityStatus.SECURE) {
                 log.debug("NameError response has failed AUTHORITY rrset: " + rrsets[i]);
-                m.setStatus(SecurityStatus.BOGUS);
+                response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
             if (rrsets[i].getType() == Type.NSEC) {
@@ -682,7 +678,7 @@ public class ValidatingResolver implements Resolver {
 
             if (NSEC3ValUtils.allNSEC3sIgnoreable(nsec3s, key_rrset)) {
                 log.debug("all NSEC3s were validated but ignored.");
-                m.setStatus(SecurityStatus.INSECURE);
+                response.setStatus(SecurityStatus.INSECURE);
                 return;
             }
 
@@ -695,20 +691,20 @@ public class ValidatingResolver implements Resolver {
 
         // If the message fails to prove either condition, it is bogus.
         if (!hasValidNSEC) {
-            log.debug("NameError response has failed to prove: " + "qname does not exist");
-            m.setStatus(SecurityStatus.BOGUS);
+            log.debug("NameError response has failed to prove that the qname does not exist");
+            response.setStatus(SecurityStatus.BOGUS);
             return;
         }
 
         if (!hasValidWCNSEC) {
-            log.debug("NameError response has failed to prove: " + "covering wildcard does not exist");
-            m.setStatus(SecurityStatus.BOGUS);
+            log.debug("NameError response has failed to prove that the covering wildcard does not exist");
+            response.setStatus(SecurityStatus.BOGUS);
             return;
         }
 
         // Otherwise, we consider the message secure.
         log.trace("successfully validated NAME ERROR response.");
-        m.setStatus(SecurityStatus.SECURE);
+        response.setStatus(SecurityStatus.SECURE);
     }
 
     // ----------------- Resolution Support -----------------------
@@ -1299,7 +1295,7 @@ public class ValidatingResolver implements Resolver {
                 break;
             case ValUtils.NAMEERROR:
                 log.trace("Validating a nxdomain response");
-                validateNameErrorResponse(resp, req, key_rrset);
+                validateNameErrorResponse(req.getQuestion().getName(), resp, key_rrset);
                 break;
             case ValUtils.CNAME:
                 log.trace("Validating a cname response");
@@ -1337,8 +1333,9 @@ public class ValidatingResolver implements Resolver {
 
         SMessage m = event.getResponse();
 
-        if (state.cnameSname == null)
+        if (state.cnameSname == null) {
             state.cnameSname = qname;
+        }
 
         // We break the chain down by re-querying for the specific CNAME or
         // DNAME
@@ -1351,8 +1348,9 @@ public class ValidatingResolver implements Resolver {
             int rtype = rrset.getType();
 
             // Skip DNAMEs -- prefer to query for the generated CNAME,
-            if (rtype == Type.DNAME && qtype != Type.DNAME)
+            if (rtype == Type.DNAME && qtype != Type.DNAME) {
                 continue;
+            }
 
             // Set the SNAME if we are dealing with a CNAME
             if (rtype == Type.CNAME) {
@@ -1361,8 +1359,7 @@ public class ValidatingResolver implements Resolver {
             }
 
             // Note if the current rrset is the answer. In that case, we want to
-            // set
-            // the final state differently.
+            // set the final state differently.
             // For non-answers, the response ultimately comes back here.
             int final_state = ValEventState.CNAME_RESP_STATE;
             if (isAnswerRRset(rrset.getName(), rtype, state.cnameSname, qtype, Section.ANSWER)) {
@@ -1377,6 +1374,15 @@ public class ValidatingResolver implements Resolver {
             // ...and send it along.
             sendRequest(localEvent);
             return false;
+        }
+
+        // The name was not found in the answer sections received so far. If we
+        // got an NXDOMAIN response, the CNAME(s) point to a non-existing domain
+        // and the NSEC(3)(s) hopefully prove that.
+        if (m.getRcode() == Rcode.NXDOMAIN) {
+            validateNameErrorResponse(state.cnameSname, m, state.keyEntry.getRRset());
+            state.state = ValEventState.FINISHED_STATE;
+            return true;
         }
 
         // Something odd has happened if we get here.

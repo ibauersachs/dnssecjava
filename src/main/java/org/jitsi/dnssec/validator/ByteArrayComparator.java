@@ -66,10 +66,6 @@ public class ByteArrayComparator implements Comparator<Object> {
     public ByteArrayComparator() {
     }
 
-    public ByteArrayComparator(int offset, boolean debug) {
-        mOffset = offset;
-    }
-
     public int compare(Object o1, Object o2) throws ClassCastException {
         byte[] b1 = (byte[])o1;
         byte[] b2 = (byte[])o2;

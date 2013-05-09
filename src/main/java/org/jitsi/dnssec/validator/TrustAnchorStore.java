@@ -56,12 +56,9 @@ import java.util.Map;
 
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
-import org.xbill.DNS.DSRecord;
 import org.xbill.DNS.Name;
 
 /**
- * 
- * 
  * @author davidb
  * @version $Revision: 286 $
  */
@@ -69,7 +66,7 @@ public class TrustAnchorStore {
     private Map<String, SRRset> map;
 
     public TrustAnchorStore() {
-        map = null;
+        map = new HashMap<String, SRRset>();
     }
 
     private String key(Name n, int dclass) {
@@ -77,36 +74,23 @@ public class TrustAnchorStore {
     }
 
     public void store(SRRset rrset) {
-        if (map == null) {
-            map = new HashMap<String, SRRset>();
-        }
-
         String k = key(rrset.getName(), rrset.getDClass());
         rrset.setSecurityStatus(SecurityStatus.SECURE);
         map.put(k, rrset);
     }
 
-    public void store(DSRecord ds) {
-        SRRset set = new SRRset();
-        set.addRR(ds);
-        store(set);
-    }
-
     private SRRset lookup(String key) {
-        if (map == null)
-            return null;
-        return (SRRset) map.get(key);
+        return map.get(key);
     }
 
     public SRRset find(Name n, int dclass) {
-        if (map == null)
-            return null;
-
         while (n.labels() > 0) {
             String k = key(n, dclass);
             SRRset r = lookup(k);
-            if (r != null)
+            if (r != null) {
                 return r;
+            }
+
             n = new Name(n, 1);
         }
 

@@ -56,7 +56,7 @@ public abstract class TestBase {
         Logger root = Logger.getRootLogger();
         if (root.getAppender("junit") == null) {
             root.setLevel(Level.ALL);
-            Appender junit = new ConsoleAppender(new PatternLayout("%r %c{2} - %m%n"));
+            Appender junit = new ConsoleAppender(new PatternLayout("%r %c{2}.%M.%L - %m%n"));
             junit.setName("junit");
             root.addAppender(junit);
         }
@@ -71,6 +71,7 @@ public abstract class TestBase {
         resolver = new ValidatingResolver(new SimpleResolver("62.192.5.131") {
             @Override
             public Message send(Message query) throws IOException {
+                System.err.println(query.getQuestion().getName() + "/" + Type.string(query.getQuestion().getType()));
                 Message response = queryResponsePairs.get(query.getQuestion().getName() + "/" + Type.string(query.getQuestion().getType()));
                 if (response != null) {
                     return response;
@@ -84,6 +85,7 @@ public abstract class TestBase {
         });
 
         resolver.loadTrustAnchors(getClass().getResourceAsStream( "/trust_anchors"));
+        System.err.println("--------------");
     }
 
     protected void add(String query, String response) throws IOException {
@@ -109,6 +111,11 @@ public abstract class TestBase {
         return rrs.next().getAddress().getHostAddress();
     }
 
+    protected boolean isEmptyAnswer(Message response) {
+        RRset[] sectionRRsets = response.getSectionRRsets(Section.ANSWER);
+        return sectionRRsets.length == 0;
+    }
+
     private byte[] fromHex(String hex) {
         byte[] data = new byte[hex.length() / 2];
         for (int i = 0; i < hex.length() / 2; i++) {
@@ -118,12 +125,12 @@ public abstract class TestBase {
         return data;
     }
 
-//    private String toHex(byte[] data) {
-//        StringBuilder sb = new StringBuilder();
-//        for (int i = 0; i < data.length; i++) {
-//            sb.append(String.format("%02X", data[i]));
-//        }
-//
-//        return sb.toString();
-//    }
+    protected String toHex(byte[] data) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < data.length; i++) {
+            sb.append(String.format("%02X", data[i]));
+        }
+
+        return sb.toString();
+    }
 }

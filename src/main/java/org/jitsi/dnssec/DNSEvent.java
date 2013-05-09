@@ -52,7 +52,10 @@
 package org.jitsi.dnssec;
 
 import org.jitsi.dnssec.validator.ValEventState;
+import org.xbill.DNS.DClass;
 import org.xbill.DNS.Message;
+import org.xbill.DNS.Record;
+import org.xbill.DNS.Type;
 
 /**
  * This is the core event class. A DNSEvent represents either a request or a
@@ -217,6 +220,7 @@ public class DNSEvent implements Cloneable {
      *         perhaps.
      */
     public String toString() {
-        return super.toString() + " " + currentRequest.toString();
+        Record q = currentRequest.getQuestion();
+        return super.toString() + " " + q.getName() + "/" + Type.string(q.getType()) + "/" + DClass.string(q.getDClass());
     }
 }

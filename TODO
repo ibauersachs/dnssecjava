@@ -1,0 +1,12 @@
+CNAME handling
+--------------
+The CNAME handling is terribly inefficient. A recursive nameserver is required
+to deliver all intermediate results in the response to the original query. The
+code however still splits up the query into each part and performs a query for
+each CNAME till the end of the chain is reached.
+This should be changed to follow the chain in the response of the original
+query, but is not so easy because the validation only has the keys for each
+original query.
+A possible workaround would be to synthesize the intermediate responses from
+the original query. Easy for positive responses, but for NXDOMAIN - which
+NSEC(3)s are to be included...?

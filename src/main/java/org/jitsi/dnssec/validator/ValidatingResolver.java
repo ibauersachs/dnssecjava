@@ -983,7 +983,7 @@ public class ValidatingResolver implements Resolver {
         if (state.emptyDSName != null)
             currentKeyName = state.emptyDSName;
 
-        // Caculate the next lookup name.
+        // Calculate the next lookup name.
         int target_labels = targetKeyName.labels();
         int current_labels = currentKeyName.labels();
         int l = target_labels - current_labels - 1;
@@ -1338,8 +1338,7 @@ public class ValidatingResolver implements Resolver {
         }
 
         // We break the chain down by re-querying for the specific CNAME or
-        // DNAME
-        // (or final answer).
+        // DNAME (or final answer).
         SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
 
         while (state.cnameIndex < rrsets.length) {
@@ -1380,9 +1379,23 @@ public class ValidatingResolver implements Resolver {
         // got an NXDOMAIN response, the CNAME(s) point to a non-existing domain
         // and the NSEC(3)(s) hopefully prove that.
         if (m.getRcode() == Rcode.NXDOMAIN) {
-            validateNameErrorResponse(state.cnameSname, m, state.keyEntry.getRRset());
-            state.state = ValEventState.FINISHED_STATE;
-            return true;
+            SRRset rrset = rrsets[state.cnameIndex - 1];
+            Name rname = rrset.getName();
+            int rtype = rrset.getType();
+
+            // Set the SNAME if we are dealing with a CNAME
+            if (rtype == Type.CNAME) {
+                CNAMERecord cname = (CNAMERecord) rrset.first();
+                state.cnameSname = cname.getTarget();
+            }
+
+            // Generate the sub-query for the final query.
+            Message localRequest = generateLocalRequest(rname, rtype, qclass);
+            DNSEvent localEvent = generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, ValEventState.CNAME_ANS_RESP_STATE);
+
+            // ...and send it along.
+            sendRequest(localEvent);
+            return false;
         }
 
         // Something odd has happened if we get here.
@@ -1390,10 +1403,19 @@ public class ValidatingResolver implements Resolver {
         return false;
     }
 
+    /**
+     * Process a CNAME intermediate response.
+     * 
+     * @param event
+     * @param state
+     * @return
+     */
     private boolean processCNAMEResponse(DNSEvent event, ValEventState state) {
         DNSEvent forEvent = event.forEvent();
         ValEventState forState = forEvent.getModuleState();
 
+        // If the response was not secure, transfer this result to the original
+        // query and abort.
         SMessage resp = event.getResponse();
         if (resp.getStatus() != SecurityStatus.SECURE) {
             forEvent.getResponse().setStatus(resp.getStatus());
@@ -1402,11 +1424,21 @@ public class ValidatingResolver implements Resolver {
             return false;
         }
 
+        // The response was valid, so continue processing the original CNAME
+        // query by following the chain.
         forState.state = ValEventState.CNAME_STATE;
         processResponse(forEvent);
         return false;
     }
 
+    /**
+     * Transfer the security status of the final CNAME answer to the original
+     * query.
+     * 
+     * @param event
+     * @param state
+     * @return
+     */
     private boolean processCNAMEAnswer(DNSEvent event, ValEventState state) {
         DNSEvent forEvent = event.forEvent();
         ValEventState forState = forEvent.getModuleState();

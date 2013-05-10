@@ -92,17 +92,17 @@ public class NSEC3ValUtils {
         }
 
         public boolean match(NSEC3Record r) {
-            if (r.getHashAlgorithm() != alg)
+            if (r.getHashAlgorithm() != alg) {
                 return false;
+            }
 
-            if (r.getIterations() != iterations)
+            if (r.getIterations() != iterations) {
                 return false;
+            }
 
-            if (salt == null && r.getSalt() != null)
+            if (salt == null && r.getSalt() != null) {
                 return false;
-
-            if (salt == null && r.getSalt() == null)
-                return true;
+            }
 
             return Arrays.equals(r.getSalt(), salt);
         }
@@ -123,15 +123,18 @@ public class NSEC3ValUtils {
         }
     }
 
-    public static boolean supportsHashAlgorithm(int alg) {
-        if (alg == NSEC3Record.SHA1_DIGEST_ID)
+    private static boolean supportsHashAlgorithm(int alg) {
+        if (alg == NSEC3Record.SHA1_DIGEST_ID) {
             return true;
+        }
+
         return false;
     }
 
     public static void stripUnknownAlgNSEC3s(List<NSEC3Record> nsec3s) {
-        if (nsec3s == null)
+        if (nsec3s == null) {
             return;
+        }
 
         for (ListIterator<NSEC3Record> i = nsec3s.listIterator(); i.hasNext();) {
             NSEC3Record nsec3 = i.next();
@@ -152,8 +155,9 @@ public class NSEC3ValUtils {
      *         the nsec3s list was empty.
      */
     public static NSEC3Parameters nsec3Parameters(List<NSEC3Record> nsec3s) {
-        if (nsec3s == null || nsec3s.size() == 0)
+        if (nsec3s == null || nsec3s.size() == 0) {
             return null;
+        }
 
         NSEC3Parameters params = new NSEC3Parameters((NSEC3Record) nsec3s.get(0));
         for (NSEC3Record nsec3 : nsec3s) {
@@ -207,8 +211,7 @@ public class NSEC3ValUtils {
      */
     private static Name ceWildcard(Name closestEncloser) {
         try {
-            Name wc = Name.concatenate(asterisk_label, closestEncloser);
-            return wc;
+            return Name.concatenate(asterisk_label, closestEncloser);
         }
         catch (NameTooLongException e) {
             return null;
@@ -244,12 +247,15 @@ public class NSEC3ValUtils {
 
         for (NSEC3Record nsec3 : nsec3s) {
             // Skip nsec3 records that are using different parameters.
-            if (!params.match(nsec3))
+            if (!params.match(nsec3)) {
                 continue;
+            }
 
-            if (n.equals(nsec3.getName()))
+            if (n.equals(nsec3.getName())) {
                 return nsec3;
+            }
         }
+
         return null;
     }
 
@@ -268,13 +274,15 @@ public class NSEC3ValUtils {
 
         // This is the "normal case: owner < next and owner < hash < next
         ByteArrayComparator bac = new ByteArrayComparator();
-        if (bac.compare(owner, hash) < 0 && bac.compare(hash, next) < 0)
+        if (bac.compare(owner, hash) < 0 && bac.compare(hash, next) < 0) {
             return true;
+        }
 
         // this is the end of zone case: next < owner && hash > owner || hash <
         // next
-        if (bac.compare(next, owner) <= 0 && (bac.compare(hash, next) < 0 || bac.compare(owner, hash) < 0))
+        if (bac.compare(next, owner) <= 0 && (bac.compare(hash, next) < 0 || bac.compare(owner, hash) < 0)) {
             return true;
+        }
 
         // Otherwise, the NSEC3 does not cover the hash.
         return false;
@@ -294,11 +302,13 @@ public class NSEC3ValUtils {
      */
     private static NSEC3Record findCoveringNSEC3(byte[] hash, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params) {
         for (NSEC3Record nsec3 : nsec3s) {
-            if (!params.match(nsec3))
+            if (!params.match(nsec3)) {
                 continue;
+            }
 
-            if (nsec3Covers(nsec3, hash))
+            if (nsec3Covers(nsec3, hash)) {
                 return nsec3;
+            }
         }
 
         return null;
@@ -371,8 +381,7 @@ public class NSEC3ValUtils {
 
         // If the closest encloser is actually a delegation, then the response
         // should have been a referral. If it is a DNAME, then it should have
-        // been
-        // a DNAME response.
+        // been a DNAME response.
         if (candidate.ce_nsec3.hasType(Type.NS) && !candidate.ce_nsec3.hasType(Type.SOA)) {
             log.debug("proveClosestEncloser: closest encloser " + "was a delegation!");
             return null;
@@ -385,7 +394,6 @@ public class NSEC3ValUtils {
 
         // Otherwise, we need to show that the next closer name is covered.
         Name nextClosest = nextClosest(qname, candidate.closestEncloser);
-
         byte[] nc_hash = hash(nextClosest, params);
         candidate.nc_nsec3 = findCoveringNSEC3(nc_hash, zonename, nsec3s, params);
         if (candidate.nc_nsec3 == null) {
@@ -399,24 +407,39 @@ public class NSEC3ValUtils {
     private static int maxIterations(int baseAlg, int keysize) {
         switch (baseAlg) {
             case RSA:
-                if (keysize == 0)
+                if (keysize == 0) {
                     return 2500; // the max at 4096
-                if (keysize > 2048)
+                }
+
+                if (keysize > 2048) {
                     return 2500;
-                if (keysize > 1024)
+                }
+
+                if (keysize > 1024) {
                     return 500;
-                if (keysize > 0)
+                }
+
+                if (keysize > 0) {
                     return 150;
+                }
+
                 break;
             case DSA:
-                if (keysize == 0)
+                if (keysize == 0) {
                     return 5000; // the max at 2048;
-                if (keysize > 1024)
+                }
+
+                if (keysize > 1024) {
                     return 5000;
-                if (keysize > 0)
+                }
+
+                if (keysize > 0) {
                     return 1500;
+                }
+
                 break;
         }
+
         return -1;
     }
 
@@ -439,7 +462,6 @@ public class NSEC3ValUtils {
     private static boolean validIterations(NSEC3Parameters nsec3params, RRset dnskey_rrset) {
         // for now, we return the maximum iterations based simply on the key
         // algorithms that may have been used to sign the NSEC3 RRsets.
-
         int max_iterations = 0;
         for (Iterator<?> i = dnskey_rrset.rrs(); i.hasNext();) {
             DNSKEYRecord dnskey = (DNSKEYRecord) i.next();
@@ -448,8 +470,9 @@ public class NSEC3ValUtils {
             max_iterations = max_iterations < iters ? iters : max_iterations;
         }
 
-        if (nsec3params.iterations > max_iterations)
+        if (nsec3params.iterations > max_iterations) {
             return false;
+        }
 
         return true;
     }
@@ -466,8 +489,9 @@ public class NSEC3ValUtils {
      */
     public static boolean allNSEC3sIgnoreable(List<NSEC3Record> nsec3s, RRset dnskey_rrset) {
         NSEC3Parameters params = nsec3Parameters(nsec3s);
-        if (params == null)
+        if (params == null) {
             return false;
+        }
 
         return !validIterations(params, dnskey_rrset);
     }
@@ -488,8 +512,9 @@ public class NSEC3ValUtils {
      *         ignored.
      */
     public static boolean proveNameError(List<NSEC3Record> nsec3s, Name qname, Name zonename) {
-        if (nsec3s == null || nsec3s.size() == 0)
+        if (nsec3s == null || nsec3s.size() == 0) {
             return false;
+        }
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
@@ -547,8 +572,9 @@ public class NSEC3ValUtils {
      * @return true if the NSEC3s prove the proposition.
      */
     public static boolean proveNodata(List<NSEC3Record> nsec3s, Name qname, int qtype, Name zonename) {
-        if (nsec3s == null || nsec3s.size() == 0)
+        if (nsec3s == null || nsec3s.size() == 0) {
             return false;
+        }
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
@@ -563,6 +589,7 @@ public class NSEC3ValUtils {
                 log.debug("proveNodata: Matching NSEC3 proved that type existed!");
                 return false;
             }
+
             if (nsec3.hasType(Type.CNAME)) {
                 log.debug("proveNodata: Matching NSEC3 proved " + "that a CNAME existed!");
                 return false;
@@ -587,12 +614,12 @@ public class NSEC3ValUtils {
         // Case 4:
         Name wc = ceWildcard(ce.closestEncloser);
         nsec3 = findMatchingNSEC3(hash(wc, nsec3params), zonename, nsec3s, nsec3params);
-
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
                 log.debug("proveNodata: matching wildcard had qtype!");
                 return false;
             }
+
             return true;
         }
 
@@ -622,10 +649,9 @@ public class NSEC3ValUtils {
      * @return true if the NSEC3 records prove this case.
      */
     public static boolean proveWildcard(List<NSEC3Record> nsec3s, Name qname, Name zonename, Name wildcard) {
-        if (nsec3s == null || nsec3s.size() == 0)
+        if (nsec3s == null || nsec3s.size() == 0 || qname == null || wildcard == null) {
             return false;
-        if (qname == null || wildcard == null)
-            return false;
+        }
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
@@ -668,8 +694,9 @@ public class NSEC3ValUtils {
      *         work out.
      */
     public static SecurityStatus proveNoDS(List<NSEC3Record> nsec3s, Name qname, Name zonename) {
-        if (nsec3s == null || nsec3s.size() == 0)
+        if (nsec3s == null || nsec3s.size() == 0) {
             return SecurityStatus.BOGUS;
+        }
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
@@ -682,17 +709,17 @@ public class NSEC3ValUtils {
 
         if (nsec3 != null) {
             // If the matching NSEC3 has the SOA bit set, it is from the wrong
-            // zone
-            // (the child instead of the parent). If it has the DS bit set, then
-            // we
-            // were lied to.
+            // zone (the child instead of the parent). If it has the DS bit set,
+            // then we were lied to.
             if (nsec3.hasType(Type.SOA) || nsec3.hasType(Type.DS)) {
                 return SecurityStatus.BOGUS;
             }
+
             // If the NSEC3 RR doesn't have the NS bit set, then this wasn't a
             // delegation point.
-            if (!nsec3.hasType(Type.NS))
+            if (!nsec3.hasType(Type.NS)) {
                 return SecurityStatus.INDETERMINATE;
+            }
 
             // Otherwise, this proves no DS.
             return SecurityStatus.SECURE;

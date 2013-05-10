@@ -60,7 +60,6 @@ import org.xbill.DNS.*;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.utils.base32;
 
-
 public class NSEC3ValUtils {
     public static final int UNKNOWN = 0;
     public static final int RSA = 1;
@@ -92,7 +91,7 @@ public class NSEC3ValUtils {
             iterations = r.getIterations();
         }
 
-        public boolean match(NSEC3Record r, ByteArrayComparator bac) {
+        public boolean match(NSEC3Record r) {
             if (r.getHashAlgorithm() != alg)
                 return false;
 
@@ -104,9 +103,6 @@ public class NSEC3ValUtils {
 
             if (salt == null && r.getSalt() == null)
                 return true;
-
-            if (bac == null)
-                bac = new ByteArrayComparator();
 
             return Arrays.equals(r.getSalt(), salt);
         }
@@ -160,9 +156,8 @@ public class NSEC3ValUtils {
             return null;
 
         NSEC3Parameters params = new NSEC3Parameters((NSEC3Record) nsec3s.get(0));
-        ByteArrayComparator bac = new ByteArrayComparator();
         for (NSEC3Record nsec3 : nsec3s) {
-            if (!params.match(nsec3, bac)) {
+            if (!params.match(nsec3)) {
                 return null;
             }
         }
@@ -241,17 +236,15 @@ public class NSEC3ValUtils {
      * @param zonename The name of the zone that the NSEC3s are from.
      * @param nsec3s A list of NSEC3Records from a given message.
      * @param params The parameters used for calculating the hash.
-     * @param bac An already allocated ByteArrayComparator, for reuse. This may
-     *            be null.
      * 
      * @return The matching NSEC3Record, if one is present.
      */
-    private static NSEC3Record findMatchingNSEC3(byte[] hash, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params, ByteArrayComparator bac) {
+    private static NSEC3Record findMatchingNSEC3(byte[] hash, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params) {
         Name n = hashName(hash, zonename);
 
         for (NSEC3Record nsec3 : nsec3s) {
             // Skip nsec3 records that are using different parameters.
-            if (!params.match(nsec3, bac))
+            if (!params.match(nsec3))
                 continue;
 
             if (n.equals(nsec3.getName()))
@@ -267,14 +260,14 @@ public class NSEC3ValUtils {
      * 
      * @param nsec3 The candidate NSEC3Record.
      * @param hash The precalculated hash.
-     * @param bac An already allocated comparator. This may be null.
      * @return True if the NSEC3Record covers the hash.
      */
-    private static boolean nsec3Covers(NSEC3Record nsec3, byte[] hash, ByteArrayComparator bac) {
+    private static boolean nsec3Covers(NSEC3Record nsec3, byte[] hash) {
         byte[] owner = new base32(base32.Alphabet.BASE32HEX, false, false).fromString(nsec3.getName().getLabelString(0));
         byte[] next = nsec3.getNext();
 
         // This is the "normal case: owner < next and owner < hash < next
+        ByteArrayComparator bac = new ByteArrayComparator();
         if (bac.compare(owner, hash) < 0 && bac.compare(hash, next) < 0)
             return true;
 
@@ -299,14 +292,12 @@ public class NSEC3ValUtils {
      * 
      * @return A covering NSEC3 if one is present, null otherwise.
      */
-    private static NSEC3Record findCoveringNSEC3(byte[] hash, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params, ByteArrayComparator bac) {
-        ByteArrayComparator comparator = new ByteArrayComparator();
-
+    private static NSEC3Record findCoveringNSEC3(byte[] hash, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params) {
         for (NSEC3Record nsec3 : nsec3s) {
-            if (!params.match(nsec3, bac))
+            if (!params.match(nsec3))
                 continue;
 
-            if (nsec3Covers(nsec3, hash, comparator))
+            if (nsec3Covers(nsec3, hash))
                 return nsec3;
         }
 
@@ -327,20 +318,18 @@ public class NSEC3ValUtils {
      * @return A CEResponse containing the closest encloser name and the NSEC3
      *         RR that matched it, or null if there wasn't one.
      */
-    private static CEResponse findClosestEncloser(Name name, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params, ByteArrayComparator bac) {
-        Name n = name;
-
-        NSEC3Record nsec3;
-
+    private static CEResponse findClosestEncloser(Name name, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params) {
         // This scans from longest name to shortest, so the first match we find
         // is the only viable candidate.
         // FIXME: modify so that the NSEC3 matching the zone apex need not be
         // present.
-        while (n.labels() >= zonename.labels()) {
-            nsec3 = findMatchingNSEC3(hash(n, params), zonename, nsec3s, params, bac);
-            if (nsec3 != null)
-                return new CEResponse(n, nsec3);
-            n = new Name(n, 1);
+        while (name.labels() >= zonename.labels()) {
+            NSEC3Record nsec3 = findMatchingNSEC3(hash(name, params), zonename, nsec3s, params);
+            if (nsec3 != null) {
+                return new CEResponse(name, nsec3);
+            }
+
+            name = new Name(name, 1);
         }
 
         return null;
@@ -361,8 +350,8 @@ public class NSEC3ValUtils {
      *         object which contains the closest encloser name and the NSEC3
      *         that matches it.
      */
-    private static CEResponse proveClosestEncloser(Name qname, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params, ByteArrayComparator bac, boolean proveDoesNotExist) {
-        CEResponse candidate = findClosestEncloser(qname, zonename, nsec3s, params, bac);
+    private static CEResponse proveClosestEncloser(Name qname, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params, boolean proveDoesNotExist) {
+        CEResponse candidate = findClosestEncloser(qname, zonename, nsec3s, params);
 
         if (candidate == null) {
             log.debug("proveClosestEncloser: could not find a " + "candidate for the closest encloser.");
@@ -398,7 +387,7 @@ public class NSEC3ValUtils {
         Name nextClosest = nextClosest(qname, candidate.closestEncloser);
 
         byte[] nc_hash = hash(nextClosest, params);
-        candidate.nc_nsec3 = findCoveringNSEC3(nc_hash, zonename, nsec3s, params, bac);
+        candidate.nc_nsec3 = findCoveringNSEC3(nc_hash, zonename, nsec3s, params);
         if (candidate.nc_nsec3 == null) {
             log.debug("Could not find proof that the " + "closest encloser was the closest encloser");
             return null;
@@ -508,11 +497,9 @@ public class NSEC3ValUtils {
             return false;
         }
 
-        ByteArrayComparator bac = new ByteArrayComparator();
-
         // First locate and prove the closest encloser to qname. We will use the
         // variant that fails if the closest encloser turns out to be qname.
-        CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, bac, true);
+        CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, true);
 
         if (ce == null) {
             log.debug("proveNameError: failed to prove a closest encloser.");
@@ -524,7 +511,7 @@ public class NSEC3ValUtils {
         // that the wildcard does not exist.
         Name wc = ceWildcard(ce.closestEncloser);
         byte[] wc_hash = hash(wc, nsec3params);
-        NSEC3Record nsec3 = findCoveringNSEC3(wc_hash, zonename, nsec3s, nsec3params, bac);
+        NSEC3Record nsec3 = findCoveringNSEC3(wc_hash, zonename, nsec3s, nsec3params);
         if (nsec3 == null) {
             log.debug("proveNameError: could not prove that the " + "applicable wildcard did not exist.");
             return false;
@@ -568,9 +555,8 @@ public class NSEC3ValUtils {
             log.debug("could not find a single set of " + "NSEC3 parameters (multiple parameters present)");
             return false;
         }
-        ByteArrayComparator bac = new ByteArrayComparator();
 
-        NSEC3Record nsec3 = findMatchingNSEC3(hash(qname, nsec3params), zonename, nsec3s, nsec3params, bac);
+        NSEC3Record nsec3 = findMatchingNSEC3(hash(qname, nsec3params), zonename, nsec3s, nsec3params);
         // Cases 1 & 2.
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
@@ -587,7 +573,7 @@ public class NSEC3ValUtils {
         // For cases 3 - 5, we need the proven closest encloser, and it can't
         // match qname. Although, at this point, we know that it won't since we
         // just checked that.
-        CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, bac, true);
+        CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, true);
 
         // At this point, not finding a match or a proven closest encloser is a
         // problem.
@@ -600,7 +586,7 @@ public class NSEC3ValUtils {
 
         // Case 4:
         Name wc = ceWildcard(ce.closestEncloser);
-        nsec3 = findMatchingNSEC3(hash(wc, nsec3params), zonename, nsec3s, nsec3params, bac);
+        nsec3 = findMatchingNSEC3(hash(wc, nsec3params), zonename, nsec3s, nsec3params);
 
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
@@ -647,8 +633,6 @@ public class NSEC3ValUtils {
             return false;
         }
 
-        ByteArrayComparator bac = new ByteArrayComparator();
-
         // We know what the (purported) closest encloser is by just looking at
         // the
         // supposed generating wildcard.
@@ -657,7 +641,7 @@ public class NSEC3ValUtils {
         // Now we still need to prove that the original data did not exist.
         // Otherwise, we need to show that the next closer name is covered.
         Name nextClosest = nextClosest(qname, candidate.closestEncloser);
-        candidate.nc_nsec3 = findCoveringNSEC3(hash(nextClosest, nsec3params), zonename, nsec3s, nsec3params, bac);
+        candidate.nc_nsec3 = findCoveringNSEC3(hash(nextClosest, nsec3params), zonename, nsec3s, nsec3params);
 
         if (candidate.nc_nsec3 == null) {
             log.debug("proveWildcard: did not find a covering NSEC3 that covered the next closer name to " + qname + " from " + candidate.closestEncloser + " (derived from wildcard " + wildcard + ")");
@@ -692,10 +676,9 @@ public class NSEC3ValUtils {
             log.debug("couldn't find a single set of " + "NSEC3 parameters (multiple parameters present).");
             return SecurityStatus.BOGUS;
         }
-        ByteArrayComparator bac = new ByteArrayComparator();
 
         // Look for a matching NSEC3 to qname -- this is the normal NODATA case.
-        NSEC3Record nsec3 = findMatchingNSEC3(hash(qname, nsec3params), zonename, nsec3s, nsec3params, bac);
+        NSEC3Record nsec3 = findMatchingNSEC3(hash(qname, nsec3params), zonename, nsec3s, nsec3params);
 
         if (nsec3 != null) {
             // If the matching NSEC3 has the SOA bit set, it is from the wrong
@@ -716,7 +699,7 @@ public class NSEC3ValUtils {
         }
 
         // Otherwise, we are probably in the opt-in case.
-        CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, bac, true);
+        CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, true);
         if (ce == null) {
             return SecurityStatus.BOGUS;
         }

@@ -1380,7 +1380,6 @@ public class ValidatingResolver implements Resolver {
         // and the NSEC(3)(s) hopefully prove that.
         if (m.getRcode() == Rcode.NXDOMAIN) {
             SRRset rrset = rrsets[state.cnameIndex - 1];
-            Name rname = rrset.getName();
             int rtype = rrset.getType();
 
             // Set the SNAME if we are dealing with a CNAME
@@ -1390,7 +1389,7 @@ public class ValidatingResolver implements Resolver {
             }
 
             // Generate the sub-query for the final query.
-            Message localRequest = generateLocalRequest(rname, rtype, qclass);
+            Message localRequest = generateLocalRequest(state.cnameSname, rtype, qclass);
             DNSEvent localEvent = generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, ValEventState.CNAME_ANS_RESP_STATE);
 
             // ...and send it along.

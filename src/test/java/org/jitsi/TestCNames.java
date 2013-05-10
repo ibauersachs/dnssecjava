@@ -94,6 +94,20 @@ public class TestCNames extends TestBase {
     }
 
     @Test
+    public void testCNameToUnsignedVoid() throws IOException {
+        Message response = resolver.send(createMessage("cvoid4.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
+
+    @Test
+    public void testCNameToExternalUnsignedVoid() throws IOException {
+        Message response = resolver.send(createMessage("cvoid.dnssectest.jitsi.net./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
+
+    @Test
     public void testCNameToVoidExternalInvalidTld() throws IOException {
         Message response = resolver.send(createMessage("cvoidext1.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));

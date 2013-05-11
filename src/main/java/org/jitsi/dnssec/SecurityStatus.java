@@ -90,6 +90,10 @@ public enum SecurityStatus {
 
     private int status;
 
+    private SecurityStatus(int status) {
+        setStatus(status);
+    }
+
     public static String string(SecurityStatus status) {
         switch (status) {
             case BOGUS:
@@ -105,10 +109,6 @@ public enum SecurityStatus {
             default:
                 return "UNKNOWN";
         }
-    }
-
-    private SecurityStatus(int status) {
-        setStatus(status);
     }
 
     public int getStatus() {

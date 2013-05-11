@@ -71,27 +71,28 @@ public class KeyCache {
         public Date expiration;
         public KeyEntry keyEntry;
 
-        public CacheEntry(SRRset r, long max_ttl) {
+        public CacheEntry(SRRset r, long maxTtl) {
             long ttl = r.getTTL();
-            if (ttl > max_ttl)
-                ttl = max_ttl;
-
-            expiration = new Date(System.currentTimeMillis() + (ttl * 1000));
-            keyEntry = KeyEntry.newKeyEntry(r);
-        }
-
-        public CacheEntry(Name n, int dclass, long ttl, long max_ttl) {
-            if (ttl > max_ttl) {
-                ttl = max_ttl;
+            if (ttl > maxTtl) {
+                ttl = maxTtl;
             }
 
-            expiration = new Date(System.currentTimeMillis() + (ttl * 1000));
-            keyEntry = KeyEntry.newNullKeyEntry(n, dclass, ttl);
+            this.expiration = new Date(System.currentTimeMillis() + (ttl * 1000));
+            this.keyEntry = KeyEntry.newKeyEntry(r);
+        }
+
+        public CacheEntry(Name n, int dclass, long ttl, long maxTtl) {
+            if (ttl > maxTtl) {
+                ttl = maxTtl;
+            }
+
+            this.expiration = new Date(System.currentTimeMillis() + (ttl * 1000));
+            this.keyEntry = KeyEntry.newNullKeyEntry(n, dclass, ttl);
         }
     }
 
     /** This is the main caching data structure. */
-    private Map<String, CacheEntry> mCache;
+    private Map<String, CacheEntry> cache;
 
     /** This is the maximum TTL [s] that all key cache entries will have. */
     private long maxTtl = 900;
@@ -100,10 +101,10 @@ public class KeyCache {
     private int maxCacheSize = 1000;
 
     public KeyCache() {
-        mCache = Collections.synchronizedMap(new LinkedHashMap<String, CacheEntry>() {
+        this.cache = Collections.synchronizedMap(new LinkedHashMap<String, CacheEntry>() {
             @Override
             protected boolean removeEldestEntry(java.util.Map.Entry<String, CacheEntry> eldest) {
-                return size() > maxCacheSize;
+                return size() > KeyCache.this.maxCacheSize;
             }
         });
     }
@@ -112,26 +113,27 @@ public class KeyCache {
      * Initialize the cache. This implementation recognizes the following
      * configuration parameters:
      * <dl>
-     * <dt>org.jitsi.dnssec.keycache.max_ttl</dt>
-     * <dd>The maximum TTL to apply to any cache entry.</dd>
-     * <dt>org.jitsi.dnssec.keycache.max_size</dt>
-     * <dd>The maximum number of entries that the cache will hold.</dd>
+     * <dt>org.jitsi.dnssec.keycache.max_ttl
+     * <dd>The maximum TTL to apply to any cache entry.
+     * <dt>org.jitsi.dnssec.keycache.max_size
+     * <dd>The maximum number of entries that the cache will hold.
      * </dl>
      * 
      * @param config The configuration information.
      */
     public void init(Properties config) {
-        if (config == null)
+        if (config == null) {
             return;
+        }
 
         String s = config.getProperty("org.jitsi.dnssec.keycache.max_ttl");
         if (s != null) {
-            maxTtl = Long.parseLong(s);
+            this.maxTtl = Long.parseLong(s);
         }
 
         s = config.getProperty("org.jitsi.dnssec.keycache.max_size");
         if (s != null) {
-            maxCacheSize = Integer.parseInt(s);
+            this.maxCacheSize = Integer.parseInt(s);
         }
     }
 
@@ -161,20 +163,25 @@ public class KeyCache {
      * Store a DNSKEY rrset in the cache. The rrset will be ignored if it isn't
      * a DNSKEY rrset or if it doesn't have the SECURE security status.
      * 
-     * @param key_rrset The SRRset to store.
+     * @param keyRrset The SRRset to store.
      */
-    public void store(SRRset key_rrset) {
-        if (key_rrset == null)
+    public void store(SRRset keyRrset) {
+        if (keyRrset == null) {
             return;
-        if (key_rrset.getType() != Type.DNSKEY)
-            return;
-        if (key_rrset.getSecurityStatus() != SecurityStatus.SECURE)
-            return;
+        }
 
-        String k = key(key_rrset.getName(), key_rrset.getDClass());
-        CacheEntry ce = new CacheEntry(key_rrset, maxTtl);
+        if (keyRrset.getType() != Type.DNSKEY) {
+            return;
+        }
 
-        mCache.put(k, ce);
+        if (keyRrset.getSecurityStatus() != SecurityStatus.SECURE) {
+            return;
+        }
+
+        String k = key(keyRrset.getName(), keyRrset.getDClass());
+        CacheEntry ce = new CacheEntry(keyRrset, this.maxTtl);
+
+        this.cache.put(k, ce);
     }
 
     public void store(Name n, int dclass, long ttl) {
@@ -188,7 +195,7 @@ public class KeyCache {
 
         String k = key(n, dclass);
         CacheEntry ce = new CacheEntry(n, dclass, ttl, maxTtl);
-        mCache.put(k, ce);
+        this.cache.put(k, ce);
     }
 
     private String key(Name n, int dclass) {
@@ -196,13 +203,13 @@ public class KeyCache {
     }
 
     private KeyEntry lookupEntry(String key) {
-        CacheEntry centry = (CacheEntry) mCache.get(key);
+        CacheEntry centry = (CacheEntry)this.cache.get(key);
         if (centry == null) {
             return null;
         }
 
         if (centry.expiration.before(new Date())) {
-            mCache.remove(key);
+            this.cache.remove(key);
             return null;
         }
 

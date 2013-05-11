@@ -51,9 +51,21 @@
 
 package org.jitsi.dnssec;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
-import org.xbill.DNS.*;
+import org.xbill.DNS.CNAMERecord;
+import org.xbill.DNS.Flags;
+import org.xbill.DNS.Header;
+import org.xbill.DNS.Message;
+import org.xbill.DNS.Name;
+import org.xbill.DNS.OPTRecord;
+import org.xbill.DNS.RRset;
+import org.xbill.DNS.Record;
+import org.xbill.DNS.Section;
+import org.xbill.DNS.Type;
 
 /**
  * This class represents a DNS message with resolver/validator state.
@@ -62,19 +74,19 @@ import org.xbill.DNS.*;
  * @version $Revision: 321 $
  */
 public class SMessage {
+    private static final SRRset[] EMPTY_SRRSET_ARRAY = new SRRset[0];
+
     private Header header;
     private Record question;
     private OPTRecord oPTRecord;
     private List<SRRset>[] sections;
     private SecurityStatus securityStatus;
 
-    private static SRRset[] empty_srrset_array = new SRRset[0];
-
     @SuppressWarnings("unchecked")
     public SMessage(Header h) {
-        sections = new List[3];
-        header = h;
-        securityStatus = SecurityStatus.UNCHECKED;
+        this.sections = new List[3];
+        this.header = h;
+        this.securityStatus = SecurityStatus.UNCHECKED;
     }
 
     public SMessage(int id) {
@@ -87,8 +99,8 @@ public class SMessage {
 
     public SMessage(Message m) {
         this(m.getHeader());
-        question = m.getQuestion();
-        oPTRecord = m.getOPT();
+        this.question = m.getQuestion();
+        this.oPTRecord = m.getOPT();
 
         for (int i = Section.ANSWER; i <= Section.ADDITIONAL; i++) {
             RRset[] rrsets = m.getSectionRRsets(i);
@@ -100,100 +112,104 @@ public class SMessage {
     }
 
     public Header getHeader() {
-        return header;
+        return this.header;
     }
 
     public void setQuestion(Record r) {
-        question = r;
+        this.question = r;
     }
 
     public Record getQuestion() {
-        return question;
+        return this.question;
     }
 
     public void setOPT(OPTRecord r) {
-        oPTRecord = r;
+        this.oPTRecord = r;
     }
 
     public OPTRecord getOPT() {
-        return oPTRecord;
+        return this.oPTRecord;
     }
 
     public List<SRRset> getSectionList(int section) {
-        if (section <= Section.QUESTION || section > Section.ADDITIONAL)
+        if (section <= Section.QUESTION || section > Section.ADDITIONAL) {
             throw new IllegalArgumentException("Invalid section.");
-
-        if (sections[section - 1] == null) {
-            sections[section - 1] = new LinkedList<SRRset>();
         }
 
-        return sections[section - 1];
+        if (this.sections[section - 1] == null) {
+            this.sections[section - 1] = new LinkedList<SRRset>();
+        }
+
+        return this.sections[section - 1];
     }
 
     public void addRRset(SRRset srrset, int section) {
-        if (section <= Section.QUESTION || section > Section.ADDITIONAL)
+        if (section <= Section.QUESTION || section > Section.ADDITIONAL) {
             throw new IllegalArgumentException("Invalid section");
+        }
 
         if (srrset.getType() == Type.OPT) {
-            oPTRecord = (OPTRecord) srrset.first();
+            this.oPTRecord = (OPTRecord)srrset.first();
             return;
         }
 
-        List<SRRset> sectionList = getSectionList(section);
+        List<SRRset> sectionList = this.getSectionList(section);
         sectionList.add(srrset);
     }
 
     public void addRRset(RRset rrset, int section) {
         if (rrset instanceof SRRset) {
-            addRRset((SRRset) rrset, section);
+            this.addRRset((SRRset)rrset, section);
             return;
         }
 
         SRRset srrset = new SRRset(rrset);
-        addRRset(srrset, section);
+        this.addRRset(srrset, section);
     }
 
     public SRRset[] getSectionRRsets(int section) {
-        List<SRRset> slist = getSectionList(section);
+        List<SRRset> slist = this.getSectionList(section);
 
-        return slist.toArray(empty_srrset_array);
+        return slist.toArray(EMPTY_SRRSET_ARRAY);
     }
 
     public SRRset[] getSectionRRsets(int section, int qtype) {
-        List<SRRset> slist = getSectionList(section);
+        List<SRRset> slist = this.getSectionList(section);
 
-        if (slist.size() == 0)
+        if (slist.size() == 0) {
             return new SRRset[0];
-
-        ArrayList<SRRset> result = new ArrayList<SRRset>(slist.size());
-        for (SRRset rrset : slist) {
-            if (rrset.getType() == qtype)
-                result.add(rrset);
         }
 
-        return result.toArray(empty_srrset_array);
+        List<SRRset> result = new ArrayList<SRRset>(slist.size());
+        for (SRRset rrset : slist) {
+            if (rrset.getType() == qtype) {
+                result.add(rrset);
+            }
+        }
+
+        return result.toArray(EMPTY_SRRSET_ARRAY);
     }
 
     public int getRcode() {
-        int rcode = header.getRcode();
-        if (oPTRecord != null) {
-            rcode += (oPTRecord.getExtendedRcode() << 4);
-    }
+        int rcode = this.header.getRcode();
+        if (this.oPTRecord != null) {
+            rcode += this.oPTRecord.getExtendedRcode() << 4;
+        }
 
         return rcode;
     }
 
     public SecurityStatus getStatus() {
-        return securityStatus;
+        return this.securityStatus;
     }
 
     public void setStatus(SecurityStatus status) {
-        securityStatus = status;
+        this.securityStatus = status;
     }
 
     public Message getMessage() {
         // Generate our new message.
-        Message m = new Message(header.getID());
+        Message m = new Message(this.header.getID());
 
         // Convert the header
         // We do this for two reasons:
@@ -202,34 +218,35 @@ public class SMessage {
         // message frequently gets stuff out of sync, leading to malformed wire
         // format messages.
         Header h = m.getHeader();
-        h.setOpcode(header.getOpcode());
-        h.setRcode(header.getRcode());
+        h.setOpcode(this.header.getOpcode());
+        h.setRcode(this.header.getRcode());
         for (int i = 0; i < 16; i++) {
-            if (Flags.isFlag(i) && header.getFlag(i))
+            if (Flags.isFlag(i) && this.header.getFlag(i)) {
                 h.setFlag(i);
+            }
         }
 
         // Add all the records. -- this will set the counts correctly in the
         // message header.
-
-        if (question != null) {
-            m.addRecord(question, Section.QUESTION);
+        if (this.question != null) {
+            m.addRecord(this.question, Section.QUESTION);
         }
 
         for (int sec = Section.ANSWER; sec <= Section.ADDITIONAL; sec++) {
-            List<SRRset> slist = getSectionList(sec);
+            List<SRRset> slist = this.getSectionList(sec);
             for (SRRset rrset : slist) {
                 for (Iterator<?> j = rrset.rrs(); j.hasNext();) {
-                    m.addRecord((Record) j.next(), sec);
+                    m.addRecord((Record)j.next(), sec);
                 }
+
                 for (Iterator<?> j = rrset.sigs(); j.hasNext();) {
-                    m.addRecord((Record) j.next(), sec);
+                    m.addRecord((Record)j.next(), sec);
                 }
             }
         }
 
-        if (oPTRecord != null) {
-            m.addRecord(oPTRecord, Section.ADDITIONAL);
+        if (this.oPTRecord != null) {
+            m.addRecord(this.oPTRecord, Section.ADDITIONAL);
         }
 
         return m;
@@ -237,13 +254,17 @@ public class SMessage {
 
     public int getCount(int section) {
         if (section == Section.QUESTION) {
-            return question == null ? 0 : 1;
+            return this.question == null ? 0 : 1;
         }
-        List<SRRset> sectionList = getSectionList(section);
-        if (sectionList == null)
+
+        List<SRRset> sectionList = this.getSectionList(section);
+        if (sectionList == null) {
             return 0;
-        if (sectionList.size() == 0)
+        }
+
+        if (sectionList.size() == 0) {
             return 0;
+        }
 
         int count = 0;
         for (SRRset sr : sectionList) {
@@ -253,7 +274,7 @@ public class SMessage {
     }
 
     public String toString() {
-        return getMessage().toString();
+        return this.getMessage().toString();
     }
 
     /**
@@ -267,10 +288,11 @@ public class SMessage {
      * @return The SRRset if found, null otherwise.
      */
     public SRRset findRRset(Name name, int type, int dclass, int section) {
-        if (section <= Section.QUESTION || section > Section.ADDITIONAL)
+        if (section <= Section.QUESTION || section > Section.ADDITIONAL) {
             throw new IllegalArgumentException("Invalid section.");
+        }
 
-        SRRset[] rrsets = getSectionRRsets(section);
+        SRRset[] rrsets = this.getSectionRRsets(section);
 
         for (int i = 0; i < rrsets.length; i++) {
             if (rrsets[i].getName().equals(name) && rrsets[i].getType() == type && rrsets[i].getDClass() == dclass) {
@@ -293,11 +315,11 @@ public class SMessage {
      *         name from qname, due to following a CNAME chain.
      */
     public SRRset findAnswerRRset(Name qname, int qtype, int qclass) {
-        SRRset[] srrsets = getSectionRRsets(Section.ANSWER);
+        SRRset[] srrsets = this.getSectionRRsets(Section.ANSWER);
 
         for (int i = 0; i < srrsets.length; i++) {
             if (srrsets[i].getName().equals(qname) && srrsets[i].getType() == Type.CNAME) {
-                CNAMERecord cname = (CNAMERecord) srrsets[i].first();
+                CNAMERecord cname = (CNAMERecord)srrsets[i].first();
                 qname = cname.getTarget();
                 continue;
             }

@@ -62,6 +62,9 @@ import org.xbill.DNS.Message;
  * @version $Revision: 361 $
  */
 public class Util {
+    private Util() {
+    }
+
     public static SMessage errorMessage(Message request, int rcode) {
         SMessage m = new SMessage(request.getHeader().getID());
         Header h = m.getHeader();

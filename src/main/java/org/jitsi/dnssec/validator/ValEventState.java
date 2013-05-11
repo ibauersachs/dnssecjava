@@ -54,7 +54,6 @@ package org.jitsi.dnssec.validator;
 import org.jitsi.dnssec.SRRset;
 import org.xbill.DNS.Name;
 
-
 /**
  * This is the per-event state object for the ValidatingResolver module.
  * 
@@ -88,7 +87,7 @@ public class ValEventState {
 
     public ValEventState() {
         // defaults.
-        state = INIT_STATE;
-        finalState = FINISHED_STATE;
+        this.state = INIT_STATE;
+        this.finalState = FINISHED_STATE;
     }
 }

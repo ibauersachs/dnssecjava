@@ -52,12 +52,21 @@
 package org.jitsi.dnssec.validator;
 
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
 
 import org.apache.log4j.Logger;
 import org.jitsi.dnssec.SecurityStatus;
-import org.xbill.DNS.*;
+import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC.Algorithm;
+import org.xbill.DNS.NSEC3Record;
+import org.xbill.DNS.Name;
+import org.xbill.DNS.NameTooLongException;
+import org.xbill.DNS.RRset;
+import org.xbill.DNS.TextParseException;
+import org.xbill.DNS.Type;
 import org.xbill.DNS.utils.base32;
 
 public class NSEC3ValUtils {
@@ -72,39 +81,42 @@ public class NSEC3ValUtils {
     // instead of having to skip NSEC3 RRs with the wrong parameters.
 
     // The logger to use in static methods.
-    private static Logger log = Logger.getLogger(NSEC3ValUtils.class);
+    private static final Logger logger = Logger.getLogger(NSEC3ValUtils.class);
 
-    private static Name asterisk_label = Name.fromConstantString("*");
+    private static final Name ASTERISK_LABEL = Name.fromConstantString("*");
+
+    private NSEC3ValUtils() {
+    }
 
     /**
      * This is a class to encapsulate a unique set of NSEC3 parameters:
      * algorithm, iterations, and salt.
      */
     private static class NSEC3Parameters {
-        public int alg;
-        public byte[] salt;
-        public int iterations;
+        private int alg;
+        private byte[] salt;
+        private int iterations;
 
         public NSEC3Parameters(NSEC3Record r) {
-            alg = r.getHashAlgorithm();
-            salt = r.getSalt();
-            iterations = r.getIterations();
+            this.alg = r.getHashAlgorithm();
+            this.salt = r.getSalt();
+            this.iterations = r.getIterations();
         }
 
         public boolean match(NSEC3Record r) {
-            if (r.getHashAlgorithm() != alg) {
+            if (r.getHashAlgorithm() != this.alg) {
                 return false;
             }
 
-            if (r.getIterations() != iterations) {
+            if (r.getIterations() != this.iterations) {
                 return false;
             }
 
-            if (salt == null && r.getSalt() != null) {
+            if (this.salt == null && r.getSalt() != null) {
                 return false;
             }
 
-            return Arrays.equals(r.getSalt(), salt);
+            return Arrays.equals(r.getSalt(), this.salt);
         }
     }
 
@@ -112,14 +124,14 @@ public class NSEC3ValUtils {
      * This is just a simple class to encapsulate the response to a closest
      * encloser proof.
      */
-    private static class CEResponse {
-        public Name closestEncloser;
-        public NSEC3Record ce_nsec3;
-        public NSEC3Record nc_nsec3;
+    private static final class CEResponse {
+        private Name closestEncloser;
+        private NSEC3Record ceNsec3;
+        private NSEC3Record ncNsec3;
 
-        public CEResponse(Name ce, NSEC3Record nsec3) {
+        private CEResponse(Name ce, NSEC3Record nsec3) {
             this.closestEncloser = ce;
-            this.ce_nsec3 = nsec3;
+            this.ceNsec3 = nsec3;
         }
     }
 
@@ -159,7 +171,7 @@ public class NSEC3ValUtils {
             return null;
         }
 
-        NSEC3Parameters params = new NSEC3Parameters((NSEC3Record) nsec3s.get(0));
+        NSEC3Parameters params = new NSEC3Parameters((NSEC3Record)nsec3s.get(0));
         for (NSEC3Record nsec3 : nsec3s) {
             if (!params.match(nsec3)) {
                 return null;
@@ -198,7 +210,7 @@ public class NSEC3ValUtils {
             return NSEC3Record.hashName(name, params.alg, params.iterations, params.salt);
         }
         catch (NoSuchAlgorithmException e) {
-            log.debug("Did not recognize hash algorithm: " + params.alg);
+            logger.debug("Did not recognize hash algorithm: " + params.alg);
             return null;
         }
     }
@@ -211,7 +223,7 @@ public class NSEC3ValUtils {
      */
     private static Name ceWildcard(Name closestEncloser) {
         try {
-            return Name.concatenate(asterisk_label, closestEncloser);
+            return Name.concatenate(ASTERISK_LABEL, closestEncloser);
         }
         catch (NameTooLongException e) {
             return null;
@@ -322,8 +334,7 @@ public class NSEC3ValUtils {
      * @param name The name the start with.
      * @param zonename The name of the zone that the NSEC3s came from.
      * @param nsec3s The list of NSEC3s.
-     * @param nsec3params The NSEC3 parameters.
-     * @param bac A pre-allocated comparator. May be null.
+     * @param params The NSEC3 parameters.
      * 
      * @return A CEResponse containing the closest encloser name and the NSEC3
      *         RR that matched it, or null if there wasn't one.
@@ -353,7 +364,6 @@ public class NSEC3ValUtils {
      * @param nsec3s The list of NSEC3s found the this response (already
      *            verified).
      * @param params The NSEC3 parameters found in the response.
-     * @param bac A pre-allocated comparator. May be null.
      * @param proveDoesNotExist If true, then if the closest encloser turns out
      *            to be qname, then null is returned.
      * @return null if the proof isn't completed. Otherwise, return a CEResponse
@@ -364,13 +374,13 @@ public class NSEC3ValUtils {
         CEResponse candidate = findClosestEncloser(qname, zonename, nsec3s, params);
 
         if (candidate == null) {
-            log.debug("proveClosestEncloser: could not find a " + "candidate for the closest encloser.");
+            logger.debug("proveClosestEncloser: could not find a " + "candidate for the closest encloser.");
             return null;
         }
 
         if (candidate.closestEncloser.equals(qname)) {
             if (proveDoesNotExist) {
-                log.debug("proveClosestEncloser: proved that qname existed!");
+                logger.debug("proveClosestEncloser: proved that qname existed!");
                 return null;
             }
 
@@ -382,22 +392,22 @@ public class NSEC3ValUtils {
         // If the closest encloser is actually a delegation, then the response
         // should have been a referral. If it is a DNAME, then it should have
         // been a DNAME response.
-        if (candidate.ce_nsec3.hasType(Type.NS) && !candidate.ce_nsec3.hasType(Type.SOA)) {
-            log.debug("proveClosestEncloser: closest encloser " + "was a delegation!");
+        if (candidate.ceNsec3.hasType(Type.NS) && !candidate.ceNsec3.hasType(Type.SOA)) {
+            logger.debug("proveClosestEncloser: closest encloser " + "was a delegation!");
             return null;
         }
 
-        if (candidate.ce_nsec3.hasType(Type.DNAME)) {
-            log.debug("proveClosestEncloser: closest encloser was a DNAME!");
+        if (candidate.ceNsec3.hasType(Type.DNAME)) {
+            logger.debug("proveClosestEncloser: closest encloser was a DNAME!");
             return null;
         }
 
         // Otherwise, we need to show that the next closer name is covered.
         Name nextClosest = nextClosest(qname, candidate.closestEncloser);
-        byte[] nc_hash = hash(nextClosest, params);
-        candidate.nc_nsec3 = findCoveringNSEC3(nc_hash, zonename, nsec3s, params);
-        if (candidate.nc_nsec3 == null) {
-            log.debug("Could not find proof that the " + "closest encloser was the closest encloser");
+        byte[] ncHash = hash(nextClosest, params);
+        candidate.ncNsec3 = findCoveringNSEC3(ncHash, zonename, nsec3s, params);
+        if (candidate.ncNsec3 == null) {
+            logger.debug("Could not find proof that the " + "closest encloser was the closest encloser");
             return null;
         }
 
@@ -438,6 +448,8 @@ public class NSEC3ValUtils {
                 }
 
                 break;
+            default:
+                break;
         }
 
         return -1;
@@ -454,27 +466,25 @@ public class NSEC3ValUtils {
             case Algorithm.DSA:
             case Algorithm.DSA_NSEC3_SHA1:
                 return DSA;
+            default:
+                break;
         }
 
         return UNKNOWN;
     }
 
-    private static boolean validIterations(NSEC3Parameters nsec3params, RRset dnskey_rrset) {
+    private static boolean validIterations(NSEC3Parameters nsec3params, RRset dnskeyRrset) {
         // for now, we return the maximum iterations based simply on the key
         // algorithms that may have been used to sign the NSEC3 RRsets.
-        int max_iterations = 0;
-        for (Iterator<?> i = dnskey_rrset.rrs(); i.hasNext();) {
-            DNSKEYRecord dnskey = (DNSKEYRecord) i.next();
+        int maxIterations = 0;
+        for (Iterator<?> i = dnskeyRrset.rrs(); i.hasNext();) {
+            DNSKEYRecord dnskey = (DNSKEYRecord)i.next();
             int baseAlg = baseAlgorithm(dnskey.getAlgorithm());
             int iters = maxIterations(baseAlg, 0);
-            max_iterations = max_iterations < iters ? iters : max_iterations;
+            maxIterations = maxIterations < iters ? iters : maxIterations;
         }
 
-        if (nsec3params.iterations > max_iterations) {
-            return false;
-        }
-
-        return true;
+        return nsec3params.iterations < maxIterations;
     }
 
     /**
@@ -484,16 +494,16 @@ public class NSEC3ValUtils {
      * 
      * @param nsec3s The list of NSEC3s. If there is more than one set of NSEC3
      *            parameters present, this test will not be performed.
-     * @param dnskey_rrset The set of validating DNSKEYs.
+     * @param dnskeyRrset The set of validating DNSKEYs.
      * @return true if all of the NSEC3s can be legally ignored, false if not.
      */
-    public static boolean allNSEC3sIgnoreable(List<NSEC3Record> nsec3s, RRset dnskey_rrset) {
+    public static boolean allNSEC3sIgnoreable(List<NSEC3Record> nsec3s, RRset dnskeyRrset) {
         NSEC3Parameters params = nsec3Parameters(nsec3s);
         if (params == null) {
             return false;
         }
 
-        return !validIterations(params, dnskey_rrset);
+        return !validIterations(params, dnskeyRrset);
     }
 
     /**
@@ -518,7 +528,7 @@ public class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            log.debug("Could not find a single set of " + "NSEC3 parameters (multiple parameters present).");
+            logger.debug("Could not find a single set of " + "NSEC3 parameters (multiple parameters present).");
             return false;
         }
 
@@ -527,7 +537,7 @@ public class NSEC3ValUtils {
         CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, true);
 
         if (ce == null) {
-            log.debug("proveNameError: failed to prove a closest encloser.");
+            logger.debug("proveNameError: failed to prove a closest encloser.");
             return false;
         }
 
@@ -535,10 +545,10 @@ public class NSEC3ValUtils {
         // prove
         // that the wildcard does not exist.
         Name wc = ceWildcard(ce.closestEncloser);
-        byte[] wc_hash = hash(wc, nsec3params);
-        NSEC3Record nsec3 = findCoveringNSEC3(wc_hash, zonename, nsec3s, nsec3params);
+        byte[] wcHash = hash(wc, nsec3params);
+        NSEC3Record nsec3 = findCoveringNSEC3(wcHash, zonename, nsec3s, nsec3params);
         if (nsec3 == null) {
-            log.debug("proveNameError: could not prove that the " + "applicable wildcard did not exist.");
+            logger.debug("proveNameError: could not prove that the " + "applicable wildcard did not exist.");
             return false;
         }
 
@@ -578,7 +588,7 @@ public class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            log.debug("could not find a single set of " + "NSEC3 parameters (multiple parameters present)");
+            logger.debug("could not find a single set of " + "NSEC3 parameters (multiple parameters present)");
             return false;
         }
 
@@ -586,12 +596,12 @@ public class NSEC3ValUtils {
         // Cases 1 & 2.
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
-                log.debug("proveNodata: Matching NSEC3 proved that type existed!");
+                logger.debug("proveNodata: Matching NSEC3 proved that type existed!");
                 return false;
             }
 
             if (nsec3.hasType(Type.CNAME)) {
-                log.debug("proveNodata: Matching NSEC3 proved " + "that a CNAME existed!");
+                logger.debug("proveNodata: Matching NSEC3 proved " + "that a CNAME existed!");
                 return false;
             }
             return true;
@@ -605,7 +615,7 @@ public class NSEC3ValUtils {
         // At this point, not finding a match or a proven closest encloser is a
         // problem.
         if (ce == null) {
-            log.debug("proveNodata: did not match qname, " + "nor found a proven closest encloser.");
+            logger.debug("proveNodata: did not match qname, " + "nor found a proven closest encloser.");
             return false;
         }
 
@@ -616,7 +626,7 @@ public class NSEC3ValUtils {
         nsec3 = findMatchingNSEC3(hash(wc, nsec3params), zonename, nsec3s, nsec3params);
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
-                log.debug("proveNodata: matching wildcard had qtype!");
+                logger.debug("proveNodata: matching wildcard had qtype!");
                 return false;
             }
 
@@ -625,13 +635,13 @@ public class NSEC3ValUtils {
 
         // Case 5.
         if (qtype != Type.DS) {
-            log.debug("proveNodata: could not find matching NSEC3, " + "nor matching wildcard, and qtype is not DS -- no more options.");
+            logger.debug("proveNodata: could not find matching NSEC3, " + "nor matching wildcard, and qtype is not DS -- no more options.");
             return false;
         }
 
         // We need to make sure that the covering NSEC3 is opt-in.
-        if (ce.nc_nsec3.getFlags() == 0) {
-            log.debug("proveNodata: covering NSEC3 was not " + "opt-in in an opt-in DS NOERROR/NODATA case.");
+        if (ce.ncNsec3.getFlags() == 0) {
+            logger.debug("proveNodata: covering NSEC3 was not " + "opt-in in an opt-in DS NOERROR/NODATA case.");
             return false;
         }
 
@@ -655,7 +665,7 @@ public class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            log.debug("couldn't find a single set of NSEC3 parameters (multiple parameters present).");
+            logger.debug("couldn't find a single set of NSEC3 parameters (multiple parameters present).");
             return false;
         }
 
@@ -667,10 +677,11 @@ public class NSEC3ValUtils {
         // Now we still need to prove that the original data did not exist.
         // Otherwise, we need to show that the next closer name is covered.
         Name nextClosest = nextClosest(qname, candidate.closestEncloser);
-        candidate.nc_nsec3 = findCoveringNSEC3(hash(nextClosest, nsec3params), zonename, nsec3s, nsec3params);
+        candidate.ncNsec3 = findCoveringNSEC3(hash(nextClosest, nsec3params), zonename, nsec3s, nsec3params);
 
-        if (candidate.nc_nsec3 == null) {
-            log.debug("proveWildcard: did not find a covering NSEC3 that covered the next closer name to " + qname + " from " + candidate.closestEncloser + " (derived from wildcard " + wildcard + ")");
+        if (candidate.ncNsec3 == null) {
+            logger.debug("proveWildcard: did not find a covering NSEC3 that covered the next closer name to " + qname + " from " + candidate.closestEncloser
+                    + " (derived from wildcard " + wildcard + ")");
             return false;
         }
 
@@ -700,7 +711,7 @@ public class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            log.debug("couldn't find a single set of " + "NSEC3 parameters (multiple parameters present).");
+            logger.debug("couldn't find a single set of " + "NSEC3 parameters (multiple parameters present).");
             return SecurityStatus.BOGUS;
         }
 
@@ -734,7 +745,7 @@ public class NSEC3ValUtils {
         // If we had the closest encloser proof, then we need to check that the
         // covering NSEC3 was opt-in -- the proveClosestEncloser step already
         // checked to see if the closest encloser was a delegation or DNAME.
-        if (ce.nc_nsec3.getFlags() == 1) {
+        if (ce.ncNsec3.getFlags() == 1) {
             return SecurityStatus.SECURE;
         }
 

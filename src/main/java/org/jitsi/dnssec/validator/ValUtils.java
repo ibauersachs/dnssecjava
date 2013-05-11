@@ -57,7 +57,18 @@ import org.apache.log4j.Logger;
 import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
-import org.xbill.DNS.*;
+import org.xbill.DNS.DClass;
+import org.xbill.DNS.DNSKEYRecord;
+import org.xbill.DNS.DSRecord;
+import org.xbill.DNS.Message;
+import org.xbill.DNS.NSECRecord;
+import org.xbill.DNS.Name;
+import org.xbill.DNS.RRSIGRecord;
+import org.xbill.DNS.RRset;
+import org.xbill.DNS.Rcode;
+import org.xbill.DNS.Section;
+import org.xbill.DNS.TextParseException;
+import org.xbill.DNS.Type;
 
 /**
  * This is a collection of routines encompassing the logic of validating
@@ -135,10 +146,13 @@ public class ValUtils {
         // Note that DNAMEs will be ignored here, unless qtype=DNAME. Unless
         // qtype=CNAME, this will yield a CNAME response.
         for (int i = 0; i < rrsets.length; i++) {
-            if (rrsets[i].getType() == qtype)
+            if (rrsets[i].getType() == qtype) {
                 return POSITIVE;
-            if (rrsets[i].getType() == Type.CNAME)
+            }
+
+            if (rrsets[i].getType() == Type.CNAME) {
                 return CNAME;
+            }
         }
 
         log.warn("Failed to classify response message:\n" + m);
@@ -193,10 +207,9 @@ public class ValUtils {
      * Given a DS rrset and a DNSKEY rrset, match the DS to a DNSKEY and verify
      * the DNSKEY rrset with that key.
      * 
-     * @param dnskey_rrset The DNSKEY rrset to match against. The security
-     *            status of this rrset will be updated on a successful
-     *            verification.
-     * @param ds_rrset The DS rrset to match with. This rrset must already be
+     * @param dnskeyRrset The DNSKEY rrset to match against. The security status
+     *            of this rrset will be updated on a successful verification.
+     * @param dsRrset The DS rrset to match with. This rrset must already be
      *            trusted.
      * 
      * @return a KeyEntry. This will either contain the now trusted
@@ -208,25 +221,25 @@ public class ValUtils {
      *         this sort of thing is checked before fetching the matching DNSKEY
      *         rrset.
      */
-    public KeyEntry verifyNewDNSKEYs(SRRset dnskey_rrset, SRRset ds_rrset) {
-        if (!dnskey_rrset.getName().equals(ds_rrset.getName())) {
+    public KeyEntry verifyNewDNSKEYs(SRRset dnskeyRrset, SRRset dsRrset) {
+        if (!dnskeyRrset.getName().equals(dsRrset.getName())) {
             log.debug("DNSKEY RRset did not match DS RRset by name!");
-            return KeyEntry.newBadKeyEntry(ds_rrset.getName(), ds_rrset.getDClass());
+            return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass());
         }
 
         // as long as this is false, we can consider this DS rrset to be
         // equivalent to no DS rrset.
         boolean hasUsefulDS = false;
 
-        for (Iterator<?> i = ds_rrset.rrs(); i.hasNext();) {
-            DSRecord ds = (DSRecord) i.next();
+        for (Iterator<?> i = dsRrset.rrs(); i.hasNext();) {
+            DSRecord ds = (DSRecord)i.next();
 
             // Once we see a single DS with a known digestID and algorithm, we
             // cannot return INSECURE (with a "null" KeyEntry).
             hasUsefulDS = true;
 
-            DNSKEY: for (Iterator<?> j = dnskey_rrset.rrs(); j.hasNext();) {
-                DNSKEYRecord dnskey = (DNSKEYRecord) j.next();
+            DNSKEY: for (Iterator<?> j = dnskeyRrset.rrs(); j.hasNext();) {
+                DNSKEYRecord dnskey = (DNSKEYRecord)j.next();
 
                 // Skip DNSKEYs that don't match the basic criteria.
                 if (ds.getFootprint() != dnskey.getFootprint() || ds.getAlgorithm() != dnskey.getAlgorithm()) {
@@ -236,26 +249,27 @@ public class ValUtils {
                 // Convert the candidate DNSKEY into a hash using the same DS
                 // hash algorithm.
                 DSRecord keyDigest = new DSRecord(Name.root, DClass.IN, 0, ds.getDigestID(), dnskey);
-                byte[] key_hash = keyDigest.getDigest();
-                byte[] ds_hash = ds.getDigest();
+                byte[] keyHash = keyDigest.getDigest();
+                byte[] dsHash = ds.getDigest();
 
                 // see if there is a length mismatch (unlikely)
-                if (key_hash.length != ds_hash.length) {
+                if (keyHash.length != dsHash.length) {
                     continue DNSKEY;
                 }
 
-                for (int k = 0; k < key_hash.length; k++) {
-                    if (key_hash[k] != ds_hash[k])
+                for (int k = 0; k < keyHash.length; k++) {
+                    if (keyHash[k] != dsHash[k]) {
                         continue DNSKEY;
+                    }
                 }
 
                 // Otherwise, we have a match! Make sure that the DNSKEY
                 // verifies *with this key*.
-                SecurityStatus res = mVerifier.verify(dnskey_rrset, dnskey);
+                SecurityStatus res = mVerifier.verify(dnskeyRrset, dnskey);
                 if (res == SecurityStatus.SECURE) {
                     log.trace("DS matched DNSKEY.");
-                    dnskey_rrset.setSecurityStatus(SecurityStatus.SECURE);
-                    return KeyEntry.newKeyEntry(dnskey_rrset);
+                    dnskeyRrset.setSecurityStatus(SecurityStatus.SECURE);
+                    return KeyEntry.newKeyEntry(dnskeyRrset);
                 }
 
                 // If it didn't validate with the DNSKEY, try the next one!
@@ -266,12 +280,12 @@ public class ValUtils {
         // If no DSs were understandable, then this is OK.
         if (!hasUsefulDS) {
             log.debug("No usuable DS records were found -- treating as insecure.");
-            return KeyEntry.newNullKeyEntry(ds_rrset.getName(), ds_rrset.getDClass(), ds_rrset.getTTL());
+            return KeyEntry.newNullKeyEntry(dsRrset.getName(), dsRrset.getDClass(), dsRrset.getTTL());
         }
 
         // If any were understandable, then it is bad.
         log.debug("Failed to match any usable DS to a DNSKEY.");
-        return KeyEntry.newBadKeyEntry(ds_rrset.getName(), ds_rrset.getDClass());
+        return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass());
     }
 
     /**
@@ -279,15 +293,16 @@ public class ValUtils {
      * security status.
      * 
      * @param rrset The SRRset to update.
-     * @param security The security status.
+     * @param newStatus The security status to set.
      */
-    public static void setRRsetSecurity(SRRset rrset, SecurityStatus security) {
-        if (rrset == null)
+    public static void setRRsetSecurity(SRRset rrset, SecurityStatus newStatus) {
+        if (rrset == null) {
             return;
+        }
 
-        SecurityStatus cur_sec = rrset.getSecurityStatus();
-        if (cur_sec == SecurityStatus.UNCHECKED || security.getStatus() > cur_sec.getStatus()) {
-            rrset.setSecurityStatus(security);
+        SecurityStatus currentStatus = rrset.getSecurityStatus();
+        if (currentStatus == SecurityStatus.UNCHECKED || newStatus.getStatus() > currentStatus.getStatus()) {
+            rrset.setSecurityStatus(newStatus);
         }
     }
 
@@ -297,24 +312,24 @@ public class ValUtils {
      * status in rrset.
      * 
      * @param rrset The SRRset to verify.
-     * @param key_rrset The set of keys to verify against.
+     * @param keyRrset The set of keys to verify against.
      * @return The status (BOGUS or SECURE).
      */
-    public SecurityStatus verifySRRset(SRRset rrset, SRRset key_rrset) {
-        String rrset_name = rrset.getName() + "/" + Type.string(rrset.getType()) + "/" + DClass.string(rrset.getDClass());
+    public SecurityStatus verifySRRset(SRRset rrset, SRRset keyRrset) {
+        String rrsetName = rrset.getName() + "/" + Type.string(rrset.getType()) + "/" + DClass.string(rrset.getDClass());
 
         if (rrset.getSecurityStatus() == SecurityStatus.SECURE) {
-            log.trace("verifySRRset: rrset <" + rrset_name + "> previously found to be SECURE");
+            log.trace("verifySRRset: rrset <" + rrsetName + "> previously found to be SECURE");
             return SecurityStatus.SECURE;
         }
 
-        SecurityStatus status = mVerifier.verify(rrset, key_rrset);
+        SecurityStatus status = mVerifier.verify(rrset, keyRrset);
         if (status != SecurityStatus.SECURE) {
-            log.debug("verifySRRset: rrset <" + rrset_name + "> found to be BAD");
+            log.debug("verifySRRset: rrset <" + rrsetName + "> found to be BAD");
             status = SecurityStatus.BOGUS;
         }
         else {
-            log.trace("verifySRRset: rrset <" + rrset_name + "> found to be SECURE");
+            log.trace("verifySRRset: rrset <" + rrsetName + "> found to be SECURE");
         }
 
         rrset.setSecurityStatus(status);
@@ -331,16 +346,18 @@ public class ValUtils {
      *         null if not.
      */
     public static Name rrsetWildcard(RRset rrset) {
-        if (rrset == null)
+        if (rrset == null) {
             return null;
-        RRSIGRecord rrsig = (RRSIGRecord) rrset.sigs().next();
+        }
+
+        RRSIGRecord rrsig = (RRSIGRecord)rrset.sigs().next();
 
         // if the RRSIG label count is shorter than the number of actual labels,
         // then this rrset was synthesized from a wildcard.
         // Note that the RRSIG label count doesn't count the root label.
-        int label_diff = (rrset.getName().labels() - 1) - rrsig.getLabels();
-        if (label_diff > 0) {
-            return rrset.getName().wild(label_diff);
+        int labelDiff = (rrset.getName().labels() - 1) - rrsig.getLabels();
+        if (labelDiff > 0) {
+            return rrset.getName().wild(labelDiff);
         }
         return null;
     }
@@ -348,12 +365,15 @@ public class ValUtils {
     /**
      * Finds the longest domain name in common with the given name.
      * 
-     * @param domain2
-     * @return
+     * @param domain1 The first domain to process.
+     * @param domain2 The second domain to process.
+     * @return The longest label in common of domain1 and domain2. The least
+     *         common name is the root.
      */
     public static Name longestCommonName(Name domain1, Name domain2) {
-        if (domain1 == null || domain2 == null)
+        if (domain1 == null || domain2 == null) {
             return null;
+        }
 
         int l = Math.min(domain1.labels(), domain2.labels());
         for (int i = 1; i < l; i++) {
@@ -368,7 +388,11 @@ public class ValUtils {
 
     /**
      * Is the first Name strictly a subdomain of the second name (i.e., below
-     * but not equal to)
+     * but not equal to).
+     * 
+     * @param domain1 The first domain to process.
+     * @param domain2 The second domain to process.
+     * @return True when domain1 is a strict subdomain of domain2.
      */
     public static boolean strictSubdomain(Name domain1, Name domain2) {
         if (domain1.labels() <= domain2.labels()) {
@@ -443,12 +467,12 @@ public class ValUtils {
         Name owner = nsec.getName();
         Name next = nsec.getNext();
 
-        int qname_labels = qname.labels();
-        int signer_labels = signerName.labels();
+        int qnameLabels = qname.labels();
+        int signerLabels = signerName.labels();
 
-        for (int i = qname_labels - signer_labels; i > 0; i--) {
-            Name wc_name = qname.wild(i);
-            if (wc_name.compareTo(owner) > 0 && (wc_name.compareTo(next) < 0 || signerName.equals(next))) {
+        for (int i = qnameLabels - signerLabels; i > 0; i--) {
+            Name wcName = qname.wild(i);
+            if (wcName.compareTo(owner) > 0 && (wcName.compareTo(next) < 0 || signerName.equals(next))) {
                 return true;
             }
         }
@@ -470,8 +494,7 @@ public class ValUtils {
      */
     public static boolean nsecProvesNodata(NSECRecord nsec, Name qname, int qtype) {
         if (!nsec.getName().equals(qname)) {
-            // wildcard checking.
-
+            // Wildcard checking:
             // If this is a wildcard NSEC, make sure that a) it was possible to
             // have generated qname from the wildcard and b) the type map does
             // not contain qtype. Note that this does NOT prove that this
@@ -485,6 +508,7 @@ public class ValUtils {
                 if (!strictSubdomain(qname, ce) || nsec.hasType(qtype)) {
                     return false;
                 }
+
                 return true;
             }
 

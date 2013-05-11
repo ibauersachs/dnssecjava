@@ -115,7 +115,10 @@ public class ValidatingResolver implements Resolver {
     // ---------------- Module Initialization -------------------
 
     /**
-     * Initialize the module.
+     * Initialize the module. The only recognized configuration value is
+     * <tt>org.jitsi.dnssec.trust_anchor_file</tt>.
+     * 
+     * @param config The configuration data for this module.
      */
     public void init(Properties config) throws Exception {
         keyCache.init(config);
@@ -137,8 +140,8 @@ public class ValidatingResolver implements Resolver {
      * Load the trust anchor file into the trust anchor store. The trust anchors
      * are currently stored in a zone file format list of DNSKEY or DS records.
      * 
-     * @param filename The trust anchor file.
-     * @throws IOException
+     * @param data The trust anchor data.
+     * @throws IOException when the trust anchor data could not be read.
      */
     @SuppressWarnings("unchecked")
     public void loadTrustAnchors(InputStream data) throws IOException {
@@ -156,33 +159,34 @@ public class ValidatingResolver implements Resolver {
         // formable into RRsets.
         Collections.sort(records);
 
-        SRRset cur_rrset = new SRRset();
+        SRRset currentRrset = new SRRset();
         for (Iterator<Record> i = records.iterator(); i.hasNext();) {
             r = i.next();
             // Skip RR types that cannot be used as trust anchors.
-            if (r.getType() != Type.DNSKEY && r.getType() != Type.DS)
+            if (r.getType() != Type.DNSKEY && r.getType() != Type.DS) {
                 continue;
+            }
 
             // If our cur_rrset is empty, we can just add it.
-            if (cur_rrset.size() == 0) {
-                cur_rrset.addRR(r);
+            if (currentRrset.size() == 0) {
+                currentRrset.addRR(r);
                 continue;
             }
             // If this record matches our current RRset, we can just add it.
-            if (cur_rrset.getName().equals(r.getName()) && cur_rrset.getType() == r.getType() && cur_rrset.getDClass() == r.getDClass()) {
-                cur_rrset.addRR(r);
+            if (currentRrset.getName().equals(r.getName()) && currentRrset.getType() == r.getType() && currentRrset.getDClass() == r.getDClass()) {
+                currentRrset.addRR(r);
                 continue;
             }
 
             // Otherwise, we add the rrset to our set of trust anchors.
-            trustAnchors.store(cur_rrset);
-            cur_rrset = new SRRset();
-            cur_rrset.addRR(r);
+            trustAnchors.store(currentRrset);
+            currentRrset = new SRRset();
+            currentRrset.addRR(r);
         }
 
         // add the last rrset (if it was not empty)
-        if (cur_rrset.size() > 0) {
-            trustAnchors.store(cur_rrset);
+        if (currentRrset.size() > 0) {
+            trustAnchors.store(currentRrset);
         }
     }
 
@@ -191,7 +195,6 @@ public class ValidatingResolver implements Resolver {
      * Given a request, decorate the request to fetch DNSSEC information.
      * 
      * @param req The request.
-     * @return The decorated request.
      */
     private void prepareRequest(Message req) {
         // First we make sure that the request:
@@ -216,10 +219,14 @@ public class ValidatingResolver implements Resolver {
      * @return true if the rrset is an answer.
      */
     private boolean isAnswerRRset(Name rname, int rtype, Name qname, int qtype, int section) {
-        if (section != Section.ANSWER)
+        if (section != Section.ANSWER) {
             return false;
-        if (qtype == rtype && qname.equals(rname))
+        }
+
+        if (qtype == rtype && qname.equals(rname)) {
             return true;
+        }
+
         return false;
     }
 
@@ -267,20 +274,20 @@ public class ValidatingResolver implements Resolver {
      * @param forEvent Link this event to the priming query. As part of
      *            processing the priming query's response, this event will be
      *            revived.
-     * @param trust_anchor_rrset The RRset to start with -- this can be either a
+     * @param trustAnchorRrset The RRset to start with -- this can be either a
      *            DNSKEY or a DS rrset. The RRset does not need to be signed.
      */
-    private void primeTrustAnchor(DNSEvent forEvent, SRRset trust_anchor_rrset) {
-        Name qname = trust_anchor_rrset.getName();
-        int qtype = trust_anchor_rrset.getType();
-        int qclass = trust_anchor_rrset.getDClass();
+    private void primeTrustAnchor(DNSEvent forEvent, SRRset trustAnchorRrset) {
+        Name qname = trustAnchorRrset.getName();
+        int qtype = trustAnchorRrset.getType();
+        int qclass = trustAnchorRrset.getDClass();
 
         log.debug("Priming Trust Anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
 
         Message req = generateLocalRequest(qname, Type.DNSKEY, qclass);
-        DNSEvent priming_query_event = generateLocalEvent(forEvent, req, ValEventState.PRIME_RESP_STATE, ValEventState.PRIME_RESP_STATE);
+        DNSEvent primingQueryEvent = generateLocalEvent(forEvent, req, ValEventState.PRIME_RESP_STATE, ValEventState.PRIME_RESP_STATE);
 
-        sendRequest(priming_query_event);
+        sendRequest(primingQueryEvent);
     }
 
     // ----------------- Resolution Support -----------------------
@@ -309,17 +316,17 @@ public class ValidatingResolver implements Resolver {
      * 
      * @param forEvent The event that is generating this event.
      * @param req The request for this event.
-     * @param initial_state The initial state for this event. This controls
-     *            where the response to this event initially goes.
-     * @param final_state The final state for this event. This controls where
-     *            the response to this event goes after finishing validation.
+     * @param initialState The initial state for this event. This controls where
+     *            the response to this event initially goes.
+     * @param finalState The final state for this event. This controls where the
+     *            response to this event goes after finishing validation.
      * @return The generated event.
      */
-    private DNSEvent generateLocalEvent(DNSEvent forEvent, Message req, int initial_state, int final_state) {
+    private DNSEvent generateLocalEvent(DNSEvent forEvent, Message req, int initialState, int finalState) {
         DNSEvent event = new DNSEvent(req, forEvent);
         ValEventState state = new ValEventState();
-        state.state = initial_state;
-        state.finalState = final_state;
+        state.state = initialState;
+        state.finalState = finalState;
 
         event.setModuleState(state);
 
@@ -337,20 +344,17 @@ public class ValidatingResolver implements Resolver {
      * 
      * @param response The response to validate.
      * @param request The request that generated this response.
-     * @param key_rrset The trusted DNSKEY rrset that matches the signer of the
+     * @param keyRrset The trusted DNSKEY rrset that matches the signer of the
      *            answer.
      */
-    private void validatePositiveResponse(SMessage response, Message req, SRRset key_rrset) {
-        Name qname = req.getQuestion().getName();
-        int qtype = req.getQuestion().getType();
-
-        SMessage m = response;
+    private void validatePositiveResponse(SMessage response, Message request, SRRset keyRrset) {
+        Name qname = request.getQuestion().getName();
+        int qtype = request.getQuestion().getType();
 
         // validate the ANSWER section - this will be the answer itself
-        SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
-
+        SRRset[] rrsets = response.getSectionRRsets(Section.ANSWER);
         Name wc = null;
-        boolean wcNSEC_ok = false;
+        boolean wcNsecOk = false;
         boolean dname = false;
         List<NSEC3Record> nsec3s = null;
 
@@ -365,18 +369,17 @@ public class ValidatingResolver implements Resolver {
             }
 
             // Verify the answer rrset.
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], key_rrset);
+            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
             if (status != SecurityStatus.SECURE) {
                 log.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
-                m.setStatus(SecurityStatus.BOGUS);
+                response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
             // Check to see if the rrset is the result of a wildcard expansion.
-            // If
-            // so, an additional check will need to be made in the authority
+            // If so, an additional check will need to be made in the authority
             // section.
             wc = ValUtils.rrsetWildcard(rrsets[i]);
 
@@ -387,67 +390,66 @@ public class ValidatingResolver implements Resolver {
         }
 
         // validate the AUTHORITY section as well - this will generally be the
-        // NS
-        // rrset (which could be missing, no problem)
-        rrsets = m.getSectionRRsets(Section.AUTHORITY);
+        // NS rrset (which could be missing, no problem)
+        rrsets = response.getSectionRRsets(Section.AUTHORITY);
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], key_rrset);
+            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
             // If anything in the authority section fails to be secure, we have
-            // a
-            // bad message.
+            // a bad message.
             if (status != SecurityStatus.SECURE) {
                 log.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
-                m.setStatus(SecurityStatus.BOGUS);
+                response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
             // If this is a positive wildcard response, and we have a (just
             // verified) NSEC record, try to use it to 1) prove that qname
-            // doesn't
-            // exist and 2) that the correct wildcard was used.
+            // doesn't exist and 2) that the correct wildcard was used.
             if (wc != null && rrsets[i].getType() == Type.NSEC) {
-                NSECRecord nsec = (NSECRecord) rrsets[i].first();
+                NSECRecord nsec = (NSECRecord)rrsets[i].first();
 
-                if (ValUtils.nsecProvesNameError(nsec, qname, key_rrset.getName())) {
-                    Name nsec_wc = ValUtils.nsecWildcard(qname, nsec);
-                    if (!wc.equals(nsec_wc)) {
+                if (ValUtils.nsecProvesNameError(nsec, qname, keyRrset.getName())) {
+                    Name nsecWc = ValUtils.nsecWildcard(qname, nsec);
+                    if (!wc.equals(nsecWc)) {
                         log.debug("Postive wildcard response wasn't generated " + "by the correct wildcard");
-                        m.setStatus(SecurityStatus.BOGUS);
+                        response.setStatus(SecurityStatus.BOGUS);
                         return;
                     }
-                    wcNSEC_ok = true;
+
+                    wcNsecOk = true;
                 }
             }
 
             // Otherwise, if this is a positive wildcard response and we have
-            // NSEC3
-            // records, collect them.
+            // NSEC3 records, collect them.
             if (wc != null && rrsets[i].getType() == Type.NSEC3) {
-                if (nsec3s == null)
+                if (nsec3s == null) {
                     nsec3s = new ArrayList<NSEC3Record>();
-                nsec3s.add((NSEC3Record) rrsets[i].first());
+                }
+
+                nsec3s.add((NSEC3Record)rrsets[i].first());
             }
         }
 
         // If this was a positive wildcard response that we haven't already
         // proven, and we have NSEC3 records, try to prove it using the NSEC3
         // records.
-        if (wc != null && !wcNSEC_ok && nsec3s != null) {
-            if (NSEC3ValUtils.proveWildcard(nsec3s, qname, key_rrset.getName(), wc)) {
-                wcNSEC_ok = true;
+        if (wc != null && !wcNsecOk && nsec3s != null) {
+            if (NSEC3ValUtils.proveWildcard(nsec3s, qname, keyRrset.getName(), wc)) {
+                wcNsecOk = true;
             }
         }
 
         // If after all this, we still haven't proven the positive wildcard
         // response, fail.
-        if (wc != null && !wcNSEC_ok) {
+        if (wc != null && !wcNsecOk) {
             log.debug("positive response was wildcard expansion and " + "did not prove original data did not exist");
-            m.setStatus(SecurityStatus.BOGUS);
+            response.setStatus(SecurityStatus.BOGUS);
             return;
         }
 
         log.trace("Successfully validated postive response");
-        m.setStatus(SecurityStatus.SECURE);
+        response.setStatus(SecurityStatus.SECURE);
     }
 
     /**
@@ -469,21 +471,22 @@ public class ValidatingResolver implements Resolver {
      * 
      * @param response The response to validate.
      * @param request The request that generated this response.
-     * @param key_rrset The trusted DNSKEY rrset that matches the signer of the
+     * @param keyRrset The trusted DNSKEY rrset that matches the signer of the
      *            answer.
      */
-    private void validateAnyResponse(SMessage response, Message req, SRRset key_rrset) {
-        int qtype = req.getQuestion().getType();
+    private void validateAnyResponse(SMessage response, Message request, SRRset keyRrset) {
+        int qtype = request.getQuestion().getType();
 
-        if (qtype != Type.ANY)
+        if (qtype != Type.ANY) {
             throw new IllegalArgumentException("ANY validation called on non-ANY response.");
+        }
 
         SMessage m = response;
 
         // validate the ANSWER section.
         SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], key_rrset);
+            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
             if (status != SecurityStatus.SECURE) {
@@ -497,10 +500,9 @@ public class ValidatingResolver implements Resolver {
         // (which could be missing, no problem)
         rrsets = m.getSectionRRsets(Section.AUTHORITY);
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], key_rrset);
+            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
             // If anything in the authority section fails to be secure, we have
-            // a
-            // bad message.
+            // a bad message.
             if (status != SecurityStatus.SECURE) {
                 log.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
                 m.setStatus(SecurityStatus.BOGUS);
@@ -525,11 +527,11 @@ public class ValidatingResolver implements Resolver {
      * 
      * @param response The response to validate.
      * @param request The request that generated this response.
-     * @param key_rrset The trusted DNSKEY rrset that signs this response.
+     * @param keyRrset The trusted DNSKEY rrset that signs this response.
      */
-    private void validateNodataResponse(SMessage response, Message req, SRRset key_rrset) {
-        Name qname = req.getQuestion().getName();
-        int qtype = req.getQuestion().getType();
+    private void validateNodataResponse(SMessage response, Message request, SRRset keyRrset) {
+        Name qname = request.getQuestion().getName();
+        int qtype = request.getQuestion().getType();
 
         SMessage m = response;
 
@@ -548,12 +550,11 @@ public class ValidatingResolver implements Resolver {
         NSECRecord wc = null; // for wildcard nodata responses. This is the
                               // wildcard NSEC.
         List<NSEC3Record> nsec3s = null; // A collection of NSEC3 RRs found in
-                                         // the authority
-        // section.
+                                         // the authority section.
         Name nsec3Signer = null; // The RRSIG signer field for the NSEC3 RRs.
 
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], key_rrset);
+            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
             if (status != SecurityStatus.SECURE) {
                 log.debug("NODATA response has failed AUTHORITY rrset: " + rrsets[i]);
                 m.setStatus(SecurityStatus.BOGUS);
@@ -563,11 +564,12 @@ public class ValidatingResolver implements Resolver {
             // If we encounter an NSEC record, try to use it to prove NODATA.
             // This needs to handle the ENT NODATA case.
             if (rrsets[i].getType() == Type.NSEC) {
-                NSECRecord nsec = (NSECRecord) rrsets[i].first();
+                NSECRecord nsec = (NSECRecord)rrsets[i].first();
                 if (ValUtils.nsecProvesNodata(nsec, qname, qtype)) {
                     hasValidNSEC = true;
-                    if (nsec.getName().isWild())
+                    if (nsec.getName().isWild()) {
                         wc = nsec;
+                    }
                 }
                 else if (ValUtils.nsecProvesNameError(nsec, qname, rrsets[i].getSignerName())) {
                     ce = ValUtils.closestEncloser(qname, nsec);
@@ -576,9 +578,11 @@ public class ValidatingResolver implements Resolver {
 
             // Collect any NSEC3 records present.
             if (rrsets[i].getType() == Type.NSEC3) {
-                if (nsec3s == null)
+                if (nsec3s == null) {
                     nsec3s = new ArrayList<NSEC3Record>();
-                nsec3s.add((NSEC3Record) rrsets[i].first());
+                }
+
+                nsec3s.add((NSEC3Record)rrsets[i].first());
                 nsec3Signer = rrsets[i].getSignerName();
             }
         }
@@ -590,8 +594,8 @@ public class ValidatingResolver implements Resolver {
         // matching wildcard, which must be *.closest_encloser.
         if (ce != null || wc != null) {
             try {
-                Name wc_name = new Name("*", ce);
-                if (!wc_name.equals(wc.getName())) {
+                Name wcName = new Name("*", ce);
+                if (!wcName.equals(wc.getName())) {
                     hasValidNSEC = false;
                 }
             }
@@ -601,7 +605,6 @@ public class ValidatingResolver implements Resolver {
         }
 
         NSEC3ValUtils.stripUnknownAlgNSEC3s(nsec3s);
-
         if (!hasValidNSEC && nsec3s != null && nsec3s.size() > 0) {
             // try to prove NODATA with our NSEC3 record(s)
             hasValidNSEC = NSEC3ValUtils.proveNodata(nsec3s, qname, qtype, nsec3Signer);
@@ -613,6 +616,7 @@ public class ValidatingResolver implements Resolver {
             m.setStatus(SecurityStatus.BOGUS);
             return;
         }
+
         log.trace("sucessfully validated NODATA response.");
         m.setStatus(SecurityStatus.SECURE);
     }
@@ -629,9 +633,9 @@ public class ValidatingResolver implements Resolver {
      * 
      * @param qname The name to be proved to not exist.
      * @param response The response to validate.
-     * @param key_rrset The trusted DNSKEY rrset that signs this response.
+     * @param keyRrset The trusted DNSKEY rrset that signs this response.
      */
-    private void validateNameErrorResponse(Name qname, SMessage response, SRRset key_rrset) {
+    private void validateNameErrorResponse(Name qname, SMessage response, SRRset keyRrset) {
         // FIXME: should we check to see if there is anything in the answer
         // section? if so, what should the result be?
 
@@ -646,37 +650,40 @@ public class ValidatingResolver implements Resolver {
         Name nsec3Signer = null;
 
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], key_rrset);
+            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
             if (status != SecurityStatus.SECURE) {
                 log.debug("NameError response has failed AUTHORITY rrset: " + rrsets[i]);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
-            if (rrsets[i].getType() == Type.NSEC) {
-                NSECRecord nsec = (NSECRecord) rrsets[i].first();
 
+            if (rrsets[i].getType() == Type.NSEC) {
+                NSECRecord nsec = (NSECRecord)rrsets[i].first();
                 if (ValUtils.nsecProvesNameError(nsec, qname, rrsets[i].getSignerName())) {
                     hasValidNSEC = true;
                 }
+
                 if (ValUtils.nsecProvesNoWC(nsec, qname, rrsets[i].getSignerName())) {
                     hasValidWCNSEC = true;
                 }
             }
+
             if (rrsets[i].getType() == Type.NSEC3) {
-                if (nsec3s == null)
+                if (nsec3s == null) {
                     nsec3s = new ArrayList<NSEC3Record>();
-                nsec3s.add((NSEC3Record) rrsets[i].first());
+                }
+
+                nsec3s.add((NSEC3Record)rrsets[i].first());
                 nsec3Signer = rrsets[i].getSignerName();
             }
         }
 
         NSEC3ValUtils.stripUnknownAlgNSEC3s(nsec3s);
-
         if (nsec3s != null && nsec3s.size() > 0) {
             log.debug("Validating nxdomain: using NSEC3 records");
             // Attempt to prove name error with nsec3 records.
 
-            if (NSEC3ValUtils.allNSEC3sIgnoreable(nsec3s, key_rrset)) {
+            if (NSEC3ValUtils.allNSEC3sIgnoreable(nsec3s, keyRrset)) {
                 log.debug("all NSEC3s were validated but ignored.");
                 response.setStatus(SecurityStatus.INSECURE);
                 return;
@@ -725,22 +732,22 @@ public class ValidatingResolver implements Resolver {
         prepareRequest(event.getRequest());
 
         // Send the request along by using a local copy of the request
-        Message local_request = (Message) event.getRequest().clone();
+        Message localRequest = (Message)event.getRequest().clone();
         try {
-            Message resp = headResolver.send(local_request);
+            Message resp = headResolver.send(localRequest);
             event.setResponse(new SMessage(resp));
         }
         catch (SocketTimeoutException e) {
             log.error("Query timed out, returning fail", e);
-            event.setResponse(Util.errorMessage(local_request, Rcode.SERVFAIL));
+            event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
         }
         catch (UnknownHostException e) {
             log.error("failed to send query", e);
-            event.setResponse(Util.errorMessage(local_request, Rcode.SERVFAIL));
+            event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
         }
         catch (IOException e) {
             log.error("failed to send query", e);
-            event.setResponse(Util.errorMessage(local_request, Rcode.SERVFAIL));
+            event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
         }
 
         processResponse(event);
@@ -877,11 +884,11 @@ public class ValidatingResolver implements Resolver {
         int qtype = trustAnchor.getType();
         int qclass = trustAnchor.getDClass();
 
-        SRRset dnskey_rrset = response.findAnswerRRset(qname, Type.DNSKEY, qclass);
+        SRRset dnskeyRrset = response.findAnswerRRset(qname, Type.DNSKEY, qclass);
 
         // If the priming query didn't return a DNSKEY response, then we
         // temporarily consider this a "null" key.
-        if (dnskey_rrset == null) {
+        if (dnskeyRrset == null) {
             log.debug("Failed to prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- could not fetch DNSKEY rrset");
 
             keyCache.store(qname, qclass, DEFAULT_TA_NULL_KEY_TTL);
@@ -890,8 +897,8 @@ public class ValidatingResolver implements Resolver {
 
         SecurityStatus status;
         if (qtype == Type.DS) {
-            KeyEntry dnskey_entry = valUtils.verifyNewDNSKEYs(dnskey_rrset, trustAnchor);
-            if (dnskey_entry.isGood()) {
+            KeyEntry dnskeyEntry = valUtils.verifyNewDNSKEYs(dnskeyRrset, trustAnchor);
+            if (dnskeyEntry.isGood()) {
                 status = SecurityStatus.SECURE;
             }
             else {
@@ -899,7 +906,7 @@ public class ValidatingResolver implements Resolver {
             }
         }
         else if (qtype == Type.DNSKEY) {
-            status = valUtils.verifySRRset(dnskey_rrset, trustAnchor);
+            status = valUtils.verifySRRset(dnskeyRrset, trustAnchor);
         }
         else {
             status = SecurityStatus.BOGUS;
@@ -915,8 +922,8 @@ public class ValidatingResolver implements Resolver {
 
         log.debug("Successfully primed trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
 
-        keyCache.store(dnskey_rrset);
-        return KeyEntry.newKeyEntry(dnskey_rrset);
+        keyCache.store(dnskeyRrset);
+        return KeyEntry.newKeyEntry(dnskeyRrset);
     }
 
     /**
@@ -980,13 +987,14 @@ public class ValidatingResolver implements Resolver {
             return true;
         }
 
-        if (state.emptyDSName != null)
+        if (state.emptyDSName != null) {
             currentKeyName = state.emptyDSName;
+        }
 
         // Calculate the next lookup name.
-        int target_labels = targetKeyName.labels();
-        int current_labels = currentKeyName.labels();
-        int l = target_labels - current_labels - 1;
+        int targetLabels = targetKeyName.labels();
+        int currentLabels = currentKeyName.labels();
+        int l = targetLabels - currentLabels - 1;
 
         // the next key name would be trying to invent a name, so we stop here
         if (l < 0) {
@@ -1000,16 +1008,16 @@ public class ValidatingResolver implements Resolver {
         // next DNSKEY.
 
         if (state.dsRRset == null || !state.dsRRset.getName().equals(nextKeyName)) {
-            Message ds_request = generateLocalRequest(nextKeyName, Type.DS, qclass);
-            DNSEvent ds_event = generateLocalEvent(event, ds_request, ValEventState.FINDKEY_DS_RESP_STATE, ValEventState.FINDKEY_DS_RESP_STATE);
-            sendRequest(ds_event);
+            Message dsRequest = generateLocalRequest(nextKeyName, Type.DS, qclass);
+            DNSEvent dsEvent = generateLocalEvent(event, dsRequest, ValEventState.FINDKEY_DS_RESP_STATE, ValEventState.FINDKEY_DS_RESP_STATE);
+            sendRequest(dsEvent);
             return false;
         }
 
         // Otherwise, it is time to query for the DNSKEY
-        Message dnskey_request = generateLocalRequest(state.dsRRset.getName(), Type.DNSKEY, qclass);
-        DNSEvent dnskey_event = generateLocalEvent(event, dnskey_request, ValEventState.FINDKEY_DNSKEY_RESP_STATE, ValEventState.FINDKEY_DNSKEY_RESP_STATE);
-        sendRequest(dnskey_event);
+        Message dnskeyRequest = generateLocalRequest(state.dsRRset.getName(), Type.DNSKEY, qclass);
+        DNSEvent dnskeyEvent = generateLocalEvent(event, dnskeyRequest, ValEventState.FINDKEY_DNSKEY_RESP_STATE, ValEventState.FINDKEY_DNSKEY_RESP_STATE);
+        sendRequest(dnskeyEvent);
 
         return false;
     }
@@ -1020,14 +1028,14 @@ public class ValidatingResolver implements Resolver {
      * 
      * @param response The DS response.
      * @param request The DS request.
-     * @param key_rrset The current DNSKEY rrset from the forEvent state.
+     * @param keyRrset The current DNSKEY rrset from the forEvent state.
      * 
      * @return A KeyEntry, bad if the DS response fails to validate, null if the
      *         DS response indicated an end to secure space, good if the DS
      *         validated. It returns null if the DS response indicated that the
      *         request wasn't a delegation point.
      */
-    private KeyEntry dsResponseToKE(SMessage response, Message request, SRRset key_rrset) {
+    private KeyEntry dsResponseToKE(SMessage response, Message request, SRRset keyRrset) {
         Name qname = request.getQuestion().getName();
         int qclass = request.getQuestion().getDClass();
 
@@ -1037,16 +1045,16 @@ public class ValidatingResolver implements Resolver {
         KeyEntry bogusKE = KeyEntry.newBadKeyEntry(qname, qclass);
         switch (subtype) {
             case ValUtils.POSITIVE:
-                SRRset ds_rrset = response.findAnswerRRset(qname, Type.DS, qclass);
+                SRRset dsRrset = response.findAnswerRRset(qname, Type.DS, qclass);
                 // If there was no DS rrset, then we have mis-classified this
                 // message.
-                if (ds_rrset == null) {
+                if (dsRrset == null) {
                     log.warn("POSITIVE DS response was missing DS!  This is a bug!");
                     return bogusKE;
                 }
                 // Verify only returns BOGUS or SECURE. If the rrset is bogus,
                 // then we are done.
-                status = valUtils.verifySRRset(ds_rrset, key_rrset);
+                status = valUtils.verifySRRset(dsRrset, keyRrset);
                 if (status == SecurityStatus.BOGUS) {
                     log.debug("DS rrset in DS response did not verify");
                     return bogusKE;
@@ -1054,27 +1062,27 @@ public class ValidatingResolver implements Resolver {
 
                 // Otherwise, we return the positive response.
                 log.trace("DS rrset was good.");
-                return KeyEntry.newKeyEntry(ds_rrset);
+                return KeyEntry.newKeyEntry(dsRrset);
 
             case ValUtils.NODATA:
                 // NODATA means that the qname exists, but that there was no DS.
                 // This is a pretty normal case.
-                SRRset nsec_rrset = response.findRRset(qname, Type.NSEC, qclass, Section.AUTHORITY);
+                SRRset nsecRrset = response.findRRset(qname, Type.NSEC, qclass, Section.AUTHORITY);
 
                 // If we have a NSEC at the same name, it must prove one of two
                 // things
                 // --
                 // 1) this is a delegation point and there is no DS
                 // 2) this is not a delegation point
-                if (nsec_rrset != null) {
+                if (nsecRrset != null) {
                     // The NSEC must verify, first of all.
-                    status = valUtils.verifySRRset(nsec_rrset, key_rrset);
+                    status = valUtils.verifySRRset(nsecRrset, keyRrset);
                     if (status != SecurityStatus.SECURE) {
                         log.debug("NSEC RRset for the referral did not verify.");
                         return bogusKE;
                     }
 
-                    NSECRecord nsec = (NSECRecord) nsec_rrset.first();
+                    NSECRecord nsec = (NSECRecord)nsecRrset.first();
                     switch (ValUtils.nsecProvesNoDS(nsec, qname)) {
                         case BOGUS: // something was wrong.
                             log.debug("NSEC RRset for the referral did not prove no DS.");
@@ -1085,38 +1093,37 @@ public class ValidatingResolver implements Resolver {
                             return null;
                         case SECURE: // this proved no DS.
                             log.debug("NSEC RRset for the referral proved no DS.");
-                            return KeyEntry.newNullKeyEntry(qname, qclass, nsec_rrset.getTTL());
+                            return KeyEntry.newNullKeyEntry(qname, qclass, nsecRrset.getTTL());
                         default:
                             throw new RuntimeException("unexpected security status");
                     }
                 }
 
                 // Otherwise, there is no NSEC at qname. This could be an ENT.
-                // If not,
-                // this is broken.
-                SRRset[] nsec_rrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC);
-                for (int i = 0; i < nsec_rrsets.length; i++) {
-                    status = valUtils.verifySRRset(nsec_rrsets[i], key_rrset);
+                // If not, this is broken.
+                SRRset[] nsecRrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC);
+                for (int i = 0; i < nsecRrsets.length; i++) {
+                    status = valUtils.verifySRRset(nsecRrsets[i], keyRrset);
                     if (status != SecurityStatus.SECURE) {
                         log.debug("NSEC for empty non-terminal did not verify.");
                         return bogusKE;
                     }
-                    NSECRecord nsec = (NSECRecord) nsec_rrsets[i].first();
+                    NSECRecord nsec = (NSECRecord)nsecRrsets[i].first();
                     if (ValUtils.nsecProvesNodata(nsec, qname, Type.DS)) {
                         log.debug("NSEC for empty non-terminal proved no DS.");
-                        return KeyEntry.newNullKeyEntry(qname, qclass, nsec_rrsets[i].getTTL());
+                        return KeyEntry.newNullKeyEntry(qname, qclass, nsecRrsets[i].getTTL());
                     }
                 }
 
                 // Or it could be using NSEC3.
-                SRRset[] nsec3_rrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC3);
+                SRRset[] nsec3Rrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC3);
                 List<NSEC3Record> nsec3s = new ArrayList<NSEC3Record>();
                 Name nsec3Signer = null;
                 long nsec3TTL = -1;
-                if (nsec3_rrsets != null && nsec3_rrsets.length > 0) {
+                if (nsec3Rrsets != null && nsec3Rrsets.length > 0) {
                     // Attempt to prove no DS with NSEC3s.
-                    for (int i = 0; i < nsec3_rrsets.length; i++) {
-                        status = valUtils.verifySRRset(nsec3_rrsets[i], key_rrset);
+                    for (int i = 0; i < nsec3Rrsets.length; i++) {
+                        status = valUtils.verifySRRset(nsec3Rrsets[i], keyRrset);
                         if (status != SecurityStatus.SECURE) {
                             // FIXME: we could just fail here -- there is an
                             // invalid rrset -- but is more robust to skip like
@@ -1125,10 +1132,12 @@ public class ValidatingResolver implements Resolver {
                             continue;
                         }
 
-                        NSEC3Record nsec3 = (NSEC3Record) nsec3_rrsets[i].first();
-                        nsec3Signer = nsec3_rrsets[i].getSignerName();
-                        if (nsec3TTL < 0 || nsec3_rrsets[i].getTTL() < nsec3TTL)
-                            nsec3TTL = nsec3_rrsets[i].getTTL();
+                        NSEC3Record nsec3 = (NSEC3Record)nsec3Rrsets[i].first();
+                        nsec3Signer = nsec3Rrsets[i].getSignerName();
+                        if (nsec3TTL < 0 || nsec3Rrsets[i].getTTL() < nsec3TTL) {
+                            nsec3TTL = nsec3Rrsets[i].getTTL();
+                        }
+
                         nsec3s.add(nsec3);
                     }
 
@@ -1146,6 +1155,7 @@ public class ValidatingResolver implements Resolver {
                             throw new RuntimeException("unexpected security status");
                     }
                 }
+
                 // Apparently, no available NSEC/NSEC3 proved NODATA, so this is
                 // BOGUS.
                 log.debug("ran out of options, so return bogus");
@@ -1155,10 +1165,11 @@ public class ValidatingResolver implements Resolver {
                 // NAMEERRORs at this point pretty much break validation
                 log.debug("DS response was NAMEERROR, thus bogus.");
                 return bogusKE;
+            default:
+                // We've encountered an unhandled classification for this response.
+                log.debug("Encountered an unhandled type of DS response, thus bogus.");
+                return bogusKE;
         }
-        // We've encountered an unhandled classification for this response.
-        log.debug("Encountered an unhandled type of DS response, thus bogus.");
-        return bogusKE;
     }
 
     /**
@@ -1170,10 +1181,10 @@ public class ValidatingResolver implements Resolver {
      *         these events.
      */
     private boolean processDSResponse(DNSEvent event, ValEventState state) {
-        Message ds_request = event.getRequest();
-        SMessage ds_resp = event.getResponse();
+        Message dsRequest = event.getRequest();
+        SMessage dsResp = event.getResponse();
 
-        Name qname = ds_request.getQuestion().getName();
+        Name qname = dsRequest.getQuestion().getName();
 
         DNSEvent forEvent = event.forEvent();
         ValEventState forState = forEvent.getModuleState();
@@ -1181,7 +1192,7 @@ public class ValidatingResolver implements Resolver {
         forState.emptyDSName = null;
         forState.dsRRset = null;
 
-        KeyEntry dsKE = dsResponseToKE(ds_resp, ds_request, forState.keyEntry.getRRset());
+        KeyEntry dsKE = dsResponseToKE(dsResp, dsRequest, forState.keyEntry.getRRset());
 
         if (dsKE == null) {
             forState.emptyDSName = qname;
@@ -1194,9 +1205,9 @@ public class ValidatingResolver implements Resolver {
         }
         else {
             // NOTE: the reason for the DS to be not good (that is, either bad
-            // or
-            // null) should have been logged by dsResponseToKE.
+            // or null) should have been logged by dsResponseToKE.
             forState.keyEntry = dsKE;
+
             // The FINDKEY phase has ended, so move on.
             forState.state = ValEventState.VALIDATE_STATE;
         }
@@ -1206,18 +1217,18 @@ public class ValidatingResolver implements Resolver {
     }
 
     private boolean processDNSKEYResponse(DNSEvent event, ValEventState state) {
-        Message dnskey_request = event.getRequest();
-        SMessage dnskey_resp = event.getResponse();
-        Name qname = dnskey_request.getQuestion().getName();
-        int qclass = dnskey_request.getQuestion().getDClass();
+        Message dnskeyRequest = event.getRequest();
+        SMessage dnskeyResp = event.getResponse();
+        Name qname = dnskeyRequest.getQuestion().getName();
+        int qclass = dnskeyRequest.getQuestion().getDClass();
 
         DNSEvent forEvent = event.forEvent();
         ValEventState forState = forEvent.getModuleState();
 
-        SRRset ds_rrset = forState.dsRRset;
-        SRRset dnskey_rrset = dnskey_resp.findAnswerRRset(qname, Type.DNSKEY, qclass);
+        SRRset dsRrset = forState.dsRRset;
+        SRRset dnskeyRrset = dnskeyResp.findAnswerRRset(qname, Type.DNSKEY, qclass);
 
-        if (dnskey_rrset == null) {
+        if (dnskeyRrset == null) {
             // If the DNSKEY rrset was missing, this is the end of the line.
             log.debug("Missing DNSKEY RRset in response to DNSKEY query.");
             forState.keyEntry = KeyEntry.newBadKeyEntry(qname, qclass);
@@ -1226,7 +1237,7 @@ public class ValidatingResolver implements Resolver {
             return false;
         }
 
-        forState.keyEntry = valUtils.verifyNewDNSKEYs(dnskey_rrset, ds_rrset);
+        forState.keyEntry = valUtils.verifyNewDNSKEYs(dnskeyRrset, dsRrset);
 
         // If the key entry isBad or isNull, then we can move on to the next
         // state.
@@ -1282,20 +1293,20 @@ public class ValidatingResolver implements Resolver {
         }
 
         int subtype = ValUtils.classifyResponse(resp);
-        SRRset key_rrset = state.keyEntry.getRRset();
+        SRRset keyRrset = state.keyEntry.getRRset();
 
         switch (subtype) {
             case ValUtils.POSITIVE:
                 log.trace("Validating a positive response");
-                validatePositiveResponse(resp, req, key_rrset);
+                validatePositiveResponse(resp, req, keyRrset);
                 break;
             case ValUtils.NODATA:
                 log.trace("Validating a nodata response");
-                validateNodataResponse(resp, req, key_rrset);
+                validateNodataResponse(resp, req, keyRrset);
                 break;
             case ValUtils.NAMEERROR:
                 log.trace("Validating a nxdomain response");
-                validateNameErrorResponse(req.getQuestion().getName(), resp, key_rrset);
+                validateNameErrorResponse(req.getQuestion().getName(), resp, keyRrset);
                 break;
             case ValUtils.CNAME:
                 log.trace("Validating a cname response");
@@ -1304,7 +1315,7 @@ public class ValidatingResolver implements Resolver {
                 break;
             case ValUtils.ANY:
                 log.trace("Validating a postive ANY response");
-                validateAnyResponse(resp, req, key_rrset);
+                validateAnyResponse(resp, req, keyRrset);
                 break;
             default:
                 log.error("unhandled response subtype: " + subtype);
@@ -1319,10 +1330,6 @@ public class ValidatingResolver implements Resolver {
      * 
      * It primarily is responsible for breaking down the response into a series
      * of separately validated queries & responses.
-     * 
-     * @param event
-     * @param state
-     * @return
      */
     private boolean processCNAME(DNSEvent event, ValEventState state) {
         Message req = event.getRequest();
@@ -1353,22 +1360,22 @@ public class ValidatingResolver implements Resolver {
 
             // Set the SNAME if we are dealing with a CNAME
             if (rtype == Type.CNAME) {
-                CNAMERecord cname = (CNAMERecord) rrset.first();
+                CNAMERecord cname = (CNAMERecord)rrset.first();
                 state.cnameSname = cname.getTarget();
             }
 
             // Note if the current rrset is the answer. In that case, we want to
             // set the final state differently.
             // For non-answers, the response ultimately comes back here.
-            int final_state = ValEventState.CNAME_RESP_STATE;
+            int finalState = ValEventState.CNAME_RESP_STATE;
             if (isAnswerRRset(rrset.getName(), rtype, state.cnameSname, qtype, Section.ANSWER)) {
                 // If this is an answer, however, break out of this loop.
-                final_state = ValEventState.CNAME_ANS_RESP_STATE;
+                finalState = ValEventState.CNAME_ANS_RESP_STATE;
             }
 
             // Generate the sub-query.
             Message localRequest = generateLocalRequest(rname, rtype, qclass);
-            DNSEvent localEvent = generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, final_state);
+            DNSEvent localEvent = generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, finalState);
 
             // ...and send it along.
             sendRequest(localEvent);
@@ -1384,7 +1391,7 @@ public class ValidatingResolver implements Resolver {
 
             // Set the SNAME if we are dealing with a CNAME
             if (rtype == Type.CNAME) {
-                CNAMERecord cname = (CNAMERecord) rrset.first();
+                CNAMERecord cname = (CNAMERecord)rrset.first();
                 state.cnameSname = cname.getTarget();
             }
 
@@ -1404,10 +1411,6 @@ public class ValidatingResolver implements Resolver {
 
     /**
      * Process a CNAME intermediate response.
-     * 
-     * @param event
-     * @param state
-     * @return
      */
     private boolean processCNAMEResponse(DNSEvent event, ValEventState state) {
         DNSEvent forEvent = event.forEvent();
@@ -1433,10 +1436,6 @@ public class ValidatingResolver implements Resolver {
     /**
      * Transfer the security status of the final CNAME answer to the original
      * query.
-     * 
-     * @param event
-     * @param state
-     * @return
      */
     private boolean processCNAMEAnswer(DNSEvent event, ValEventState state) {
         DNSEvent forEvent = event.forEvent();
@@ -1456,10 +1455,6 @@ public class ValidatingResolver implements Resolver {
      * Apply any final massaging to a response before returning up the pipeline.
      * Primarily this means setting the AD bit or not and possibly stripping
      * DNSSEC data.
-     * 
-     * @param response The response to modify. The response should have a
-     *            reference to the query that generated the response.
-     * @return The massaged response.
      */
     private boolean processFinishedState(DNSEvent event, ValEventState state) {
         SMessage resp = event.getResponse();

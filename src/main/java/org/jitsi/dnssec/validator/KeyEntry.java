@@ -62,18 +62,18 @@ public class KeyEntry {
     private boolean isBad = false;
 
     /**
-     * Create a new, positive key entry
+     * Create a new, positive key entry.
      * 
-     * @param rrset
+     * @param rrset The set of records to cache.
      */
     private KeyEntry(SRRset rrset) {
         this.rrset = rrset;
-        name = rrset.getName();
-        dclass = rrset.getDClass();
+        this.name = rrset.getName();
+        this.dclass = rrset.getDClass();
     }
 
     private KeyEntry(Name name, int dclass, long ttl, boolean isBad) {
-        rrset = null;
+        this.rrset = null;
         this.name = name;
         this.dclass = dclass;
         this.ttl = ttl;
@@ -93,30 +93,30 @@ public class KeyEntry {
     }
 
     public SRRset getRRset() {
-        return rrset;
+        return this.rrset;
     }
 
     public Name getName() {
-        return name;
+        return this.name;
     }
 
     public int getDClass() {
-        return dclass;
+        return this.dclass;
     }
 
     public long getTTL() {
-        return ttl;
+        return this.ttl;
     }
 
     public boolean isNull() {
-        return !isBad && rrset == null;
+        return !this.isBad && this.rrset == null;
     }
 
     public boolean isBad() {
-        return isBad;
+        return this.isBad;
     }
 
     public boolean isGood() {
-        return !isBad && rrset != null;
+        return !this.isBad && this.rrset != null;
     }
 }

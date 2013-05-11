@@ -112,8 +112,8 @@ public class DNSEvent implements Cloneable {
      * @param request The initial request.
      */
     public DNSEvent(Message request) {
-        originalRequest = request;
-        currentRequest = (Message) request.clone();
+        this.originalRequest = request;
+        this.currentRequest = (Message)request.clone();
     }
 
     /**
@@ -126,35 +126,32 @@ public class DNSEvent implements Cloneable {
         this(request);
 
         this.forEvent = forEvent;
-        depth = forEvent.getDepth() + 1;
+        this.depth = forEvent.getDepth() + 1;
     }
 
     /**
      * @return The current request.
      */
     public Message getRequest() {
-        return currentRequest;
+        return this.currentRequest;
     }
 
-    /**
-     * @return The current request.
-     */
     public void setRequest(Message request) {
-        currentRequest = request;
+        this.currentRequest = request;
     }
 
     /**
      * @return The original request. Do not modify this!
      */
     public Message getOrigRequest() {
-        return originalRequest;
+        return this.originalRequest;
     }
 
     /**
      * @return The "for" event. I.e., the event that is depending on this event.
      */
     public DNSEvent forEvent() {
-        return forEvent;
+        return this.forEvent;
     }
 
     /**
@@ -162,7 +159,7 @@ public class DNSEvent implements Cloneable {
      *         hasn't been attached yet.
      */
     public SMessage getResponse() {
-        return response;
+        return this.response;
     }
 
     /**
@@ -181,13 +178,12 @@ public class DNSEvent implements Cloneable {
      * @return A state object for the module, or null if one wasn't attached.
      */
     public ValEventState getModuleState() {
-        return state;
+        return this.state;
     }
 
     /**
      * Attach per-module state to this event.
      * 
-     * @param module A reference for the module itself. This is the key.
      * @param state A state object.
      */
     public void setModuleState(ValEventState state) {
@@ -199,7 +195,7 @@ public class DNSEvent implements Cloneable {
      *         dependency chain of events.
      */
     public int getDepth() {
-        return depth;
+        return this.depth;
     }
 
     /**
@@ -207,7 +203,7 @@ public class DNSEvent implements Cloneable {
      */
     public Object clone() {
         try {
-            DNSEvent event = (DNSEvent) super.clone();
+            DNSEvent event = (DNSEvent)super.clone();
             return event;
         }
         catch (CloneNotSupportedException e) {
@@ -220,7 +216,7 @@ public class DNSEvent implements Cloneable {
      *         perhaps.
      */
     public String toString() {
-        Record q = currentRequest.getQuestion();
+        Record q = this.currentRequest.getQuestion();
         return super.toString() + " " + q.getName() + "/" + Type.string(q.getType()) + "/" + DClass.string(q.getDClass());
     }
 }

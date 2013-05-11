@@ -66,7 +66,7 @@ public class TrustAnchorStore {
     private Map<String, SRRset> map;
 
     public TrustAnchorStore() {
-        map = new HashMap<String, SRRset>();
+        this.map = new HashMap<String, SRRset>();
     }
 
     private String key(Name n, int dclass) {
@@ -74,19 +74,19 @@ public class TrustAnchorStore {
     }
 
     public void store(SRRset rrset) {
-        String k = key(rrset.getName(), rrset.getDClass());
+        String k = this.key(rrset.getName(), rrset.getDClass());
         rrset.setSecurityStatus(SecurityStatus.SECURE);
-        map.put(k, rrset);
+        this.map.put(k, rrset);
     }
 
     private SRRset lookup(String key) {
-        return map.get(key);
+        return this.map.get(key);
     }
 
     public SRRset find(Name n, int dclass) {
         while (n.labels() > 0) {
-            String k = key(n, dclass);
-            SRRset r = lookup(k);
+            String k = this.key(n, dclass);
+            SRRset r = this.lookup(k);
             if (r != null) {
                 return r;
             }

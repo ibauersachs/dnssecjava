@@ -61,10 +61,16 @@ import org.xbill.DNS.Message;
  * @author davidb
  * @version $Revision: 361 $
  */
-public class Util {
+public final class Util {
     private Util() {
     }
 
+    /**
+     * Creates a response message with the given return code.
+     * @param request The request for which the response belongs.
+     * @param rcode The response code, @see Rcode
+     * @return The response message for <code>request</code>.
+     */
     public static SMessage errorMessage(Message request, int rcode) {
         SMessage m = new SMessage(request.getHeader().getID(), request.getQuestion());
         Header h = m.getHeader();

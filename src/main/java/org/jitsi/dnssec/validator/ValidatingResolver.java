@@ -241,19 +241,10 @@ public class ValidatingResolver implements Resolver {
      * REFUSED, etc.)
      * 
      * @param response The response to check.
-     * @param origRequest The original request received from the client.
-     * 
      * @return true if the response could use validation (although this does not
      *         mean we can actually validate this response).
      */
-    private boolean needsValidation(SMessage response, Message origRequest) {
-        // If the CD bit is on in the original request, then we don't bother to
-        // validate anything.
-        if (origRequest.getHeader().getFlag(Flags.CD)) {
-            log.debug("not validating response due to CD bit");
-            return false;
-        }
-
+    private boolean needsValidation(SMessage response) {
         if (response.getStatus().getStatus() > SecurityStatus.BOGUS.getStatus()) {
             log.debug("response has already been validated");
             return false;
@@ -824,7 +815,7 @@ public class ValidatingResolver implements Resolver {
         Message origRequest = event.getOrigRequest();
         Message req = event.getRequest();
 
-        if (!needsValidation(resp, origRequest)) {
+        if (!needsValidation(resp)) {
             state.state = state.finalState;
             return true;
         }

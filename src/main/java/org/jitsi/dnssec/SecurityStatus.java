@@ -94,28 +94,15 @@ public enum SecurityStatus {
         setStatus(status);
     }
 
-    public static String string(SecurityStatus status) {
-        switch (status) {
-            case BOGUS:
-                return "Bogus";
-            case SECURE:
-                return "Secure";
-            case INSECURE:
-                return "Insecure";
-            case INDETERMINATE:
-                return "Indeterminate";
-            case UNCHECKED:
-                return "Unchecked";
-            default:
-                return "UNKNOWN";
-        }
-    }
-
+    /**
+     * Gets the security status as an integer level.
+     * @return the assigned level of the value.
+     */
     public int getStatus() {
-        return status;
+        return this.status;
     }
 
-    public void setStatus(int status) {
+    private void setStatus(int status) {
         this.status = status;
     }
 }

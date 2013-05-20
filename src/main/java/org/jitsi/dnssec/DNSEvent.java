@@ -68,8 +68,7 @@ import org.xbill.DNS.Type;
  * @author davidb
  * @version $Revision: 286 $
  */
-public class DNSEvent implements Cloneable {
-
+public class DNSEvent {
     /**
      * This is the current, mutable request -- this request will change based on
      * the current needs of a module.
@@ -136,10 +135,6 @@ public class DNSEvent implements Cloneable {
         return this.currentRequest;
     }
 
-    public void setRequest(Message request) {
-        this.currentRequest = request;
-    }
-
     /**
      * @return The original request. Do not modify this!
      */
@@ -196,19 +191,6 @@ public class DNSEvent implements Cloneable {
      */
     public int getDepth() {
         return this.depth;
-    }
-
-    /**
-     * Clone the event.
-     */
-    public Object clone() {
-        try {
-            DNSEvent event = (DNSEvent)super.clone();
-            return event;
-        }
-        catch (CloneNotSupportedException e) {
-            return null;
-        }
     }
 
     /**

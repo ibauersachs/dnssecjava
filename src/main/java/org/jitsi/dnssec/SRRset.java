@@ -59,7 +59,8 @@ import org.xbill.DNS.RRset;
 import org.xbill.DNS.Record;
 
 /**
- * A version of the RRset class overrides the standard security status.
+ * An extended version of {@link RRset} that adds the indication of DNSSEC
+ * security status.
  * 
  * @author davidb
  * @version $Revision: 286 $
@@ -92,8 +93,13 @@ public class SRRset extends RRset {
     }
 
     /**
-     * Return the current security status (generally: UNCHECKED, BOGUS, or
-     * SECURE).
+     * Return the current security status (generally:
+     * {@link SecurityStatus#UNCHECKED}, {@link SecurityStatus#BOGUS}, or
+     * {@link SecurityStatus#SECURE}).
+     * 
+     * @return The security status for this set,
+     *         {@link SecurityStatus#UNCHECKED} if it has never been set
+     *         manually.
      */
     public SecurityStatus getSecurityStatus() {
         return this.securityStatus;
@@ -101,6 +107,8 @@ public class SRRset extends RRset {
 
     /**
      * Set the current security status for this SRRset.
+     * 
+     * @param status The new security status for this set.
      */
     public void setSecurityStatus(SecurityStatus status) {
         this.securityStatus = status;

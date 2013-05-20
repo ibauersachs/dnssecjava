@@ -56,7 +56,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.xbill.DNS.CNAMERecord;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Header;
 import org.xbill.DNS.Message;
@@ -68,13 +67,16 @@ import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
 /**
- * This class represents a DNS message with resolver/validator state.
+ * This class represents a DNS message with validator state and some utility
+ * methods.
  * 
  * @author davidb
- * @version $Revision: 321 $
  */
 public class SMessage {
     private static final SRRset[] EMPTY_SRRSET_ARRAY = new SRRset[0];
+    private static final int NUM_SECTIONS = 3;
+    private static final int MAX_FLAGS = 16;
+    private static final int EXTENDED_FLAGS_BIT_OFFSET = 4;
 
     private Header header;
     private Record question;
@@ -82,18 +84,34 @@ public class SMessage {
     private List<SRRset>[] sections;
     private SecurityStatus securityStatus;
 
+    /**
+     * Creates a instance of this class.
+     * 
+     * @param h The header of the original message.
+     */
     @SuppressWarnings("unchecked")
     public SMessage(Header h) {
-        this.sections = new List[3];
+        this.sections = new List[NUM_SECTIONS];
         this.header = h;
         this.securityStatus = SecurityStatus.UNCHECKED;
     }
 
+    /**
+     * Creates a new instance of this class.
+     * 
+     * @param id The ID of the DNS query or response message.
+     * @param question The question section of the query or response.
+     */
     public SMessage(int id, Record question) {
         this(new Header(id));
         this.question = question;
     }
 
+    /**
+     * Creates a new instance of this class.
+     * 
+     * @param m The DNS message to wrap.
+     */
     public SMessage(Message m) {
         this(m.getHeader());
         this.question = m.getQuestion();
@@ -108,10 +126,20 @@ public class SMessage {
         }
     }
 
+    /**
+     * Gets the header of this message.
+     * 
+     * @return The header of this message.
+     */
     public Header getHeader() {
         return this.header;
     }
 
+    /**
+     * Gets the question section of this message.
+     * 
+     * @return The question section of this message.
+     */
     public Record getQuestion() {
         return this.question;
     }
@@ -144,12 +172,24 @@ public class SMessage {
         }
     }
 
+    /**
+     * Gets signed RRsets for the queried section.
+     * 
+     * @param section The section whose RRsets are demanded.
+     * @return Signed RRsets for the queried section.
+     */
     public SRRset[] getSectionRRsets(int section) {
         List<SRRset> slist = this.getSectionList(section);
-
         return slist.toArray(EMPTY_SRRSET_ARRAY);
     }
 
+    /**
+     * Gets signed RRsets for the queried section.
+     * 
+     * @param section The section whose RRsets are demanded.
+     * @param qtype Filter the results for these record types.
+     * @return Signed RRsets for the queried section.
+     */
     public SRRset[] getSectionRRsets(int section, int qtype) {
         List<SRRset> slist = this.getSectionList(section);
 
@@ -167,23 +207,43 @@ public class SMessage {
         return result.toArray(EMPTY_SRRSET_ARRAY);
     }
 
+    /**
+     * Gets the result code of the response message.
+     * 
+     * @return The result code of the response message.
+     */
     public int getRcode() {
         int rcode = this.header.getRcode();
         if (this.oPTRecord != null) {
-            rcode += this.oPTRecord.getExtendedRcode() << 4;
+            rcode += this.oPTRecord.getExtendedRcode() << EXTENDED_FLAGS_BIT_OFFSET;
         }
 
         return rcode;
     }
 
+    /**
+     * Gets the security status of this message.
+     * 
+     * @return The security status of this message.
+     */
     public SecurityStatus getStatus() {
         return this.securityStatus;
     }
 
+    /**
+     * Sets the security status for this message.
+     * 
+     * @param status the new security status for this message.
+     */
     public void setStatus(SecurityStatus status) {
         this.securityStatus = status;
     }
 
+    /**
+     * Gets this message as a standard DNSJAVA message.
+     * 
+     * @return This message as a standard DNSJAVA message.
+     */
     public Message getMessage() {
         // Generate our new message.
         Message m = new Message(this.header.getID());
@@ -197,7 +257,7 @@ public class SMessage {
         Header h = m.getHeader();
         h.setOpcode(this.header.getOpcode());
         h.setRcode(this.header.getRcode());
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < MAX_FLAGS; i++) {
             if (Flags.isFlag(i) && this.header.getFlag(i)) {
                 h.setFlag(i);
             }
@@ -229,6 +289,12 @@ public class SMessage {
         return m;
     }
 
+    /**
+     * Gets the number of records.
+     * 
+     * @param section The section for which the records are counted.
+     * @return The number of records for the queried section.
+     */
     public int getCount(int section) {
         if (section == Section.QUESTION) {
             return 1;
@@ -258,7 +324,7 @@ public class SMessage {
      * @return The SRRset if found, null otherwise.
      */
     public SRRset findRRset(Name name, int type, int dclass, int section) {
-        checkSectionValidity(section);
+        this.checkSectionValidity(section);
 
         SRRset[] rrsets = this.getSectionRRsets(section);
 

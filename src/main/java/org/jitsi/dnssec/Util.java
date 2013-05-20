@@ -66,12 +66,10 @@ public class Util {
     }
 
     public static SMessage errorMessage(Message request, int rcode) {
-        SMessage m = new SMessage(request.getHeader().getID());
+        SMessage m = new SMessage(request.getHeader().getID(), request.getQuestion());
         Header h = m.getHeader();
         h.setRcode(rcode);
         h.setFlag(Flags.QR);
-        m.setQuestion(request.getQuestion());
-        m.setOPT(request.getOPT());
 
         return m;
     }

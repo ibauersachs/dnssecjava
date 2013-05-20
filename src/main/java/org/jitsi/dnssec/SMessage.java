@@ -89,12 +89,9 @@ public class SMessage {
         this.securityStatus = SecurityStatus.UNCHECKED;
     }
 
-    public SMessage(int id) {
+    public SMessage(int id, Record question) {
         this(new Header(id));
-    }
-
-    public SMessage() {
-        this(new Header(0));
+        this.question = question;
     }
 
     public SMessage(Message m) {
@@ -106,7 +103,7 @@ public class SMessage {
             RRset[] rrsets = m.getSectionRRsets(i);
 
             for (int j = 0; j < rrsets.length; j++) {
-                addRRset(rrsets[j], i);
+                addRRset(new SRRset(rrsets[j]), i);
             }
         }
     }
@@ -115,26 +112,12 @@ public class SMessage {
         return this.header;
     }
 
-    public void setQuestion(Record r) {
-        this.question = r;
-    }
-
     public Record getQuestion() {
         return this.question;
     }
 
-    public void setOPT(OPTRecord r) {
-        this.oPTRecord = r;
-    }
-
-    public OPTRecord getOPT() {
-        return this.oPTRecord;
-    }
-
-    public List<SRRset> getSectionList(int section) {
-        if (section <= Section.QUESTION || section > Section.ADDITIONAL) {
-            throw new IllegalArgumentException("Invalid section.");
-        }
+    private List<SRRset> getSectionList(int section) {
+        checkSectionValidity(section);
 
         if (this.sections[section - 1] == null) {
             this.sections[section - 1] = new LinkedList<SRRset>();
@@ -143,10 +126,8 @@ public class SMessage {
         return this.sections[section - 1];
     }
 
-    public void addRRset(SRRset srrset, int section) {
-        if (section <= Section.QUESTION || section > Section.ADDITIONAL) {
-            throw new IllegalArgumentException("Invalid section");
-        }
+    private void addRRset(SRRset srrset, int section) {
+        checkSectionValidity(section);
 
         if (srrset.getType() == Type.OPT) {
             this.oPTRecord = (OPTRecord)srrset.first();
@@ -157,14 +138,10 @@ public class SMessage {
         sectionList.add(srrset);
     }
 
-    public void addRRset(RRset rrset, int section) {
-        if (rrset instanceof SRRset) {
-            this.addRRset((SRRset)rrset, section);
-            return;
+    private void checkSectionValidity(int section) {
+        if (section <= Section.QUESTION || section > Section.ADDITIONAL) {
+            throw new IllegalArgumentException("Invalid section");
         }
-
-        SRRset srrset = new SRRset(rrset);
-        this.addRRset(srrset, section);
     }
 
     public SRRset[] getSectionRRsets(int section) {
@@ -177,7 +154,7 @@ public class SMessage {
         List<SRRset> slist = this.getSectionList(section);
 
         if (slist.size() == 0) {
-            return new SRRset[0];
+            return EMPTY_SRRSET_ARRAY;
         }
 
         List<SRRset> result = new ArrayList<SRRset>(slist.size());
@@ -254,14 +231,10 @@ public class SMessage {
 
     public int getCount(int section) {
         if (section == Section.QUESTION) {
-            return this.question == null ? 0 : 1;
+            return 1;
         }
 
         List<SRRset> sectionList = this.getSectionList(section);
-        if (sectionList == null) {
-            return 0;
-        }
-
         if (sectionList.size() == 0) {
             return 0;
         }
@@ -270,11 +243,8 @@ public class SMessage {
         for (SRRset sr : sectionList) {
             count += sr.size();
         }
-        return count;
-    }
 
-    public String toString() {
-        return this.getMessage().toString();
+        return count;
     }
 
     /**
@@ -288,9 +258,7 @@ public class SMessage {
      * @return The SRRset if found, null otherwise.
      */
     public SRRset findRRset(Name name, int type, int dclass, int section) {
-        if (section <= Section.QUESTION || section > Section.ADDITIONAL) {
-            throw new IllegalArgumentException("Invalid section.");
-        }
+        checkSectionValidity(section);
 
         SRRset[] rrsets = this.getSectionRRsets(section);
 
@@ -305,7 +273,7 @@ public class SMessage {
 
     /**
      * Find an "answer" RRset. This will look for RRsets in the ANSWER section
-     * that match the <qname,qtype,qclass>, taking into consideration CNAMEs.
+     * that match the <qname,qtype,qclass>, without considering CNAMEs.
      * 
      * @param qname The starting search name.
      * @param qtype The search type.
@@ -315,20 +283,6 @@ public class SMessage {
      *         name from qname, due to following a CNAME chain.
      */
     public SRRset findAnswerRRset(Name qname, int qtype, int qclass) {
-        SRRset[] srrsets = this.getSectionRRsets(Section.ANSWER);
-
-        for (int i = 0; i < srrsets.length; i++) {
-            if (srrsets[i].getName().equals(qname) && srrsets[i].getType() == Type.CNAME) {
-                CNAMERecord cname = (CNAMERecord)srrsets[i].first();
-                qname = cname.getTarget();
-                continue;
-            }
-
-            if (srrsets[i].getName().equals(qname) && srrsets[i].getType() == qtype && srrsets[i].getDClass() == qclass) {
-                return srrsets[i];
-            }
-        }
-
-        return null;
+        return this.findRRset(qname, qtype, qclass, Section.ANSWER);
     }
 }

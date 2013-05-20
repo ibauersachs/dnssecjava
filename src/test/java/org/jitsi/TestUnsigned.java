@@ -18,7 +18,7 @@
  * along with dnssecjava.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- package org.jitsi;
+package org.jitsi;
 
 import static org.junit.Assert.*;
 

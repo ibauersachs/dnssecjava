@@ -11,6 +11,7 @@
 <module name="Checker">
   <property name="severity" value="warning"/>
   <module name="TreeWalker">
+    <module name="FileContentsHolder"/>
     <module name="JavadocMethod">
       <property name="scope" value="package"/>
       <property name="suppressLoadErrors" value="true"/>
@@ -121,4 +122,5 @@
     <property name="format" value="\s\s+$"/>
     <property name="message" value="Line has trailing spaces."/>
   </module>
+  <module name="SuppressionCommentFilter"/>
 </module>

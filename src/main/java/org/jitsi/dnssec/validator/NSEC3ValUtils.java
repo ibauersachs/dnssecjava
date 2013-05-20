@@ -52,6 +52,9 @@
 package org.jitsi.dnssec.validator;
 
 import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.DSAPublicKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -61,6 +64,7 @@ import org.apache.log4j.Logger;
 import org.jitsi.dnssec.SecurityStatus;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC.Algorithm;
+import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.NSEC3Record;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.NameTooLongException;
@@ -69,11 +73,10 @@ import org.xbill.DNS.TextParseException;
 import org.xbill.DNS.Type;
 import org.xbill.DNS.utils.base32;
 
-public class NSEC3ValUtils {
-    public static final int UNKNOWN = 0;
-    public static final int RSA = 1;
-    public static final int DSA = 2;
-
+/**
+ * NSEC3 non-existence proof utilities.
+ */
+public final class NSEC3ValUtils {
     // FIXME: should probably refactor to handle different NSEC3 parameters more
     // efficiently.
     // Given a list of NSEC3 RRs, they should be grouped according to
@@ -143,6 +146,12 @@ public class NSEC3ValUtils {
         return false;
     }
 
+    /**
+     * Remove all records whose algorithm is unknown.
+     * 
+     * @param nsec3s List of NSEC3 records to check. The list is modified by
+     *            this method.
+     */
     public static void stripUnknownAlgNSEC3s(List<NSEC3Record> nsec3s) {
         if (nsec3s == null) {
             return;
@@ -290,10 +299,12 @@ public class NSEC3ValUtils {
             return true;
         }
 
-        // this is the end of zone case: next < owner && hash > owner || hash <
-        // next
+        // this is the end of zone case:
+        // next < owner && hash > owner || hash < next
         if (bac.compare(next, owner) <= 0 && (bac.compare(hash, next) < 0 || bac.compare(owner, hash) < 0)) {
-            return true;
+            // FIXME: bogus code
+            throw new RuntimeException("FIXME: bogus code");
+            // return true;
         }
 
         // Otherwise, the NSEC3 does not cover the hash.
@@ -414,77 +425,63 @@ public class NSEC3ValUtils {
         return candidate;
     }
 
-    private static int maxIterations(int baseAlg, int keysize) {
-        switch (baseAlg) {
-            case RSA:
-                if (keysize == 0) {
-                    return 2500; // the max at 4096
-                }
-
-                if (keysize > 2048) {
-                    return 2500;
-                }
-
-                if (keysize > 1024) {
-                    return 500;
-                }
-
-                if (keysize > 0) {
-                    return 150;
-                }
-
-                break;
-            case DSA:
-                if (keysize == 0) {
-                    return 5000; // the max at 2048;
-                }
-
-                if (keysize > 1024) {
-                    return 5000;
-                }
-
-                if (keysize > 0) {
-                    return 1500;
-                }
-
-                break;
-            default:
-                break;
-        }
-
-        return -1;
-    }
-
-    private static int baseAlgorithm(int algorithm) {
-        switch (algorithm) {
-            case Algorithm.RSAMD5:
-            case Algorithm.RSASHA1:
-            case Algorithm.RSASHA256:
-            case Algorithm.RSASHA512:
-            case Algorithm.RSA_NSEC3_SHA1:
-                return RSA;
-            case Algorithm.DSA:
-            case Algorithm.DSA_NSEC3_SHA1:
-                return DSA;
-            default:
-                break;
-        }
-
-        return UNKNOWN;
-    }
-
     private static boolean validIterations(NSEC3Parameters nsec3params, RRset dnskeyRrset) {
         // for now, we return the maximum iterations based simply on the key
         // algorithms that may have been used to sign the NSEC3 RRsets.
-        int maxIterations = 0;
-        for (Iterator<?> i = dnskeyRrset.rrs(); i.hasNext();) {
-            DNSKEYRecord dnskey = (DNSKEYRecord)i.next();
-            int baseAlg = baseAlgorithm(dnskey.getAlgorithm());
-            int iters = maxIterations(baseAlg, 0);
-            maxIterations = maxIterations < iters ? iters : maxIterations;
-        }
+        try {
+            int maxIterations = 0;
+            for (Iterator<?> i = dnskeyRrset.rrs(); i.hasNext();) {
+                DNSKEYRecord dnskey = (DNSKEYRecord)i.next();
+                int keysize = 0;
+                switch (dnskey.getAlgorithm()) {
+                    case Algorithm.RSAMD5:
+                    case Algorithm.RSASHA1:
+                    case Algorithm.RSASHA256:
+                    case Algorithm.RSASHA512:
+                    case Algorithm.RSA_NSEC3_SHA1:
+                        keysize = ((RSAPublicKey)dnskey.getPublicKey()).getModulus().bitLength();
+                        break;
+                    case Algorithm.DSA:
+                    case Algorithm.DSA_NSEC3_SHA1:
+                        keysize = ((DSAPublicKey)dnskey.getPublicKey()).getParams().getP().bitLength();
+                        break;
+                    case Algorithm.ECDSAP256SHA256:
+                    case Algorithm.ECDSAP384SHA384:
+                        keysize = ((ECPublicKey)dnskey.getPublicKey()).getParams().getCurve().getField().getFieldSize();
+                        break;
+                    default:
+                        return false;
+                }
 
-        return nsec3params.iterations < maxIterations;
+                // assume ECDSA for keys less than 1024
+                int iters;
+                // see RFC5155#10.3 for the max iteration count
+                // CHECKSTYLE:OFF
+                if (keysize <= 256) {
+                    iters = 500;
+                }
+                else if (keysize <= 384) {
+                    iters = 2500;
+                }
+                else if (keysize <= 1024) {
+                    iters = 150;
+                }
+                else if (keysize <= 2048) {
+                    iters = 500;
+                }
+                else {
+                    iters = 2500;
+                }
+                // CHECKSTYLE:ON
+                maxIterations = maxIterations < iters ? iters : maxIterations;
+            }
+
+            return nsec3params.iterations < maxIterations;
+        }
+        catch (DNSSECException e) {
+            logger.error("Could not get public key from NSEC3 record", e);
+            return false;
+        }
     }
 
     /**

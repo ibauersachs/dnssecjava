@@ -225,10 +225,10 @@ public class ValUtils {
      *         this sort of thing is checked before fetching the matching DNSKEY
      *         rrset.
      */
-    public KeyEntry verifyNewDNSKEYs(SRRset dnskeyRrset, SRRset dsRrset) {
+    public KeyEntry verifyNewDNSKEYs(SRRset dnskeyRrset, SRRset dsRrset, long badKeyTTL) {
         if (!dnskeyRrset.getName().equals(dsRrset.getName())) {
             log.debug("DNSKEY RRset did not match DS RRset by name!");
-            return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass());
+            return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
         }
 
         // as long as this is false, we can consider this DS rrset to be
@@ -289,7 +289,7 @@ public class ValUtils {
 
         // If any were understandable, then it is bad.
         log.debug("Failed to match any usable DS to a DNSKEY.");
-        return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass());
+        return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
     }
 
     /**

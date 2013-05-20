@@ -70,6 +70,7 @@ public class KeyEntry {
         this.rrset = rrset;
         this.name = rrset.getName();
         this.dclass = rrset.getDClass();
+        this.ttl = rrset.getTTL();
     }
 
     private KeyEntry(Name name, int dclass, long ttl, boolean isBad) {
@@ -88,8 +89,8 @@ public class KeyEntry {
         return new KeyEntry(n, dclass, ttl, false);
     }
 
-    public static KeyEntry newBadKeyEntry(Name n, int dclass) {
-        return new KeyEntry(n, dclass, 0, true);
+    public static KeyEntry newBadKeyEntry(Name n, int dclass, long ttl) {
+        return new KeyEntry(n, dclass, ttl, true);
     }
 
     public SRRset getRRset() {

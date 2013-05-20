@@ -57,54 +57,45 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.Type;
 
 /**
+ * Cache for DNSKEY RRsets or corresponding null/bad key entries with a limited
+ * size and respect for TTL values.
+ * 
  * @author davidb
- * @version $Revision: 286 $
+ * @author Ingo Bauersachs
  */
 public class KeyCache {
-    private static class CacheEntry {
-        public Date expiration;
-        public KeyEntry keyEntry;
+    /** Name of the property that configures the maximum cache TTL. */
+    public static final String MAX_TTL_CONFIG = "org.jitsi.dnssec.keycache.max_ttl";
 
-        public CacheEntry(SRRset r, long maxTtl) {
-            long ttl = r.getTTL();
-            if (ttl > maxTtl) {
-                ttl = maxTtl;
-            }
+    /** Name of the property that configures the maximum cache size. */
+    public static final String MAX_CACHE_SIZE_CONFIG = "org.jitsi.dnssec.keycache.max_size";
 
-            this.expiration = new Date(System.currentTimeMillis() + (ttl * 1000));
-            this.keyEntry = KeyEntry.newKeyEntry(r);
-        }
-
-        public CacheEntry(Name n, int dclass, long ttl, long maxTtl) {
-            if (ttl > maxTtl) {
-                ttl = maxTtl;
-            }
-
-            this.expiration = new Date(System.currentTimeMillis() + (ttl * 1000));
-            this.keyEntry = KeyEntry.newNullKeyEntry(n, dclass, ttl);
-        }
-    }
+    private static final int MILLISECONDS_PER_SECOND = 1000;
+    private static final int DEFAULT_MAX_TTL = 900;
+    private static final int DEFAULT_MAX_CACHE_SIZE = 1000;
 
     /** This is the main caching data structure. */
     private Map<String, CacheEntry> cache;
 
     /** This is the maximum TTL [s] that all key cache entries will have. */
-    private long maxTtl = 900;
+    private long maxTtl = DEFAULT_MAX_TTL;
 
     /** This is the maximum number of entries that the key cache will hold. */
-    private int maxCacheSize = 1000;
+    private int maxCacheSize = DEFAULT_MAX_CACHE_SIZE;
 
+    /**
+     * Creates a new instance of this class.
+     */
     public KeyCache() {
         this.cache = Collections.synchronizedMap(new LinkedHashMap<String, CacheEntry>() {
             @Override
             protected boolean removeEldestEntry(java.util.Map.Entry<String, CacheEntry> eldest) {
-                return size() > KeyCache.this.maxCacheSize;
+                return size() >= KeyCache.this.maxCacheSize;
             }
         });
     }
@@ -126,12 +117,12 @@ public class KeyCache {
             return;
         }
 
-        String s = config.getProperty("org.jitsi.dnssec.keycache.max_ttl");
+        String s = config.getProperty(MAX_TTL_CONFIG);
         if (s != null) {
             this.maxTtl = Long.parseLong(s);
         }
 
-        s = config.getProperty("org.jitsi.dnssec.keycache.max_size");
+        s = config.getProperty(MAX_CACHE_SIZE_CONFIG);
         if (s != null) {
             this.maxCacheSize = Integer.parseInt(s);
         }
@@ -160,42 +151,28 @@ public class KeyCache {
     }
 
     /**
-     * Store a DNSKEY rrset in the cache. The rrset will be ignored if it isn't
-     * a DNSKEY rrset or if it doesn't have the SECURE security status.
+     * Store a {@link KeyEntry} in the cache. The entry will be ignored if it's
+     * rrset isn't a DNSKEY rrset or if it doesn't have the SECURE security
+     * status.
      * 
-     * @param keyRrset The SRRset to store.
+     * @param ke The key entry to cache.
+     * @return The passed {@link KeyEntry} to allow method chaining.
      */
-    public void store(SRRset keyRrset) {
-        if (keyRrset == null) {
-            return;
+    public KeyEntry store(KeyEntry ke) {
+        if (ke.getRRset() != null) {
+            if (ke.getRRset().getType() != Type.DNSKEY) {
+                return ke;
+            }
+
+            if (ke.getRRset().getSecurityStatus() != SecurityStatus.SECURE) {
+                return ke;
+            }
         }
 
-        if (keyRrset.getType() != Type.DNSKEY) {
-            return;
-        }
-
-        if (keyRrset.getSecurityStatus() != SecurityStatus.SECURE) {
-            return;
-        }
-
-        String k = key(keyRrset.getName(), keyRrset.getDClass());
-        CacheEntry ce = new CacheEntry(keyRrset, this.maxTtl);
-
+        String k = this.key(ke.getName(), ke.getDClass());
+        CacheEntry ce = new CacheEntry(ke, this.maxTtl);
         this.cache.put(k, ce);
-    }
-
-    public void store(Name n, int dclass, long ttl) {
-        if (n == null) {
-            return;
-        }
-
-        if (ttl <= 0) {
-            return;
-        }
-
-        String k = key(n, dclass);
-        CacheEntry ce = new CacheEntry(n, dclass, ttl, maxTtl);
-        this.cache.put(k, ce);
+        return ke;
     }
 
     private String key(Name n, int dclass) {
@@ -203,7 +180,7 @@ public class KeyCache {
     }
 
     private KeyEntry lookupEntry(String key) {
-        CacheEntry centry = (CacheEntry)this.cache.get(key);
+        CacheEntry centry = this.cache.get(key);
         if (centry == null) {
             return null;
         }
@@ -214,5 +191,23 @@ public class KeyCache {
         }
 
         return centry.keyEntry;
+    }
+
+    /**
+     * Utility class to cache key entries with an expiration date.
+     */
+    private static class CacheEntry {
+        private Date expiration;
+        private KeyEntry keyEntry;
+
+        public CacheEntry(KeyEntry keyEntry, long maxTtl) {
+            long ttl = keyEntry.getTTL();
+            if (ttl > maxTtl) {
+                ttl = maxTtl;
+            }
+
+            this.expiration = new Date(System.currentTimeMillis() + (ttl * MILLISECONDS_PER_SECOND));
+            this.keyEntry = keyEntry;
+        }
     }
 }

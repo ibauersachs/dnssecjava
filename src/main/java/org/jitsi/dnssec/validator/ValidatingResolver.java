@@ -102,6 +102,12 @@ public class ValidatingResolver implements Resolver {
     private static final long DEFAULT_TA_NULL_KEY_TTL = 60;
 
     /**
+     * This is the TTL to use when a trust anchor priming query failed to
+     * validate.
+     */
+    private static final long DEFAULT_TA_BAD_KEY_TTL = 60;
+
+    /**
      * This is a cache of validated, but expirable DNSKEY rrsets.
      */
     private KeyCache keyCache;
@@ -903,13 +909,12 @@ public class ValidatingResolver implements Resolver {
         if (dnskeyRrset == null) {
             logger.debug("Failed to prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- could not fetch DNSKEY rrset");
 
-            this.keyCache.store(qname, qclass, DEFAULT_TA_NULL_KEY_TTL);
-            return KeyEntry.newNullKeyEntry(qname, qclass, DEFAULT_TA_NULL_KEY_TTL);
+            return this.keyCache.store(KeyEntry.newNullKeyEntry(qname, qclass, DEFAULT_TA_NULL_KEY_TTL));
         }
 
         SecurityStatus status;
         if (qtype == Type.DS) {
-            KeyEntry dnskeyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, trustAnchor);
+            KeyEntry dnskeyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, trustAnchor, DEFAULT_TA_BAD_KEY_TTL);
             if (dnskeyEntry.isGood()) {
                 status = SecurityStatus.SECURE;
             }
@@ -928,14 +933,12 @@ public class ValidatingResolver implements Resolver {
             logger.debug("Could not prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- DNSKEY rrset did not verify");
 
             // no or a bad answer to a trust anchor means we cannot continue
-            this.keyCache.store(qname, qclass, DEFAULT_TA_NULL_KEY_TTL);
-            return KeyEntry.newBadKeyEntry(qname, qclass);
+            return this.keyCache.store(KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL));
         }
 
         logger.debug("Successfully primed trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
 
-        this.keyCache.store(dnskeyRrset);
-        return KeyEntry.newKeyEntry(dnskeyRrset);
+        return this.keyCache.store(KeyEntry.newKeyEntry(dnskeyRrset));
     }
 
     /**
@@ -1054,7 +1057,7 @@ public class ValidatingResolver implements Resolver {
         SecurityStatus status;
         ResponseClassification subtype = ValUtils.classifyResponse(response);
 
-        KeyEntry bogusKE = KeyEntry.newBadKeyEntry(qname, qclass);
+        KeyEntry bogusKE = KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
         switch (subtype) {
             case POSITIVE:
                 SRRset dsRrset = response.findAnswerRRset(qname, Type.DS, qclass);
@@ -1244,13 +1247,13 @@ public class ValidatingResolver implements Resolver {
         if (dnskeyRrset == null) {
             // If the DNSKEY rrset was missing, this is the end of the line.
             logger.debug("Missing DNSKEY RRset in response to DNSKEY query.");
-            forState.keyEntry = KeyEntry.newBadKeyEntry(qname, qclass);
+            forState.keyEntry = KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
             forState.state = ValEventState.VALIDATE_STATE;
             this.processResponse(forEvent);
             return false;
         }
 
-        forState.keyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, dsRrset);
+        forState.keyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, dsRrset, DEFAULT_TA_BAD_KEY_TTL);
 
         // If the key entry isBad or isNull, then we can move on to the next
         // state.
@@ -1264,7 +1267,7 @@ public class ValidatingResolver implements Resolver {
         }
 
         // The DNSKEY validated, so cache it as a trusted key rrset.
-        this.keyCache.store(forState.keyEntry.getRRset());
+        this.keyCache.store(forState.keyEntry);
 
         // If good, we stay in the FINDKEY state.
         this.processResponse(forEvent);

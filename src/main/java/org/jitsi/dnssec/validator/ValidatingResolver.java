@@ -56,7 +56,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Properties;
 
 import org.apache.log4j.Logger;
 import org.jitsi.dnssec.DNSEvent;
@@ -65,16 +69,38 @@ import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
 import org.jitsi.dnssec.Util;
 import org.jitsi.dnssec.validator.ValUtils.ResponseClassification;
-import org.xbill.DNS.*;
+import org.xbill.DNS.CNAMERecord;
+import org.xbill.DNS.DClass;
+import org.xbill.DNS.ExtendedFlags;
+import org.xbill.DNS.Flags;
+import org.xbill.DNS.Master;
+import org.xbill.DNS.Message;
+import org.xbill.DNS.NSEC3Record;
+import org.xbill.DNS.NSECRecord;
+import org.xbill.DNS.Name;
+import org.xbill.DNS.Rcode;
+import org.xbill.DNS.Record;
+import org.xbill.DNS.Resolver;
+import org.xbill.DNS.ResolverListener;
+import org.xbill.DNS.Section;
+import org.xbill.DNS.TSIG;
+import org.xbill.DNS.TextParseException;
+import org.xbill.DNS.Type;
 
 /**
- * This resolver module implements the "validator" logic.
- * 
+ * This resolver validates responses with DNSSEC.
  * 
  * @author davidb
- * @version $Revision: 361 $
  */
 public class ValidatingResolver implements Resolver {
+    private static final Logger logger = Logger.getLogger(ValidatingResolver.class);
+
+    /**
+     * This is the TTL to use when a trust anchor fails to prime. A trust anchor
+     * will be primed no more often than this interval.
+     */
+    private static final long DEFAULT_TA_NULL_KEY_TTL = 60;
+
     /**
      * This is a cache of validated, but expirable DNSKEY rrsets.
      */
@@ -91,48 +117,43 @@ public class ValidatingResolver implements Resolver {
      */
     private ValUtils valUtils;
 
-    private Logger log = Logger.getLogger(this.getClass());
-
-    // This is the TTL to use when a trust anchor fails to prime. A trust anchor
-    // will be primed no more often than this interval.
-    private static final long DEFAULT_TA_NULL_KEY_TTL = 60;
-
     private Resolver headResolver;
 
-    public ValidatingResolver(Resolver headResolver) throws UnknownHostException {
+    /**
+     * Creates a new instance of this class.
+     * 
+     * @param headResolver The resolver to which queries for DS, DNSKEY and
+     *            referring CNAME records are sent.
+     */
+    public ValidatingResolver(Resolver headResolver) {
         this.headResolver = headResolver;
         headResolver.setEDNS(0, 0, ExtendedFlags.DO, null);
         headResolver.setIgnoreTruncation(false);
 
-        keyCache = new KeyCache();
-        valUtils = new ValUtils(new DnsSecVerifier());
-        trustAnchors = new TrustAnchorStore();
-    }
-
-    public TrustAnchorStore getTrustAnchors() {
-        return this.trustAnchors;
+        this.keyCache = new KeyCache();
+        this.valUtils = new ValUtils(new DnsSecVerifier());
+        this.trustAnchors = new TrustAnchorStore();
     }
 
     // ---------------- Module Initialization -------------------
-
     /**
      * Initialize the module. The only recognized configuration value is
      * <tt>org.jitsi.dnssec.trust_anchor_file</tt>.
      * 
      * @param config The configuration data for this module.
      */
-    public void init(Properties config) throws Exception {
-        keyCache.init(config);
+    public void init(Properties config) {
+        this.keyCache.init(config);
 
         // Load trust anchors
         String s = config.getProperty("org.jitsi.dnssec.trust_anchor_file");
         if (s != null) {
             try {
-                log.debug("reading trust anchor file file: " + s);
+                logger.debug("reading trust anchor file file: " + s);
                 loadTrustAnchors(new FileInputStream(s));
             }
             catch (IOException e) {
-                log.error("Problems loading trust anchors from file", e);
+                logger.error("Problems loading trust anchors from file", e);
             }
         }
     }
@@ -180,14 +201,14 @@ public class ValidatingResolver implements Resolver {
             }
 
             // Otherwise, we add the rrset to our set of trust anchors.
-            trustAnchors.store(currentRrset);
+            this.trustAnchors.store(currentRrset);
             currentRrset = new SRRset();
             currentRrset.addRR(r);
         }
 
         // add the last rrset (if it was not empty)
         if (currentRrset.size() > 0) {
-            trustAnchors.store(currentRrset);
+            this.trustAnchors.store(currentRrset);
         }
     }
 
@@ -246,14 +267,14 @@ public class ValidatingResolver implements Resolver {
      */
     private boolean needsValidation(SMessage response) {
         if (response.getStatus().getStatus() > SecurityStatus.BOGUS.getStatus()) {
-            log.debug("response has already been validated");
+            logger.debug("response has already been validated");
             return false;
         }
 
         int rcode = response.getRcode();
         if (rcode != Rcode.NOERROR && rcode != Rcode.NXDOMAIN) {
-            log.debug("cannot validate non-answer.");
-            log.trace("non-answer: " + response);
+            logger.debug("cannot validate non-answer.");
+            logger.trace("non-answer: " + response);
             return false;
         }
 
@@ -274,7 +295,7 @@ public class ValidatingResolver implements Resolver {
         int qtype = trustAnchorRrset.getType();
         int qclass = trustAnchorRrset.getDClass();
 
-        log.debug("Priming Trust Anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
+        logger.debug("Priming Trust Anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
 
         Message req = generateLocalRequest(qname, Type.DNSKEY, qclass);
         DNSEvent primingQueryEvent = generateLocalEvent(forEvent, req, ValEventState.PRIME_RESP_STATE, ValEventState.PRIME_RESP_STATE);
@@ -361,11 +382,11 @@ public class ValidatingResolver implements Resolver {
             }
 
             // Verify the answer rrset.
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
             if (status != SecurityStatus.SECURE) {
-                log.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
@@ -385,11 +406,11 @@ public class ValidatingResolver implements Resolver {
         // NS rrset (which could be missing, no problem)
         rrsets = response.getSectionRRsets(Section.AUTHORITY);
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             // If anything in the authority section fails to be secure, we have
             // a bad message.
             if (status != SecurityStatus.SECURE) {
-                log.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
@@ -403,7 +424,7 @@ public class ValidatingResolver implements Resolver {
                 if (ValUtils.nsecProvesNameError(nsec, qname, keyRrset.getName())) {
                     Name nsecWc = ValUtils.nsecWildcard(qname, nsec);
                     if (!wc.equals(nsecWc)) {
-                        log.debug("Postive wildcard response wasn't generated " + "by the correct wildcard");
+                        logger.debug("Postive wildcard response wasn't generated " + "by the correct wildcard");
                         response.setStatus(SecurityStatus.BOGUS);
                         return;
                     }
@@ -435,12 +456,12 @@ public class ValidatingResolver implements Resolver {
         // If after all this, we still haven't proven the positive wildcard
         // response, fail.
         if (wc != null && !wcNsecOk) {
-            log.debug("positive response was wildcard expansion and " + "did not prove original data did not exist");
+            logger.debug("positive response was wildcard expansion and " + "did not prove original data did not exist");
             response.setStatus(SecurityStatus.BOGUS);
             return;
         }
 
-        log.trace("Successfully validated postive response");
+        logger.trace("Successfully validated postive response");
         response.setStatus(SecurityStatus.SECURE);
     }
 
@@ -478,11 +499,11 @@ public class ValidatingResolver implements Resolver {
         // validate the ANSWER section.
         SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
             if (status != SecurityStatus.SECURE) {
-                log.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
                 m.setStatus(SecurityStatus.BOGUS);
                 return;
             }
@@ -492,17 +513,17 @@ public class ValidatingResolver implements Resolver {
         // (which could be missing, no problem)
         rrsets = m.getSectionRRsets(Section.AUTHORITY);
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             // If anything in the authority section fails to be secure, we have
             // a bad message.
             if (status != SecurityStatus.SECURE) {
-                log.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
                 m.setStatus(SecurityStatus.BOGUS);
                 return;
             }
         }
 
-        log.trace("Successfully validated postive ANY response");
+        logger.trace("Successfully validated postive ANY response");
         m.setStatus(SecurityStatus.SECURE);
     }
 
@@ -546,9 +567,9 @@ public class ValidatingResolver implements Resolver {
         Name nsec3Signer = null; // The RRSIG signer field for the NSEC3 RRs.
 
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             if (status != SecurityStatus.SECURE) {
-                log.debug("NODATA response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("NODATA response has failed AUTHORITY rrset: " + rrsets[i]);
                 m.setStatus(SecurityStatus.BOGUS);
                 return;
             }
@@ -592,7 +613,7 @@ public class ValidatingResolver implements Resolver {
                 }
             }
             catch (TextParseException e) {
-                log.error(e);
+                logger.error(e);
             }
         }
 
@@ -603,13 +624,13 @@ public class ValidatingResolver implements Resolver {
         }
 
         if (!hasValidNSEC) {
-            log.debug("NODATA response failed to prove NODATA " + "status with NSEC/NSEC3");
-            log.trace("Failed NODATA:\n" + m);
+            logger.debug("NODATA response failed to prove NODATA " + "status with NSEC/NSEC3");
+            logger.trace("Failed NODATA:\n" + m);
             m.setStatus(SecurityStatus.BOGUS);
             return;
         }
 
-        log.trace("sucessfully validated NODATA response.");
+        logger.trace("sucessfully validated NODATA response.");
         m.setStatus(SecurityStatus.SECURE);
     }
 
@@ -642,9 +663,9 @@ public class ValidatingResolver implements Resolver {
         Name nsec3Signer = null;
 
         for (int i = 0; i < rrsets.length; i++) {
-            SecurityStatus status = valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             if (status != SecurityStatus.SECURE) {
-                log.debug("NameError response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("NameError response has failed AUTHORITY rrset: " + rrsets[i]);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
@@ -672,11 +693,11 @@ public class ValidatingResolver implements Resolver {
 
         NSEC3ValUtils.stripUnknownAlgNSEC3s(nsec3s);
         if (nsec3s != null && nsec3s.size() > 0) {
-            log.debug("Validating nxdomain: using NSEC3 records");
+            logger.debug("Validating nxdomain: using NSEC3 records");
             // Attempt to prove name error with nsec3 records.
 
             if (NSEC3ValUtils.allNSEC3sIgnoreable(nsec3s, keyRrset)) {
-                log.debug("all NSEC3s were validated but ignored.");
+                logger.debug("all NSEC3s were validated but ignored.");
                 response.setStatus(SecurityStatus.INSECURE);
                 return;
             }
@@ -690,19 +711,19 @@ public class ValidatingResolver implements Resolver {
 
         // If the message fails to prove either condition, it is bogus.
         if (!hasValidNSEC) {
-            log.debug("NameError response has failed to prove that the qname does not exist");
+            logger.debug("NameError response has failed to prove that the qname does not exist");
             response.setStatus(SecurityStatus.BOGUS);
             return;
         }
 
         if (!hasValidWCNSEC) {
-            log.debug("NameError response has failed to prove that the covering wildcard does not exist");
+            logger.debug("NameError response has failed to prove that the covering wildcard does not exist");
             response.setStatus(SecurityStatus.BOGUS);
             return;
         }
 
         // Otherwise, we consider the message secure.
-        log.trace("successfully validated NAME ERROR response.");
+        logger.trace("successfully validated NAME ERROR response.");
         response.setStatus(SecurityStatus.SECURE);
     }
 
@@ -710,7 +731,7 @@ public class ValidatingResolver implements Resolver {
 
     private void sendRequest(DNSEvent event) {
         Record q = event.getRequest().getQuestion();
-        log.trace("sending request: <" + q.getName() + "/" + Type.string(q.getType()) + "/" + DClass.string(q.getDClass()) + ">");
+        logger.trace("sending request: <" + q.getName() + "/" + Type.string(q.getType()) + "/" + DClass.string(q.getDClass()) + ">");
 
         // Add a module state object to every request.
         // Locally generated requests will already have state.
@@ -721,24 +742,24 @@ public class ValidatingResolver implements Resolver {
         }
 
         // (Possibly) modify the request to add the CD bit.
-        prepareRequest(event.getRequest());
+        this.prepareRequest(event.getRequest());
 
         // Send the request along by using a local copy of the request
         Message localRequest = (Message)event.getRequest().clone();
         try {
-            Message resp = headResolver.send(localRequest);
+            Message resp = this.headResolver.send(localRequest);
             event.setResponse(new SMessage(resp));
         }
         catch (SocketTimeoutException e) {
-            log.error("Query timed out, returning fail", e);
+            logger.error("Query timed out, returning fail", e);
             event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
         }
         catch (UnknownHostException e) {
-            log.error("failed to send query", e);
+            logger.error("failed to send query", e);
             event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
         }
         catch (IOException e) {
-            log.error("failed to send query", e);
+            logger.error("failed to send query", e);
             event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
         }
 
@@ -746,7 +767,7 @@ public class ValidatingResolver implements Resolver {
     }
 
     private void processResponse(DNSEvent event) {
-        log.trace("processing response");
+        logger.trace("processing response");
         boolean cont = true;
         ValEventState state = event.getModuleState();
 
@@ -788,7 +809,7 @@ public class ValidatingResolver implements Resolver {
                     cont = processFinishedState(event, state);
                     break;
                 default:
-                    log.error("unknown validation event state: " + state.state);
+                    logger.error("unknown validation event state: " + state.state);
                     cont = false;
                     break;
             }
@@ -812,10 +833,9 @@ public class ValidatingResolver implements Resolver {
      */
     private boolean processInit(DNSEvent event, ValEventState state) {
         SMessage resp = event.getResponse();
-        Message origRequest = event.getOrigRequest();
         Message req = event.getRequest();
 
-        if (!needsValidation(resp)) {
+        if (!this.needsValidation(resp)) {
             state.state = state.finalState;
             return true;
         }
@@ -823,7 +843,7 @@ public class ValidatingResolver implements Resolver {
         Name qname = req.getQuestion().getName();
         int qclass = req.getQuestion().getDClass();
 
-        state.trustAnchorRRset = trustAnchors.find(qname, qclass);
+        state.trustAnchorRRset = this.trustAnchors.find(qname, qclass);
 
         if (state.trustAnchorRRset == null) {
             // response isn't under a trust anchor, so we cannot validate.
@@ -832,14 +852,14 @@ public class ValidatingResolver implements Resolver {
         }
 
         // Determine the signer/lookup name
-        state.signerName = valUtils.findSigner(resp, req);
+        state.signerName = this.valUtils.findSigner(resp, req);
         Name lookupName = (state.signerName == null) ? qname : state.signerName;
 
-        state.keyEntry = keyCache.find(lookupName, qclass);
+        state.keyEntry = this.keyCache.find(lookupName, qclass);
 
         if (state.keyEntry == null) {
             // fire off a trust anchor priming query.
-            primeTrustAnchor(event, state.trustAnchorRRset);
+            this.primeTrustAnchor(event, state.trustAnchorRRset);
             // and otherwise, don't continue processing this event.
             // (it will be reactivated when the priming query returns).
             state.state = ValEventState.FINDKEY_STATE;
@@ -881,15 +901,15 @@ public class ValidatingResolver implements Resolver {
         // If the priming query didn't return a DNSKEY response, then we
         // temporarily consider this a "null" key.
         if (dnskeyRrset == null) {
-            log.debug("Failed to prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- could not fetch DNSKEY rrset");
+            logger.debug("Failed to prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- could not fetch DNSKEY rrset");
 
-            keyCache.store(qname, qclass, DEFAULT_TA_NULL_KEY_TTL);
+            this.keyCache.store(qname, qclass, DEFAULT_TA_NULL_KEY_TTL);
             return KeyEntry.newNullKeyEntry(qname, qclass, DEFAULT_TA_NULL_KEY_TTL);
         }
 
         SecurityStatus status;
         if (qtype == Type.DS) {
-            KeyEntry dnskeyEntry = valUtils.verifyNewDNSKEYs(dnskeyRrset, trustAnchor);
+            KeyEntry dnskeyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, trustAnchor);
             if (dnskeyEntry.isGood()) {
                 status = SecurityStatus.SECURE;
             }
@@ -898,23 +918,23 @@ public class ValidatingResolver implements Resolver {
             }
         }
         else if (qtype == Type.DNSKEY) {
-            status = valUtils.verifySRRset(dnskeyRrset, trustAnchor);
+            status = this.valUtils.verifySRRset(dnskeyRrset, trustAnchor);
         }
         else {
             status = SecurityStatus.BOGUS;
         }
 
         if (status != SecurityStatus.SECURE) {
-            log.debug("Could not prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- DNSKEY rrset did not verify");
+            logger.debug("Could not prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- DNSKEY rrset did not verify");
 
             // no or a bad answer to a trust anchor means we cannot continue
-            keyCache.store(qname, qclass, DEFAULT_TA_NULL_KEY_TTL);
+            this.keyCache.store(qname, qclass, DEFAULT_TA_NULL_KEY_TTL);
             return KeyEntry.newBadKeyEntry(qname, qclass);
         }
 
-        log.debug("Successfully primed trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
+        logger.debug("Successfully primed trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
 
-        keyCache.store(dnskeyRrset);
+        this.keyCache.store(dnskeyRrset);
         return KeyEntry.newKeyEntry(dnskeyRrset);
     }
 
@@ -934,7 +954,7 @@ public class ValidatingResolver implements Resolver {
 
         // Fetch and validate the keyEntry that corresponds to the current trust
         // anchor.
-        forState.keyEntry = primeResponseToKE(resp, forState.trustAnchorRRset);
+        forState.keyEntry = this.primeResponseToKE(resp, forState.trustAnchorRRset);
 
         // If the result of the prime is a null key, skip the FINDKEY state.
         if (forState.keyEntry.isNull() || forState.keyEntry.isBad()) {
@@ -942,7 +962,7 @@ public class ValidatingResolver implements Resolver {
         }
 
         // Continue processing our 'forEvent'. This event is finished.
-        processResponse(forEvent);
+        this.processResponse(forEvent);
 
         return false;
     }
@@ -995,21 +1015,21 @@ public class ValidatingResolver implements Resolver {
         }
 
         Name nextKeyName = new Name(targetKeyName, l);
-        log.trace("findKey: targetKeyName = " + targetKeyName + ", currentKeyName = " + currentKeyName + ", nextKeyName = " + nextKeyName);
+        logger.trace("findKey: targetKeyName = " + targetKeyName + ", currentKeyName = " + currentKeyName + ", nextKeyName = " + nextKeyName);
         // The next step is either to query for the next DS, or to query for the
         // next DNSKEY.
 
         if (state.dsRRset == null || !state.dsRRset.getName().equals(nextKeyName)) {
-            Message dsRequest = generateLocalRequest(nextKeyName, Type.DS, qclass);
-            DNSEvent dsEvent = generateLocalEvent(event, dsRequest, ValEventState.FINDKEY_DS_RESP_STATE, ValEventState.FINDKEY_DS_RESP_STATE);
-            sendRequest(dsEvent);
+            Message dsRequest = this.generateLocalRequest(nextKeyName, Type.DS, qclass);
+            DNSEvent dsEvent = this.generateLocalEvent(event, dsRequest, ValEventState.FINDKEY_DS_RESP_STATE, ValEventState.FINDKEY_DS_RESP_STATE);
+            this.sendRequest(dsEvent);
             return false;
         }
 
         // Otherwise, it is time to query for the DNSKEY
-        Message dnskeyRequest = generateLocalRequest(state.dsRRset.getName(), Type.DNSKEY, qclass);
-        DNSEvent dnskeyEvent = generateLocalEvent(event, dnskeyRequest, ValEventState.FINDKEY_DNSKEY_RESP_STATE, ValEventState.FINDKEY_DNSKEY_RESP_STATE);
-        sendRequest(dnskeyEvent);
+        Message dnskeyRequest = this.generateLocalRequest(state.dsRRset.getName(), Type.DNSKEY, qclass);
+        DNSEvent dnskeyEvent = this.generateLocalEvent(event, dnskeyRequest, ValEventState.FINDKEY_DNSKEY_RESP_STATE, ValEventState.FINDKEY_DNSKEY_RESP_STATE);
+        this.sendRequest(dnskeyEvent);
 
         return false;
     }
@@ -1041,19 +1061,19 @@ public class ValidatingResolver implements Resolver {
                 // If there was no DS rrset, then we have mis-classified this
                 // message.
                 if (dsRrset == null) {
-                    log.warn("POSITIVE DS response was missing DS!  This is a bug!");
+                    logger.warn("POSITIVE DS response was missing DS!  This is a bug!");
                     return bogusKE;
                 }
                 // Verify only returns BOGUS or SECURE. If the rrset is bogus,
                 // then we are done.
-                status = valUtils.verifySRRset(dsRrset, keyRrset);
+                status = this.valUtils.verifySRRset(dsRrset, keyRrset);
                 if (status == SecurityStatus.BOGUS) {
-                    log.debug("DS rrset in DS response did not verify");
+                    logger.debug("DS rrset in DS response did not verify");
                     return bogusKE;
                 }
 
                 // Otherwise, we return the positive response.
-                log.trace("DS rrset was good.");
+                logger.trace("DS rrset was good.");
                 return KeyEntry.newKeyEntry(dsRrset);
 
             case NODATA:
@@ -1068,23 +1088,23 @@ public class ValidatingResolver implements Resolver {
                 // 2) this is not a delegation point
                 if (nsecRrset != null) {
                     // The NSEC must verify, first of all.
-                    status = valUtils.verifySRRset(nsecRrset, keyRrset);
+                    status = this.valUtils.verifySRRset(nsecRrset, keyRrset);
                     if (status != SecurityStatus.SECURE) {
-                        log.debug("NSEC RRset for the referral did not verify.");
+                        logger.debug("NSEC RRset for the referral did not verify.");
                         return bogusKE;
                     }
 
                     NSECRecord nsec = (NSECRecord)nsecRrset.first();
                     switch (ValUtils.nsecProvesNoDS(nsec, qname)) {
                         case BOGUS: // something was wrong.
-                            log.debug("NSEC RRset for the referral did not prove no DS.");
+                            logger.debug("NSEC RRset for the referral did not prove no DS.");
                             return bogusKE;
                         case INSECURE: // this wasn't a
                                        // delegation point.
-                            log.debug("NSEC RRset for the referral proved " + "not a delegation point");
+                            logger.debug("NSEC RRset for the referral proved " + "not a delegation point");
                             return null;
                         case SECURE: // this proved no DS.
-                            log.debug("NSEC RRset for the referral proved no DS.");
+                            logger.debug("NSEC RRset for the referral proved no DS.");
                             return KeyEntry.newNullKeyEntry(qname, qclass, nsecRrset.getTTL());
                         default:
                             throw new RuntimeException("unexpected security status");
@@ -1095,14 +1115,14 @@ public class ValidatingResolver implements Resolver {
                 // If not, this is broken.
                 SRRset[] nsecRrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC);
                 for (int i = 0; i < nsecRrsets.length; i++) {
-                    status = valUtils.verifySRRset(nsecRrsets[i], keyRrset);
+                    status = this.valUtils.verifySRRset(nsecRrsets[i], keyRrset);
                     if (status != SecurityStatus.SECURE) {
-                        log.debug("NSEC for empty non-terminal did not verify.");
+                        logger.debug("NSEC for empty non-terminal did not verify.");
                         return bogusKE;
                     }
                     NSECRecord nsec = (NSECRecord)nsecRrsets[i].first();
                     if (ValUtils.nsecProvesNodata(nsec, qname, Type.DS)) {
-                        log.debug("NSEC for empty non-terminal proved no DS.");
+                        logger.debug("NSEC for empty non-terminal proved no DS.");
                         return KeyEntry.newNullKeyEntry(qname, qclass, nsecRrsets[i].getTTL());
                     }
                 }
@@ -1115,12 +1135,12 @@ public class ValidatingResolver implements Resolver {
                 if (nsec3Rrsets != null && nsec3Rrsets.length > 0) {
                     // Attempt to prove no DS with NSEC3s.
                     for (int i = 0; i < nsec3Rrsets.length; i++) {
-                        status = valUtils.verifySRRset(nsec3Rrsets[i], keyRrset);
+                        status = this.valUtils.verifySRRset(nsec3Rrsets[i], keyRrset);
                         if (status != SecurityStatus.SECURE) {
                             // FIXME: we could just fail here -- there is an
                             // invalid rrset -- but is more robust to skip like
                             // we are.
-                            log.debug("skipping bad nsec3");
+                            logger.debug("skipping bad nsec3");
                             continue;
                         }
 
@@ -1135,13 +1155,13 @@ public class ValidatingResolver implements Resolver {
 
                     switch (NSEC3ValUtils.proveNoDS(nsec3s, qname, nsec3Signer)) {
                         case BOGUS:
-                            log.debug("nsec3s proved bogus.");
+                            logger.debug("nsec3s proved bogus.");
                             return bogusKE;
                         case INSECURE:
-                            log.debug("nsec3s proved no delegation.");
+                            logger.debug("nsec3s proved no delegation.");
                             return null;
                         case SECURE:
-                            log.debug("nsec3 proved no ds.");
+                            logger.debug("nsec3 proved no ds.");
                             return KeyEntry.newNullKeyEntry(qname, qclass, nsec3TTL);
                         default:
                             throw new RuntimeException("unexpected security status");
@@ -1150,16 +1170,17 @@ public class ValidatingResolver implements Resolver {
 
                 // Apparently, no available NSEC/NSEC3 proved NODATA, so this is
                 // BOGUS.
-                log.debug("ran out of options, so return bogus");
+                logger.debug("ran out of options, so return bogus");
                 return bogusKE;
 
             case NAMEERROR:
                 // NAMEERRORs at this point pretty much break validation
-                log.debug("DS response was NAMEERROR, thus bogus.");
+                logger.debug("DS response was NAMEERROR, thus bogus.");
                 return bogusKE;
             default:
-                // We've encountered an unhandled classification for this response.
-                log.debug("Encountered an unhandled type of DS response, thus bogus.");
+                // We've encountered an unhandled classification for this
+                // response.
+                logger.debug("Encountered an unhandled type of DS response, thus bogus.");
                 return bogusKE;
         }
     }
@@ -1184,7 +1205,7 @@ public class ValidatingResolver implements Resolver {
         forState.emptyDSName = null;
         forState.dsRRset = null;
 
-        KeyEntry dsKE = dsResponseToKE(dsResp, dsRequest, forState.keyEntry.getRRset());
+        KeyEntry dsKE = this.dsResponseToKE(dsResp, dsRequest, forState.keyEntry.getRRset());
 
         if (dsKE == null) {
             forState.emptyDSName = qname;
@@ -1204,7 +1225,7 @@ public class ValidatingResolver implements Resolver {
             forState.state = ValEventState.VALIDATE_STATE;
         }
 
-        processResponse(forEvent);
+        this.processResponse(forEvent);
         return false;
     }
 
@@ -1222,31 +1243,31 @@ public class ValidatingResolver implements Resolver {
 
         if (dnskeyRrset == null) {
             // If the DNSKEY rrset was missing, this is the end of the line.
-            log.debug("Missing DNSKEY RRset in response to DNSKEY query.");
+            logger.debug("Missing DNSKEY RRset in response to DNSKEY query.");
             forState.keyEntry = KeyEntry.newBadKeyEntry(qname, qclass);
             forState.state = ValEventState.VALIDATE_STATE;
-            processResponse(forEvent);
+            this.processResponse(forEvent);
             return false;
         }
 
-        forState.keyEntry = valUtils.verifyNewDNSKEYs(dnskeyRrset, dsRrset);
+        forState.keyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, dsRrset);
 
         // If the key entry isBad or isNull, then we can move on to the next
         // state.
         if (!forState.keyEntry.isGood()) {
-            if (log.isDebugEnabled() && forState.keyEntry.isBad()) {
-                log.debug("Did not match a DS to a DNSKEY, thus bogus.");
+            if (logger.isDebugEnabled() && forState.keyEntry.isBad()) {
+                logger.debug("Did not match a DS to a DNSKEY, thus bogus.");
             }
             forState.state = ValEventState.VALIDATE_STATE;
-            processResponse(forEvent);
+            this.processResponse(forEvent);
             return false;
         }
 
         // The DNSKEY validated, so cache it as a trusted key rrset.
-        keyCache.store(forState.keyEntry.getRRset());
+        this.keyCache.store(forState.keyEntry.getRRset());
 
         // If good, we stay in the FINDKEY state.
-        processResponse(forEvent);
+        this.processResponse(forEvent);
         return false;
     }
 
@@ -1260,26 +1281,26 @@ public class ValidatingResolver implements Resolver {
         // signerName being null is the indicator that this response was
         // unsigned
         if (state.signerName == null) {
-            log.debug("processValidate: event " + event + " has no signerName.");
+            logger.debug("processValidate: event " + event + " has no signerName.");
             // Unsigned responses must be underneath a "null" key entry.
             if (state.keyEntry.isNull()) {
-                log.debug("Unsigned response was proved to be validly INSECURE");
+                logger.debug("Unsigned response was proved to be validly INSECURE");
                 resp.setStatus(SecurityStatus.INSECURE);
                 return true;
             }
-            log.debug("Could not establish validation of " + "INSECURE status of unsigned response.");
+            logger.debug("Could not establish validation of " + "INSECURE status of unsigned response.");
             resp.setStatus(SecurityStatus.BOGUS);
             return true;
         }
 
         if (state.keyEntry.isBad()) {
-            log.debug("Could not establish a chain of trust to keys for: " + state.keyEntry.getName());
+            logger.debug("Could not establish a chain of trust to keys for: " + state.keyEntry.getName());
             resp.setStatus(SecurityStatus.BOGUS);
             return true;
         }
 
         if (state.keyEntry.isNull()) {
-            log.debug("Verified that response is INSECURE");
+            logger.debug("Verified that response is INSECURE");
             resp.setStatus(SecurityStatus.INSECURE);
             return true;
         }
@@ -1289,28 +1310,28 @@ public class ValidatingResolver implements Resolver {
 
         switch (subtype) {
             case POSITIVE:
-                log.trace("Validating a positive response");
-                validatePositiveResponse(resp, req, keyRrset);
+                logger.trace("Validating a positive response");
+                this.validatePositiveResponse(resp, req, keyRrset);
                 break;
             case NODATA:
-                log.trace("Validating a nodata response");
-                validateNodataResponse(resp, req, keyRrset);
+                logger.trace("Validating a nodata response");
+                this.validateNodataResponse(resp, req, keyRrset);
                 break;
             case NAMEERROR:
-                log.trace("Validating a nxdomain response");
-                validateNameErrorResponse(req.getQuestion().getName(), resp, keyRrset);
+                logger.trace("Validating a nxdomain response");
+                this.validateNameErrorResponse(req.getQuestion().getName(), resp, keyRrset);
                 break;
             case CNAME:
-                log.trace("Validating a cname response");
+                logger.trace("Validating a cname response");
                 // forward on to the special CNAME state for this.
                 state.state = ValEventState.CNAME_STATE;
                 break;
             case ANY:
-                log.trace("Validating a postive ANY response");
-                validateAnyResponse(resp, req, keyRrset);
+                logger.trace("Validating a postive ANY response");
+                this.validateAnyResponse(resp, req, keyRrset);
                 break;
             default:
-                log.error("unhandled response subtype: " + subtype);
+                logger.error("unhandled response subtype: " + subtype);
         }
 
         return true;
@@ -1360,17 +1381,17 @@ public class ValidatingResolver implements Resolver {
             // set the final state differently.
             // For non-answers, the response ultimately comes back here.
             int finalState = ValEventState.CNAME_RESP_STATE;
-            if (isAnswerRRset(rrset.getName(), rtype, state.cnameSname, qtype, Section.ANSWER)) {
+            if (this.isAnswerRRset(rrset.getName(), rtype, state.cnameSname, qtype, Section.ANSWER)) {
                 // If this is an answer, however, break out of this loop.
                 finalState = ValEventState.CNAME_ANS_RESP_STATE;
             }
 
             // Generate the sub-query.
-            Message localRequest = generateLocalRequest(rname, rtype, qclass);
-            DNSEvent localEvent = generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, finalState);
+            Message localRequest = this.generateLocalRequest(rname, rtype, qclass);
+            DNSEvent localEvent = this.generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, finalState);
 
             // ...and send it along.
-            sendRequest(localEvent);
+            this.sendRequest(localEvent);
             return false;
         }
 
@@ -1388,16 +1409,16 @@ public class ValidatingResolver implements Resolver {
             }
 
             // Generate the sub-query for the final query.
-            Message localRequest = generateLocalRequest(state.cnameSname, rtype, qclass);
-            DNSEvent localEvent = generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, ValEventState.CNAME_ANS_RESP_STATE);
+            Message localRequest = this.generateLocalRequest(state.cnameSname, rtype, qclass);
+            DNSEvent localEvent = this.generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, ValEventState.CNAME_ANS_RESP_STATE);
 
             // ...and send it along.
-            sendRequest(localEvent);
+            this.sendRequest(localEvent);
             return false;
         }
 
         // Something odd has happened if we get here.
-        log.warn("processCNAME: encountered unknown issue handling a CNAME chain.");
+        logger.warn("processCNAME: encountered unknown issue handling a CNAME chain.");
         return false;
     }
 
@@ -1414,14 +1435,14 @@ public class ValidatingResolver implements Resolver {
         if (resp.getStatus() != SecurityStatus.SECURE) {
             forEvent.getResponse().setStatus(resp.getStatus());
             forState.state = forState.finalState;
-            processResponse(forEvent);
+            this.processResponse(forEvent);
             return false;
         }
 
         // The response was valid, so continue processing the original CNAME
         // query by following the chain.
         forState.state = ValEventState.CNAME_STATE;
-        processResponse(forEvent);
+        this.processResponse(forEvent);
         return false;
     }
 
@@ -1439,7 +1460,7 @@ public class ValidatingResolver implements Resolver {
         forResp.setStatus(resp.getStatus());
 
         forState.state = forState.finalState;
-        processResponse(forEvent);
+        this.processResponse(forEvent);
         return false;
     }
 
@@ -1481,19 +1502,22 @@ public class ValidatingResolver implements Resolver {
     /**
      * Forwards the data to the head resolver passed at construction time.
      * 
+     * @param port The IP destination port for the queries sent.
      * @see org.xbill.DNS.Resolver#setPort(int)
      */
     public void setPort(int port) {
-        headResolver.setPort(port);
+        this.headResolver.setPort(port);
     }
 
     /**
      * Forwards the data to the head resolver passed at construction time.
      * 
+     * @param flag <code>true</code> to enable TCP, <code>false</code> to
+     *            disable it.
      * @see org.xbill.DNS.Resolver#setTCP(boolean)
      */
     public void setTCP(boolean flag) {
-        headResolver.setTCP(flag);
+        this.headResolver.setTCP(flag);
     }
 
     /**
@@ -1517,40 +1541,79 @@ public class ValidatingResolver implements Resolver {
      * is 0 and the flags contains DO.
      * 
      * @param level unused, always set to 0.
+     * @param payloadSize The maximum DNS packet size that this host is capable
+     *            of receiving over UDP. If 0 is specified, the default (1280)
+     *            is used.
+     * @param flags EDNS extended flags to be set in the OPT record,
+     *            {@link ExtendedFlags#DO} is always appended.
+     * @param options EDNS options to be set in the OPT record, specified as a
+     *            List of OPTRecord.Option elements.
      * @see org.xbill.DNS.Resolver#setEDNS(int, int, int, java.util.List)
      */
     public void setEDNS(int level, int payloadSize, int flags, @SuppressWarnings("rawtypes") List options) {
-        headResolver.setEDNS(0, payloadSize, flags | ExtendedFlags.DO, options);
+        this.headResolver.setEDNS(0, payloadSize, flags | ExtendedFlags.DO, options);
     }
 
     /**
      * Forwards the data to the head resolver passed at construction time.
      * 
+     * @param key The key.
      * @see org.xbill.DNS.Resolver#setTSIGKey(org.xbill.DNS.TSIG)
      */
     public void setTSIGKey(TSIG key) {
-        headResolver.setTSIGKey(key);
+        this.headResolver.setTSIGKey(key);
     }
 
+    /**
+     * Sets the amount of time to wait for a response before giving up. This
+     * applies only to the head resolver, the time for an actual query to the
+     * validating resolver IS higher.
+     * 
+     * @param secs The number of seconds to wait.
+     * @param msecs The number of milliseconds to wait.
+     */
     public void setTimeout(int secs, int msecs) {
-        headResolver.setTimeout(secs, msecs);
+        this.headResolver.setTimeout(secs, msecs);
     }
 
+    /**
+     * Sets the amount of time to wait for a response before giving up. This
+     * applies only to the head resolver, the time for an actual query to the
+     * validating resolver IS higher.
+     * 
+     * @param secs The number of seconds to wait.
+     */
     public void setTimeout(int secs) {
-        headResolver.setTimeout(secs);
+        this.headResolver.setTimeout(secs);
     }
 
-    public Message send(Message request) throws IOException {
-        DNSEvent event = new DNSEvent(request);
+    /**
+     * Sends a message and validates the response with DNSSEC before returning
+     * it.
+     * 
+     * @param query The query to send.
+     * @return The validated response message.
+     * @throws IOException An error occurred while sending or receiving.
+     */
+    public Message send(Message query) throws IOException {
+        DNSEvent event = new DNSEvent(query);
 
         // This should synchronously process the request, based on the way the
         // resolver tail is configured.
-        sendRequest(event);
+        this.sendRequest(event);
 
         return event.getResponse().getMessage();
     }
 
+    /**
+     * Not implemented.
+     * 
+     * @param query The query to send
+     * @param listener The object containing the callbacks.
+     * @return An identifier, which is also a parameter in the callback
+     * @throws UnsupportedOperationException
+     */
     public Object sendAsync(Message query, ResolverListener listener) {
-        throw new RuntimeException("Not implemented");
+        throw new UnsupportedOperationException("Not implemented");
     }
 }

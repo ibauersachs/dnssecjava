@@ -64,6 +64,7 @@ import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
 import org.jitsi.dnssec.Util;
+import org.jitsi.dnssec.validator.ValUtils.ResponseClassification;
 import org.xbill.DNS.*;
 
 /**
@@ -1040,11 +1041,11 @@ public class ValidatingResolver implements Resolver {
         int qclass = request.getQuestion().getDClass();
 
         SecurityStatus status;
-        int subtype = ValUtils.classifyResponse(response);
+        ResponseClassification subtype = ValUtils.classifyResponse(response);
 
         KeyEntry bogusKE = KeyEntry.newBadKeyEntry(qname, qclass);
         switch (subtype) {
-            case ValUtils.POSITIVE:
+            case POSITIVE:
                 SRRset dsRrset = response.findAnswerRRset(qname, Type.DS, qclass);
                 // If there was no DS rrset, then we have mis-classified this
                 // message.
@@ -1064,7 +1065,7 @@ public class ValidatingResolver implements Resolver {
                 log.trace("DS rrset was good.");
                 return KeyEntry.newKeyEntry(dsRrset);
 
-            case ValUtils.NODATA:
+            case NODATA:
                 // NODATA means that the qname exists, but that there was no DS.
                 // This is a pretty normal case.
                 SRRset nsecRrset = response.findRRset(qname, Type.NSEC, qclass, Section.AUTHORITY);
@@ -1161,7 +1162,7 @@ public class ValidatingResolver implements Resolver {
                 log.debug("ran out of options, so return bogus");
                 return bogusKE;
 
-            case ValUtils.NAMEERROR:
+            case NAMEERROR:
                 // NAMEERRORs at this point pretty much break validation
                 log.debug("DS response was NAMEERROR, thus bogus.");
                 return bogusKE;
@@ -1292,28 +1293,28 @@ public class ValidatingResolver implements Resolver {
             return true;
         }
 
-        int subtype = ValUtils.classifyResponse(resp);
+        ResponseClassification subtype = ValUtils.classifyResponse(resp);
         SRRset keyRrset = state.keyEntry.getRRset();
 
         switch (subtype) {
-            case ValUtils.POSITIVE:
+            case POSITIVE:
                 log.trace("Validating a positive response");
                 validatePositiveResponse(resp, req, keyRrset);
                 break;
-            case ValUtils.NODATA:
+            case NODATA:
                 log.trace("Validating a nodata response");
                 validateNodataResponse(resp, req, keyRrset);
                 break;
-            case ValUtils.NAMEERROR:
+            case NAMEERROR:
                 log.trace("Validating a nxdomain response");
                 validateNameErrorResponse(req.getQuestion().getName(), resp, keyRrset);
                 break;
-            case ValUtils.CNAME:
+            case CNAME:
                 log.trace("Validating a cname response");
                 // forward on to the special CNAME state for this.
                 state.state = ValEventState.CNAME_STATE;
                 break;
-            case ValUtils.ANY:
+            case ANY:
                 log.trace("Validating a postive ANY response");
                 validateAnyResponse(resp, req, keyRrset);
                 break;

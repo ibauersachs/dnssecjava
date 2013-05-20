@@ -82,26 +82,30 @@ public class ValUtils {
     // validation strategy. They have no bearing on the iterative resolution
     // algorithm, so they are confined here.
 
-    /** Not subtyped yet. */
-    public static final int UNTYPED = 0;
 
-    /** Not a recognized subtype. */
-    public static final int UNKNOWN = 1;
+    
+    public enum ResponseClassification {
+        /** Not subtyped yet. */
+        UNTYPED,
 
-    /** A postive, direct, response. */
-    public static final int POSITIVE = 2;
+        /** Not a recognized subtype. */
+        UNKNOWN,
 
-    /** A postive response, with a CNAME/DNAME chain. */
-    public static final int CNAME = 3;
+        /** A postive, direct, response. */
+        POSITIVE,
 
-    /** A NOERROR/NODATA response. */
-    public static final int NODATA = 4;
+        /** A postive response, with a CNAME/DNAME chain. */
+        CNAME,
 
-    /** A NXDOMAIN response. */
-    public static final int NAMEERROR = 5;
+        /** A NOERROR/NODATA response. */
+        NODATA,
 
-    /** A response to a qtype=ANY query. */
-    public static final int ANY = 6;
+        /** A NXDOMAIN response. */
+        NAMEERROR,
+
+        /** A response to a qtype=ANY query. */
+        ANY;
+    }
 
     private static Logger log = Logger.getLogger(ValUtils.class);
 
@@ -119,16 +123,16 @@ public class ValUtils {
      * 
      * @return A subtype ranging from UNKNOWN to NAMEERROR.
      */
-    public static int classifyResponse(SMessage m) {
+    public static ResponseClassification classifyResponse(SMessage m) {
         // Normal Name Error's are easy to detect -- but don't mistake a CNAME
         // chain ending in NXDOMAIN.
         if (m.getRcode() == Rcode.NXDOMAIN && m.getCount(Section.ANSWER) == 0) {
-            return NAMEERROR;
+            return ResponseClassification.NAMEERROR;
         }
 
         // Next is NODATA
         if (m.getCount(Section.ANSWER) == 0) {
-            return NODATA;
+            return ResponseClassification.NODATA;
         }
 
         // We distinguish between CNAME response and other positive/negative
@@ -138,7 +142,7 @@ public class ValUtils {
         // We distinguish between ANY and CNAME or POSITIVE because ANY
         // responses are validated differently.
         if (qtype == Type.ANY) {
-            return ANY;
+            return ResponseClassification.ANY;
         }
 
         SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
@@ -147,16 +151,16 @@ public class ValUtils {
         // qtype=CNAME, this will yield a CNAME response.
         for (int i = 0; i < rrsets.length; i++) {
             if (rrsets[i].getType() == qtype) {
-                return POSITIVE;
+                return ResponseClassification.POSITIVE;
             }
 
             if (rrsets[i].getType() == Type.CNAME) {
-                return CNAME;
+                return ResponseClassification.CNAME;
             }
         }
 
         log.warn("Failed to classify response message:\n" + m);
-        return UNKNOWN;
+        return ResponseClassification.UNKNOWN;
     }
 
     /**
@@ -170,7 +174,7 @@ public class ValUtils {
      *         null if the response isn't signed.
      */
     public Name findSigner(SMessage m, Message request) {
-        int subtype = classifyResponse(m);
+        ResponseClassification subtype = classifyResponse(m);
         Name qname = request.getQuestion().getName();
         SRRset[] rrsets;
         switch (subtype) {

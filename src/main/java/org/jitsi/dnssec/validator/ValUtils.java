@@ -75,15 +75,13 @@ import org.xbill.DNS.Type;
  * different message types.
  * 
  * @author davidb
- * @version $Revision: 361 $
  */
 public class ValUtils {
-    // These are response subtypes. They are necessary for determining the
-    // validation strategy. They have no bearing on the iterative resolution
-    // algorithm, so they are confined here.
-
-
-    
+    /**
+     * These are response subtypes. They are necessary for determining the
+     * validation strategy. They have no bearing on the iterative resolution
+     * algorithm, so they are confined here.
+     */
     public enum ResponseClassification {
         /** Not subtyped yet. */
         UNTYPED,
@@ -110,10 +108,13 @@ public class ValUtils {
     private static Logger log = Logger.getLogger(ValUtils.class);
 
     /** A local copy of the verifier object. */
-    private DnsSecVerifier mVerifier;
+    private DnsSecVerifier verifier;
 
-    public ValUtils(DnsSecVerifier verifier) {
-        mVerifier = verifier;
+    /**
+     * Creates a new instance of this class.
+     */
+    public ValUtils() {
+        this.verifier = new DnsSecVerifier();
     }
 
     /**
@@ -215,6 +216,7 @@ public class ValUtils {
      *            of this rrset will be updated on a successful verification.
      * @param dsRrset The DS rrset to match with. This rrset must already be
      *            trusted.
+     * @param badKeyTTL The TTL [s] for keys determined to be bad.
      * 
      * @return a KeyEntry. This will either contain the now trusted
      *         dnskey_rrset, a "null" key entry indicating that this DS
@@ -269,7 +271,7 @@ public class ValUtils {
 
                 // Otherwise, we have a match! Make sure that the DNSKEY
                 // verifies *with this key*.
-                SecurityStatus res = mVerifier.verify(dnskeyRrset, dnskey);
+                SecurityStatus res = this.verifier.verify(dnskeyRrset, dnskey);
                 if (res == SecurityStatus.SECURE) {
                     log.trace("DS matched DNSKEY.");
                     dnskeyRrset.setSecurityStatus(SecurityStatus.SECURE);
@@ -327,7 +329,7 @@ public class ValUtils {
             return SecurityStatus.SECURE;
         }
 
-        SecurityStatus status = mVerifier.verify(rrset, keyRrset);
+        SecurityStatus status = this.verifier.verify(rrset, keyRrset);
         if (status != SecurityStatus.SECURE) {
             log.debug("verifySRRset: rrset <" + rrsetName + "> found to be BAD");
             status = SecurityStatus.BOGUS;
@@ -406,6 +408,16 @@ public class ValUtils {
         return new Name(domain1, domain1.labels() - domain2.labels()).equals(domain2);
     }
 
+    /**
+     * Determines the 'closest encloser' - the name that has the most common
+     * labels between <code>domain</code> and ({@link NSECRecord#getName()} or
+     * {@link NSECRecord#getNext()}).
+     * 
+     * @param domain The name for which the closest encloser is queried.
+     * @param nsec The covering {@link NSECRecord} to check.
+     * @return The closest encloser name of <code>domain</code> as defined by
+     *         <code>nsec</code>.
+     */
     public static Name closestEncloser(Name domain, NSECRecord nsec) {
         Name n1 = longestCommonName(domain, nsec.getName());
         Name n2 = longestCommonName(domain, nsec.getNext());
@@ -413,6 +425,16 @@ public class ValUtils {
         return (n1.labels() > n2.labels()) ? n1 : n2;
     }
 
+    /**
+     * Gets the closest encloser of <code>domain</code> prepended with a
+     * wildcard label.
+     * 
+     * @param domain The name for which the wildcard closest encloser is
+     *            demanded.
+     * @param nsec The covering NSEC that defines the encloser.
+     * @return The wildcard closest encloser name of <code>domain</code> as
+     *         defined by <code>nsec</code>.
+     */
     public static Name nsecWildcard(Name domain, NSECRecord nsec) {
         try {
             Name origin = closestEncloser(domain, nsec);
@@ -550,6 +572,18 @@ public class ValUtils {
         return true;
     }
 
+    /**
+     * Determines whether the given {@link NSECRecord} proves that there is no
+     * {@link DSRecord} for <code>qname</code>.
+     * 
+     * @param nsec The NSEC that should prove the non-existence.
+     * @param qname The name for which the prove is made.
+     * @return {@link SecurityStatus#BOGUS} when the NSEC is from the child
+     *         domain or indicates that there indeed is a DS record,
+     *         {@link SecurityStatus#INSECURE} when there is not even a prove
+     *         for a NS record, {@link SecurityStatus#SECURE} when there is no
+     *         DS record.
+     */
     public static SecurityStatus nsecProvesNoDS(NSECRecord nsec, Name qname) {
         // Could check to make sure the qname is a subdomain of nsec
         if (nsec.hasType(Type.SOA) || nsec.hasType(Type.DS)) {

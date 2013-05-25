@@ -233,31 +233,6 @@ public class ValidatingResolver implements Resolver {
         req.getHeader().setFlag(Flags.CD);
     }
 
-    /**
-     * Check to see if a given RRset answers a given question. This is primarily
-     * used to distinguish between DNSSEC RRsets that must be stripped vs. those
-     * that must be retained because they answer the question.
-     * 
-     * @param rname The rrset name.
-     * @param rtype The rrset type.
-     * @param qname The query name
-     * @param qtype The query type
-     * @param section The section the rrset was found in.
-     * 
-     * @return true if the rrset is an answer.
-     */
-    private boolean isAnswerRRset(Name rname, int rtype, Name qname, int qtype, int section) {
-        if (section != Section.ANSWER) {
-            return false;
-        }
-
-        if (qtype == rtype && qname.equals(rname)) {
-            return true;
-        }
-
-        return false;
-    }
-
     // ----------------- Validation Support ----------------------
 
     /**
@@ -1382,7 +1357,7 @@ public class ValidatingResolver implements Resolver {
             // set the final state differently.
             // For non-answers, the response ultimately comes back here.
             int finalState = ValEventState.CNAME_RESP_STATE;
-            if (this.isAnswerRRset(rrset.getName(), rtype, state.cnameSname, qtype, Section.ANSWER)) {
+            if (rtype == qtype && rrset.getName().equals(state.cnameSname)) {
                 // If this is an answer, however, break out of this loop.
                 finalState = ValEventState.CNAME_ANS_RESP_STATE;
             }

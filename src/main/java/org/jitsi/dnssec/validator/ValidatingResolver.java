@@ -190,23 +190,26 @@ public class ValidatingResolver implements Resolver {
         SRRset currentRrset = new SRRset();
         for (Iterator<Record> i = records.iterator(); i.hasNext();) {
             r = i.next();
+
             // Skip RR types that cannot be used as trust anchors.
             if (r.getType() != Type.DNSKEY && r.getType() != Type.DS) {
                 continue;
             }
 
-            // If our cur_rrset is empty, we can just add it.
+            // If our current set is empty, we can just add it.
             if (currentRrset.size() == 0) {
                 currentRrset.addRR(r);
                 continue;
             }
+
             // If this record matches our current RRset, we can just add it.
             if (currentRrset.getName().equals(r.getName()) && currentRrset.getType() == r.getType() && currentRrset.getDClass() == r.getDClass()) {
                 currentRrset.addRR(r);
                 continue;
             }
 
-            // Otherwise, we add the rrset to our set of trust anchors.
+            // Otherwise, we add the rrset to our set of trust anchors and begin
+            // a new set
             this.trustAnchors.store(currentRrset);
             currentRrset = new SRRset();
             currentRrset.addRR(r);
@@ -216,6 +219,14 @@ public class ValidatingResolver implements Resolver {
         if (currentRrset.size() > 0) {
             this.trustAnchors.store(currentRrset);
         }
+    }
+
+    /**
+     * Gets the store with the loaded trust anchors.
+     * @return The store with the loaded trust anchors.
+     */
+    public TrustAnchorStore getTrustAnchors() {
+        return this.trustAnchors;
     }
 
     // ---------------- Request/ResponseType Preparation ------------

@@ -25,9 +25,14 @@ import static org.junit.Assert.*;
 import java.io.IOException;
 
 import org.junit.Test;
+import org.xbill.DNS.DClass;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
+import org.xbill.DNS.Name;
 import org.xbill.DNS.Rcode;
+import org.xbill.DNS.Record;
+import org.xbill.DNS.Section;
+import org.xbill.DNS.Type;
 
 public class TestCNames extends TestBase {
     @Test
@@ -105,6 +110,18 @@ public class TestCNames extends TestBase {
         Message response = resolver.send(createMessage("cvoid.dnssectest.jitsi.net./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
+
+    @Test
+    public void testCNameToExternalReturnsServfailIfIntermediateFails() throws IOException {
+        Message m = new Message();
+        m.getHeader().setRcode(Rcode.NOTAUTH);
+        m.addRecord(Record.newRecord(Name.fromString("gibtsnicht.ingotronic.ch."), Type.CNAME, DClass.IN), Section.QUESTION);
+        add("gibtsnicht.ingotronic.ch./CNAME", m);
+
+        Message response = resolver.send(createMessage("cvoid1.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
     }
 
     @Test

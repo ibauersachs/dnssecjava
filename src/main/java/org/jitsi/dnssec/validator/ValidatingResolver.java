@@ -245,7 +245,8 @@ public class ValidatingResolver implements Resolver {
      * @return true if the response could use validation (although this does not
      *         mean we can actually validate this response).
      */
-    private boolean needsValidation(SMessage response) {
+    private boolean needsValidation(DNSEvent event, ValEventState state) {
+        SMessage response = event.getResponse();
         if (response.getStatus().getStatus() > SecurityStatus.BOGUS.getStatus()) {
             logger.debug("Response has already been validated.");
             return false;
@@ -254,6 +255,11 @@ public class ValidatingResolver implements Resolver {
         int rcode = response.getRcode();
         if (rcode != Rcode.NOERROR && rcode != Rcode.NXDOMAIN) {
             logger.debug("Cannot validate " + Rcode.string(rcode) + " answer.");
+            // rfc4035#section-5.5
+            if (event.forEvent() != null) {
+                event.forEvent().getResponse().getHeader().setRcode(Rcode.SERVFAIL);
+            }
+
             return false;
         }
 
@@ -814,7 +820,7 @@ public class ValidatingResolver implements Resolver {
         SMessage resp = event.getResponse();
         Message req = event.getRequest();
 
-        if (!this.needsValidation(resp)) {
+        if (!this.needsValidation(event, state)) {
             state.state = state.finalState;
             return true;
         }

@@ -121,7 +121,7 @@ public class TestInvalid extends TestBase {
         Message message = new Message();
         message.addRecord(Record.newRecord(query, Type.A, DClass.IN), Section.QUESTION);
         message.addRecord(new ARecord(query, Type.A, DClass.IN, InetAddress.getByName(localhost)), Section.ANSWER);
-        add("www.ingotronic.ch./A", toHex(message.toWire()));
+        add("www.ingotronic.ch./A", message);
 
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -138,10 +138,36 @@ public class TestInvalid extends TestBase {
         message.addRecord(Record.newRecord(query, Type.A, DClass.IN), Section.QUESTION);
         message.addRecord(new ARecord(query, Type.A, DClass.IN, InetAddress.getByName(localhost)), Section.ANSWER);
         message.addRecord(new RRSIGRecord(query, DClass.IN, 0, Type.A, Algorithm.RSASHA256, 5, new Date(System.currentTimeMillis() + 5000), new Date(System.currentTimeMillis() - 5000), 1234, Name.fromString("ingotronic.ch."), new byte[] { 1, 2, 3 }), Section.ANSWER);
-        add("www.ingotronic.ch./A", toHex(message.toWire()));
+        add("www.ingotronic.ch./A", message);
 
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+    }
+
+    @Test
+    public void testReturnServfailIfIntermediateQueryFails() throws IOException {
+        Message message = new Message();
+        message.getHeader().setRcode(Rcode.NOTAUTH);
+        message.addRecord(Record.newRecord(Name.fromString("ch."), Type.DS, DClass.IN), Section.QUESTION);
+        add("ch./DS", message);
+
+        Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        // rfc4035#section-5.5
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+    }
+
+    @Test
+    public void testReturnOriginalRcodeIfPrimaryQueryFails() throws IOException {
+        Message message = new Message();
+        message.getHeader().setRcode(Rcode.REFUSED);
+        message.addRecord(Record.newRecord(Name.fromString("www.ingotronic.ch."), Type.A, DClass.IN), Section.QUESTION);
+        add("www.ingotronic.ch./A", message);
+
+        Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        // rfc4035#section-5.5
+        assertEquals(Rcode.REFUSED, response.getRcode());
     }
 }

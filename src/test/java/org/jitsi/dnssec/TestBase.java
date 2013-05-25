@@ -92,9 +92,9 @@ public abstract class TestBase {
         queryResponsePairs.put(query, createMessageFromHex(response));
     }
 
-//    protected void add(String query, Message response) throws IOException {
-//        queryResponsePairs.put(query, response);
-//    }
+    protected void add(String query, Message response) throws IOException {
+        queryResponsePairs.put(query, response);
+    }
 
     private Message createMessageFromHex(String hex) throws IOException {
         return new Message(fromHex(hex));

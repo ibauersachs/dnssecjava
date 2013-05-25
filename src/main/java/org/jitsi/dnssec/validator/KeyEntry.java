@@ -54,7 +54,10 @@ package org.jitsi.dnssec.validator;
 import org.jitsi.dnssec.SRRset;
 import org.xbill.DNS.Name;
 
-public class KeyEntry {
+/**
+ * DNSKEY cache entry for a given {@link Name}, with or without actual keys.
+ */
+public final class KeyEntry {
     private SRRset rrset;
     private Name name;
     private int dclass;
@@ -81,42 +84,103 @@ public class KeyEntry {
         this.isBad = isBad;
     }
 
+    /**
+     * Creates a new key entry from actual DNSKEYs.
+     * 
+     * @param rrset The DNSKEYs to cache.
+     * @return The created key entry.
+     */
     public static KeyEntry newKeyEntry(SRRset rrset) {
         return new KeyEntry(rrset);
     }
 
+    /**
+     * Creates a new trusted key entry without actual DNSKEYs, i.e. it is proven
+     * that there are no keys.
+     * 
+     * @param n The name for which the empty cache entry is created.
+     * @param dclass The DNS class.
+     * @param ttl The TTL [s].
+     * @return The created key entry.
+     */
     public static KeyEntry newNullKeyEntry(Name n, int dclass, long ttl) {
         return new KeyEntry(n, dclass, ttl, false);
     }
 
+    /**
+     * Creates a new bad key entry without actual DNSKEYs, i.e. from a response
+     * that did not validate.
+     * 
+     * @param n The name for which the bad cache entry is created.
+     * @param dclass The DNS class.
+     * @param ttl The TTL [s].
+     * @return The created key entry.s
+     */
     public static KeyEntry newBadKeyEntry(Name n, int dclass, long ttl) {
         return new KeyEntry(n, dclass, ttl, true);
     }
 
+    /**
+     * Gets the DNSKEYs for the cached key entry. Can be <code>null</code>.
+     * 
+     * @return The DNSKEYs for the cached key entry. Can be <code>null</code>.
+     */
     public SRRset getRRset() {
         return this.rrset;
     }
 
+    /**
+     * Gets the name of the cache entry.
+     * 
+     * @return The name of the cache entry.
+     */
     public Name getName() {
         return this.name;
     }
 
+    /**
+     * Gets the DNS class.
+     * 
+     * @return The DNS class.
+     */
     public int getDClass() {
         return this.dclass;
     }
 
+    /**
+     * Gets the TTL [s].
+     * 
+     * @return The TTL [s].
+     */
     public long getTTL() {
         return this.ttl;
     }
 
+    /**
+     * Gets an indication if this is a null key, i.e. a proven secure response
+     * without keys.
+     * 
+     * @return <code>True</code> is it is null, <code>false</code> otherwise.
+     */
     public boolean isNull() {
         return !this.isBad && this.rrset == null;
     }
 
+    /**
+     * Gets an indication if this is a bad key, i.e. an invalid response.
+     * 
+     * @return <code>True</code> is it is bad, <code>false</code> otherwise.
+     */
     public boolean isBad() {
         return this.isBad;
     }
 
+    /**
+     * Gets an indication if this is a good key, i.e. a proven secure response
+     * with keys.
+     * 
+     * @return <code>True</code> is it is good, <code>false</code> otherwise.
+     */
     public boolean isGood() {
         return !this.isBad && this.rrset != null;
     }

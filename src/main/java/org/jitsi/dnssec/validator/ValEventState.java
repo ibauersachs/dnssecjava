@@ -78,9 +78,8 @@ public class ValEventState {
     protected int finalState;
     protected SRRset trustAnchorRRset;
     protected SRRset dsRRset;
-    protected Name emptyDSName;
+    protected Name emptyDSName; //--> passed from DSResponse to FindKey
     protected KeyEntry keyEntry;
-    protected int subtype;
     protected Name signerName;
     protected int cnameIndex;
     protected Name cnameSname;

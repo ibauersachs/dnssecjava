@@ -262,10 +262,9 @@ public class ValidatingResolver implements Resolver {
 
     /**
      * Check to see if a given response needs to go through the validation
-     * process. Typical reasons for this routine to return false are: CD bit was
-     * on in the original request, the response was already validated, or the
-     * response is a kind of message that is unvalidatable (i.e., SERVFAIL,
-     * REFUSED, etc.)
+     * process. Reasons for this routine to return false are: the response was
+     * already validated, or the response is a kind of message that is
+     * unvalidatable (i.e., SERVFAIL, REFUSED, etc.)
      * 
      * @param response The response to check.
      * @return true if the response could use validation (although this does not
@@ -273,14 +272,13 @@ public class ValidatingResolver implements Resolver {
      */
     private boolean needsValidation(SMessage response) {
         if (response.getStatus().getStatus() > SecurityStatus.BOGUS.getStatus()) {
-            logger.debug("response has already been validated");
+            logger.debug("Response has already been validated.");
             return false;
         }
 
         int rcode = response.getRcode();
         if (rcode != Rcode.NOERROR && rcode != Rcode.NXDOMAIN) {
-            logger.debug("cannot validate non-answer.");
-            logger.trace("non-answer: " + response);
+            logger.debug("Cannot validate " + Rcode.string(rcode) + " answer.");
             return false;
         }
 

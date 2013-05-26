@@ -223,6 +223,7 @@ public class ValidatingResolver implements Resolver {
 
     /**
      * Gets the store with the loaded trust anchors.
+     * 
      * @return The store with the loaded trust anchors.
      */
     public TrustAnchorStore getTrustAnchors() {
@@ -841,7 +842,6 @@ public class ValidatingResolver implements Resolver {
         int qclass = req.getQuestion().getDClass();
 
         state.trustAnchorRRset = this.trustAnchors.find(qname, qclass);
-
         if (state.trustAnchorRRset == null) {
             // response isn't under a trust anchor, so we cannot validate.
             state.state = state.finalState;
@@ -851,12 +851,12 @@ public class ValidatingResolver implements Resolver {
         // Determine the signer/lookup name
         state.signerName = this.valUtils.findSigner(resp, req);
         Name lookupName = (state.signerName == null) ? qname : state.signerName;
-
         state.keyEntry = this.keyCache.find(lookupName, qclass);
 
         if (state.keyEntry == null) {
             // fire off a trust anchor priming query.
             this.primeTrustAnchor(event, state.trustAnchorRRset);
+
             // and otherwise, don't continue processing this event.
             // (it will be reactivated when the priming query returns).
             state.state = ValEventState.FINDKEY_STATE;
@@ -865,8 +865,7 @@ public class ValidatingResolver implements Resolver {
         else if (state.keyEntry.isNull()) {
             // response is under a null key, so we cannot validate
             // However, we do set the status to INSECURE, since it is
-            // essentially
-            // proven insecure.
+            // essentially proven insecure.
             resp.setStatus(SecurityStatus.INSECURE);
             state.state = state.finalState;
             return true;
@@ -974,8 +973,7 @@ public class ValidatingResolver implements Resolver {
     private boolean processFindKey(DNSEvent event, ValEventState state) {
         // We know that state.keyEntry is not a null or bad key -- if it were,
         // then previous processing should have directed this event to a
-        // different
-        // state.
+        // different state.
         Message req = event.getRequest();
         Name qname = req.getQuestion().getName();
         int qclass = req.getQuestion().getDClass();
@@ -1093,9 +1091,8 @@ public class ValidatingResolver implements Resolver {
                         case BOGUS: // something was wrong.
                             logger.debug("NSEC RRset for the referral did not prove no DS.");
                             return bogusKE;
-                        case INSECURE: // this wasn't a
-                                       // delegation point.
-                            logger.debug("NSEC RRset for the referral proved " + "not a delegation point");
+                        case INSECURE: // this wasn't a delegation point.
+                            logger.debug("NSEC RRset for the referral proved not a delegation point");
                             return null;
                         case SECURE: // this proved no DS.
                             logger.debug("NSEC RRset for the referral proved no DS.");

@@ -1211,6 +1211,9 @@ public class ValidatingResolver implements Resolver {
             // NOTE: the reason for the DS to be not good (that is, either bad
             // or null) should have been logged by dsResponseToKE.
             forState.keyEntry = dsKE;
+            if (dsKE.isNull()) {
+                this.keyCache.store(dsKE);
+            }
 
             // The FINDKEY phase has ended, so move on.
             forState.state = ValEventState.VALIDATE_STATE;

@@ -412,8 +412,9 @@ public class ValidatingResolver implements Resolver {
             }
 
             // If this is a positive wildcard response, and we have a (just
-            // verified) NSEC record, try to use it to 1) prove that qname
-            // doesn't exist and 2) that the correct wildcard was used.
+            // verified) NSEC record, try to use it to
+            // 1) prove that qname doesn't exist and
+            // 2) that the correct wildcard was used.
             if (wc != null && rrsets[i].getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)rrsets[i].first();
 
@@ -452,7 +453,7 @@ public class ValidatingResolver implements Resolver {
         // If after all this, we still haven't proven the positive wildcard
         // response, fail.
         if (wc != null && !wcNsecOk) {
-            logger.debug("positive response was wildcard expansion and " + "did not prove original data did not exist");
+            logger.debug("positive response was wildcard expansion and did not prove original data did not exist");
             response.setStatus(SecurityStatus.BOGUS);
             return;
         }
@@ -571,7 +572,7 @@ public class ValidatingResolver implements Resolver {
             }
 
             // If we encounter an NSEC record, try to use it to prove NODATA.
-            // This needs to handle the ENT NODATA case.
+            // This needs to handle the empty non-terminal (ENT) NODATA case.
             if (rrsets[i].getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)rrsets[i].first();
                 if (ValUtils.nsecProvesNodata(nsec, qname, qtype)) {

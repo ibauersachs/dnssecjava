@@ -83,9 +83,6 @@ public class ValUtils {
      * algorithm, so they are confined here.
      */
     public enum ResponseClassification {
-        /** Not subtyped yet. */
-        UNTYPED,
-
         /** Not a recognized subtype. */
         UNKNOWN,
 

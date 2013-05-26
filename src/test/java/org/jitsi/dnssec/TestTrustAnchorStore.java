@@ -65,4 +65,15 @@ public class TestTrustAnchorStore {
         TrustAnchorStore tas = new TrustAnchorStore();
         tas.store(set);
     }
+
+    @Test
+    public void testClear() throws TextParseException {
+        SRRset set = new SRRset(new RRset(new DNSKEYRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0})));
+        TrustAnchorStore tas = new TrustAnchorStore();
+        tas.store(set);
+        SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
+        assertEquals(set, anchor);
+        tas.clear();
+        assertNull(tas.find(Name.fromString("asdf.bla."), DClass.IN));
+    }
 }

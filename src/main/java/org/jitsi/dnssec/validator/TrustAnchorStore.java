@@ -63,7 +63,6 @@ import org.xbill.DNS.Type;
  * Storage for DS or DNSKEY records that are known to be trusted.
  * 
  * @author davidb
- * @version $Revision: 286 $
  */
 public class TrustAnchorStore {
     private Map<String, SRRset> map;
@@ -111,6 +110,13 @@ public class TrustAnchorStore {
         }
 
         return null;
+    }
+
+    /**
+     * Removes all stored trust anchors.
+     */
+    public void clear() {
+        this.map.clear();
     }
 
     private SRRset lookup(String key) {

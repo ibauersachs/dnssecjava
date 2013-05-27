@@ -123,4 +123,9 @@
     <property name="message" value="Line has trailing spaces."/>
   </module>
   <module name="SuppressionCommentFilter"/>
+  <module name="SuppressWithNearbyCommentFilter">
+    <property name="commentFormat" value="SUPPRESS CHECKSTYLE\: ([\w\|]+)"/>
+    <property name="checkFormat" value="$1"/>
+    <property name="influenceFormat" value="1"/>
+  </module>
 </module>

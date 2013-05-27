@@ -96,12 +96,6 @@ public class ValidatingResolver implements Resolver {
     private static final Logger logger = Logger.getLogger(ValidatingResolver.class);
 
     /**
-     * This is the TTL to use when a trust anchor fails to prime. A trust anchor
-     * will be primed no more often than this interval.
-     */
-    private static final long DEFAULT_TA_NULL_KEY_TTL = 60;
-
-    /**
      * This is the TTL to use when a trust anchor priming query failed to
      * validate.
      */
@@ -884,8 +878,7 @@ public class ValidatingResolver implements Resolver {
      * @param trustAnchor The trust anchor (in DS or DNSKEY form) that is being
      *            primed.
      * @return a KeyEntry. This will either contain a validated DNSKEY rrset, or
-     *         represent a Null key (query failed, but validation did not), or a
-     *         Bad key (validation failed).
+     *         represent a Bad key (validation failed or no response).
      */
     private KeyEntry primeResponseToKE(SMessage response, SRRset trustAnchor) {
         Name qname = trustAnchor.getName();
@@ -895,14 +888,13 @@ public class ValidatingResolver implements Resolver {
         SRRset dnskeyRrset = response.findAnswerRRset(qname, Type.DNSKEY, qclass);
 
         // If the priming query didn't return a DNSKEY response, then we
-        // temporarily consider this a "null" key.
+        // consider this a "bad" key.
         if (dnskeyRrset == null) {
             logger.debug("Failed to prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- could not fetch DNSKEY rrset");
-
-            return this.keyCache.store(KeyEntry.newNullKeyEntry(qname, qclass, DEFAULT_TA_NULL_KEY_TTL));
+            return this.keyCache.store(KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL));
         }
 
-        SecurityStatus status;
+        SecurityStatus status = SecurityStatus.UNCHECKED;
         if (qtype == Type.DS) {
             KeyEntry dnskeyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, trustAnchor, DEFAULT_TA_BAD_KEY_TTL);
             if (dnskeyEntry.isGood()) {
@@ -912,11 +904,8 @@ public class ValidatingResolver implements Resolver {
                 status = SecurityStatus.BOGUS;
             }
         }
-        else if (qtype == Type.DNSKEY) {
+        else if (qtype == Type.DNSKEY) { // $COVERAGE-IGNORE$: qtype is guaranteed to be either DS or DNSKEY
             status = this.valUtils.verifySRRset(dnskeyRrset, trustAnchor);
-        }
-        else {
-            status = SecurityStatus.BOGUS;
         }
 
         if (status != SecurityStatus.SECURE) {
@@ -927,7 +916,6 @@ public class ValidatingResolver implements Resolver {
         }
 
         logger.debug("Successfully primed trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
-
         return this.keyCache.store(KeyEntry.newKeyEntry(dnskeyRrset));
     }
 

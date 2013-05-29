@@ -48,9 +48,33 @@ public class TestPriming extends TestBase {
     }
 
     @Test
+    public void testRootDnskeyPrimeResponseWithNxDomainIsBad() throws IOException {
+        Message message = new Message();
+        message.addRecord(Record.newRecord(Name.root, Type.DNSKEY, DClass.IN), Section.QUESTION);
+        message.getHeader().setRcode(Rcode.NXDOMAIN);
+        add("./DNSKEY", message);
+
+        Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+    }
+
+    @Test
     public void testDsPrimeResponseWithEmptyAnswerIsBad() throws IOException {
         Message message = new Message();
         message.addRecord(Record.newRecord(Name.fromString("ch."), Type.DS, DClass.IN), Section.QUESTION);
+        add("ch./DS", message);
+
+        Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+    }
+
+    @Test
+    public void testDsPrimeResponseWithNxDomainForTld() throws IOException {
+        Message message = new Message();
+        message.addRecord(Record.newRecord(Name.fromString("ch."), Type.DS, DClass.IN), Section.QUESTION);
+        message.getHeader().setRcode(Rcode.NXDOMAIN);
         add("ch./DS", message);
 
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));

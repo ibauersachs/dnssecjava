@@ -1037,15 +1037,9 @@ public class ValidatingResolver implements Resolver {
         KeyEntry bogusKE = KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
         switch (subtype) {
             case POSITIVE:
-                SRRset dsRrset = response.findAnswerRRset(qname, Type.DS, qclass);
-                // If there was no DS rrset, then we have mis-classified this
-                // message.
-                if (dsRrset == null) {
-                    logger.warn("POSITIVE DS response was missing DS!  This is a bug!");
-                    return bogusKE;
-                }
                 // Verify only returns BOGUS or SECURE. If the rrset is bogus,
                 // then we are done.
+                SRRset dsRrset = response.findAnswerRRset(qname, Type.DS, qclass);
                 status = this.valUtils.verifySRRset(dsRrset, keyRrset);
                 if (status == SecurityStatus.BOGUS) {
                     logger.debug("DS rrset in DS response did not verify");

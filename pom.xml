@@ -2,10 +2,10 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.jitsi</groupId>
-	<artifactId>dnssec</artifactId>
-	<packaging>jar</packaging>
+	<artifactId>dnssecjava</artifactId>
+	<packaging>bundle</packaging>
 	<version>1.0-SNAPSHOT</version>
-	<name>dnssec</name>
+	<name>dnssecjava</name>
 	<url>https://jitsi.org/dnssec</url>
 	<dependencies>
 		<dependency>
@@ -27,8 +27,38 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<version>2.3.7</version>
+				<extensions>true</extensions>
+				<configuration />
+			</plugin>
+		</plugins>
+	</build>
 	<organization>
 		<name>jitsi.org</name>
 		<url>https://jitsi.org</url>
 	</organization>
+	<scm>
+		<url>https://github.com/jitsi/dnssecjava</url>
+		<connection>scm:git:https://github.com/jitsi/dnssecjava.git</connection>
+	</scm>
+	<description>A DNSSEC validating stub resolver for Java.</description>
+	<licenses>
+		<license>
+			<name>GNU Lesser General Public License (LGPL), Version 3</name>
+			<url>http://www.gnu.org/licenses/lgpl.html</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+	<developers>
+		<developer>
+			<id>ibauersachs</id>
+			<name>Ingo Bauersachs</name>
+			<email>ingo@jitsi.org</email>
+		</developer>
+	</developers>
 </project>

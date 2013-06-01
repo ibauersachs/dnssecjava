@@ -1041,7 +1041,7 @@ public class ValidatingResolver implements Resolver {
                 // then we are done.
                 SRRset dsRrset = response.findAnswerRRset(qname, Type.DS, qclass);
                 status = this.valUtils.verifySRRset(dsRrset, keyRrset);
-                if (status == SecurityStatus.BOGUS) {
+                if (status != SecurityStatus.SECURE) {
                     logger.debug("DS rrset in DS response did not verify");
                     return bogusKE;
                 }
@@ -1153,7 +1153,7 @@ public class ValidatingResolver implements Resolver {
             default:
                 // We've encountered an unhandled classification for this
                 // response.
-                logger.debug("Encountered an unhandled type of DS response, thus bogus.");
+                logger.debug("Encountered an unhandled type of DS response, thus bogus (" + subtype + ").");
                 return bogusKE;
         }
     }

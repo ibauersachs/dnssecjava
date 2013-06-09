@@ -1373,28 +1373,23 @@ public class ValidatingResolver implements Resolver {
 
         // The name was not found in the answer sections received so far. If we
         // got an NXDOMAIN response, the CNAME(s) point to a non-existing domain
-        // and the NSEC(3)(s) hopefully prove that.
-        if (m.getRcode() == Rcode.NXDOMAIN) {
-            SRRset rrset = rrsets[state.cnameIndex - 1];
-            int rtype = rrset.getType();
+        // or the requested type is not available at the target name (NOERROR).
+        // The NSEC(3)(s) hopefully prove that.
+        SRRset rrset = rrsets[state.cnameIndex - 1];
+        int rtype = rrset.getType();
 
-            // Set the SNAME if we are dealing with a CNAME
-            if (rtype == Type.CNAME) {
-                CNAMERecord cname = (CNAMERecord)rrset.first();
-                state.cnameSname = cname.getTarget();
-            }
-
-            // Generate the sub-query for the final query.
-            Message localRequest = this.generateLocalRequest(state.cnameSname, rtype, qclass);
-            DNSEvent localEvent = this.generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, ValEventState.CNAME_ANS_RESP_STATE);
-
-            // ...and send it along.
-            this.sendRequest(localEvent);
-            return false;
+        // Set the SNAME if we are dealing with a CNAME
+        if (rtype == Type.CNAME) {
+            CNAMERecord cname = (CNAMERecord)rrset.first();
+            state.cnameSname = cname.getTarget();
         }
 
-        // Something odd has happened if we get here.
-        logger.warn("processCNAME: encountered unknown issue handling a CNAME chain.");
+        // Generate the sub-query for the final query.
+        Message localRequest = this.generateLocalRequest(state.cnameSname, rtype, qclass);
+        DNSEvent localEvent = this.generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, ValEventState.CNAME_ANS_RESP_STATE);
+
+        // ...and send it along.
+        this.sendRequest(localEvent);
         return false;
     }
 

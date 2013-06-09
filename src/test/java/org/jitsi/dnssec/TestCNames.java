@@ -36,15 +36,29 @@ import org.xbill.DNS.Type;
 
 public class TestCNames extends TestBase {
     @Test
-    public void testCNameToUnsigned() throws IOException {
+    public void testCNameToUnsignedA() throws IOException {
         Message response = resolver.send(createMessage("cunsinged.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
     }
 
     @Test
-    public void testCNameToSigned() throws IOException {
+    public void testCNameToUnsignedMX() throws IOException {
+        Message response = resolver.send(createMessage("cunsinged.ingotronic.ch./MX"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+    }
+
+    @Test
+    public void testCNameToSignedA() throws IOException {
         Message response = resolver.send(createMessage("csigned.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+    }
+
+    @Test
+    public void testCNameToSignedMX() throws IOException {
+        Message response = resolver.send(createMessage("csigned.ingotronic.ch./MX"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
     }

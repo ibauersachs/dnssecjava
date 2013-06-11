@@ -62,7 +62,6 @@ import org.xbill.DNS.Name;
  */
 public class ValEventState {
     public static final int INIT_STATE = 0;
-    public static final int PRIME_RESP_STATE = 1;
     public static final int FINDKEY_STATE = 2;
     public static final int FINDKEY_DS_RESP_STATE = 3;
     public static final int FINDKEY_DNSKEY_RESP_STATE = 4;

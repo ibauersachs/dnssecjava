@@ -272,28 +272,6 @@ public class ValidatingResolver implements Resolver {
         return true;
     }
 
-    /**
-     * Generate and dispatch a priming query for the given trust anchor.
-     * 
-     * @param forEvent Link this event to the priming query. As part of
-     *            processing the priming query's response, this event will be
-     *            revived.
-     * @param trustAnchorRrset The RRset to start with -- this can be either a
-     *            DNSKEY or a DS rrset. The RRset does not need to be signed.
-     */
-    private void primeTrustAnchor(DNSEvent forEvent, SRRset trustAnchorRrset) {
-        Name qname = trustAnchorRrset.getName();
-        int qtype = trustAnchorRrset.getType();
-        int qclass = trustAnchorRrset.getDClass();
-
-        logger.debug("Priming Trust Anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
-
-        Message req = generateLocalRequest(qname, Type.DNSKEY, qclass);
-        DNSEvent primingQueryEvent = generateLocalEvent(forEvent, req, ValEventState.PRIME_RESP_STATE, ValEventState.PRIME_RESP_STATE);
-
-        sendRequest(primingQueryEvent);
-    }
-
     // ----------------- Resolution Support -----------------------
 
     /**
@@ -773,9 +751,6 @@ public class ValidatingResolver implements Resolver {
                 case ValEventState.INIT_STATE:
                     cont = processInit(event, state);
                     break;
-                case ValEventState.PRIME_RESP_STATE:
-                    cont = processPrimeResponse(event, state);
-                    break;
                 case ValEventState.FINDKEY_STATE:
                     cont = processFindKey(event, state);
                     break;
@@ -848,13 +823,18 @@ public class ValidatingResolver implements Resolver {
         state.keyEntry = this.keyCache.find(lookupName, qclass);
 
         if (state.keyEntry == null) {
-            // fire off a trust anchor priming query.
-            this.primeTrustAnchor(event, state.trustAnchorRRset);
+            // start the FINDKEY phase with the trust anchor
+            if (state.trustAnchorRRset.getType() == Type.DS) {
+                state.dsRRset = state.trustAnchorRRset;
+            }
+            else {
+                state.keyEntry = KeyEntry.newKeyEntry(state.trustAnchorRRset);
+            }
 
             // and otherwise, don't continue processing this event.
             // (it will be reactivated when the priming query returns).
             state.state = ValEventState.FINDKEY_STATE;
-            return false;
+            return true;
         }
         else if (state.keyEntry.isNull()) {
             // response is under a null key, so we cannot validate
@@ -869,83 +849,6 @@ public class ValidatingResolver implements Resolver {
         // the next state.
         state.state = ValEventState.FINDKEY_STATE;
         return true;
-    }
-
-    /**
-     * Evaluate the response to a priming request.
-     * 
-     * @param response The response to the priming request.
-     * @param trustAnchor The trust anchor (in DS or DNSKEY form) that is being
-     *            primed.
-     * @return a KeyEntry. This will either contain a validated DNSKEY rrset, or
-     *         represent a Bad key (validation failed or no response).
-     */
-    private KeyEntry primeResponseToKE(SMessage response, SRRset trustAnchor) {
-        Name qname = trustAnchor.getName();
-        int qtype = trustAnchor.getType();
-        int qclass = trustAnchor.getDClass();
-
-        SRRset dnskeyRrset = response.findAnswerRRset(qname, Type.DNSKEY, qclass);
-
-        // If the priming query didn't return a DNSKEY response, then we
-        // consider this a "bad" key.
-        if (dnskeyRrset == null) {
-            logger.debug("Failed to prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- could not fetch DNSKEY rrset");
-            return this.keyCache.store(KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL));
-        }
-
-        SecurityStatus status = SecurityStatus.UNCHECKED;
-        if (qtype == Type.DS) {
-            KeyEntry dnskeyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, trustAnchor, DEFAULT_TA_BAD_KEY_TTL);
-            if (dnskeyEntry.isGood()) {
-                status = SecurityStatus.SECURE;
-            }
-            else {
-                status = SecurityStatus.BOGUS;
-            }
-        }
-        else if (qtype == Type.DNSKEY) { // $COVERAGE-IGNORE$: qtype is guaranteed to be either DS or DNSKEY
-            status = this.valUtils.verifySRRset(dnskeyRrset, trustAnchor);
-        }
-
-        if (status != SecurityStatus.SECURE) {
-            logger.debug("Could not prime trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass) + " -- DNSKEY rrset did not verify");
-
-            // no or a bad answer to a trust anchor means we cannot continue
-            return this.keyCache.store(KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL));
-        }
-
-        logger.debug("Successfully primed trust anchor: " + qname + "/" + Type.string(qtype) + "/" + DClass.string(qclass));
-        return this.keyCache.store(KeyEntry.newKeyEntry(dnskeyRrset));
-    }
-
-    /**
-     * Process the response to a priming request. This will revive the dependent
-     * event and set its keyEntry.
-     * 
-     * @param event The response event to the priming event.
-     * @param state The state object attached to that event.
-     * @return false, since these events do not need further processing.
-     */
-    private boolean processPrimeResponse(DNSEvent event, ValEventState state) {
-        DNSEvent forEvent = event.forEvent();
-        ValEventState forState = forEvent.getModuleState();
-
-        SMessage resp = event.getResponse();
-
-        // Fetch and validate the keyEntry that corresponds to the current trust
-        // anchor.
-        forState.keyEntry = this.primeResponseToKE(resp, forState.trustAnchorRRset);
-
-        // If the result of the prime is a null key, skip the FINDKEY state.
-        if (forState.keyEntry.isNull() || forState.keyEntry.isBad()) {
-            forState.state = ValEventState.VALIDATE_STATE;
-        }
-
-        // Continue processing our 'forEvent'. This event is finished.
-        this.processResponse(forEvent);
-
-        return false;
     }
 
     /**
@@ -971,7 +874,10 @@ public class ValidatingResolver implements Resolver {
             targetKeyName = qname;
         }
 
-        Name currentKeyName = state.keyEntry.getName();
+        Name currentKeyName = Name.empty;
+        if (state.keyEntry != null) {
+            currentKeyName = state.keyEntry.getName();
+        }
 
         // If our current key entry matches our target, then we are done.
         if (currentKeyName.equals(targetKeyName)) {

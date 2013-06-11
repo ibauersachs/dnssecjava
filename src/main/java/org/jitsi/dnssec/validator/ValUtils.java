@@ -292,24 +292,6 @@ public class ValUtils {
     }
 
     /**
-     * Set the security status of a particular RRset. This will only upgrade the
-     * security status.
-     * 
-     * @param rrset The SRRset to update.
-     * @param newStatus The security status to set.
-     */
-    public static void setRRsetSecurity(SRRset rrset, SecurityStatus newStatus) {
-        if (rrset == null) {
-            return;
-        }
-
-        SecurityStatus currentStatus = rrset.getSecurityStatus();
-        if (currentStatus == SecurityStatus.UNCHECKED || newStatus.getStatus() > currentStatus.getStatus()) {
-            rrset.setSecurityStatus(newStatus);
-        }
-    }
-
-    /**
      * Given an SRRset that is signed by a DNSKEY found in the key_rrset, verify
      * it. This will return the status (either BOGUS or SECURE) and set that
      * status in rrset.

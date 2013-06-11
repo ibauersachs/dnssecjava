@@ -44,11 +44,12 @@ import org.xbill.DNS.SimpleResolver;
 import org.xbill.DNS.Type;
 
 public abstract class TestBase {
+    protected final static String localhost = "127.0.0.1";
+
     protected ValidatingResolver resolver;
 
     private Map<String, Message> queryResponsePairs = new HashMap<String, Message>();
-
-    protected final static String localhost = "127.0.0.1";
+    private MessageReader messageReader;
 
     private final static boolean offline = false;
 
@@ -64,6 +65,8 @@ public abstract class TestBase {
 
     @Before
     public void setup() throws NumberFormatException, IOException, DNSSECException {
+        messageReader = new MessageReader();
+
         if (offline) {
             // TODO: read all not already existing queries into the query-response map
         }
@@ -104,11 +107,24 @@ public abstract class TestBase {
         return Message.newQuery(Record.newRecord(Name.fromString(query.split("/")[0]), Type.value(query.split("/")[1]), DClass.IN));
     }
 
+    protected Message messageFromRes(String fileName) throws IOException {
+        return messageReader.readMessage(getClass().getResourceAsStream(fileName));
+    }
+
     @SuppressWarnings("unchecked")
     protected String firstA(Message response) {
         RRset[] sectionRRsets = response.getSectionRRsets(Section.ANSWER);
-        Iterator<ARecord> rrs = sectionRRsets[0].rrs();
-        return rrs.next().getAddress().getHostAddress();
+        if (sectionRRsets.length > 0) {
+            Iterator<Record> rrs = sectionRRsets[0].rrs();
+            while (rrs.hasNext()) {
+                Record r = rrs.next();
+                if (r.getType() == Type.A) {
+                    return ((ARecord)r).getAddress().getHostAddress();
+                }
+            }
+        }
+
+        return null;
     }
 
     protected boolean isEmptyAnswer(Message response) {

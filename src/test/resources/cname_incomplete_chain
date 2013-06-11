@@ -1,0 +1,8 @@
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 58772
+;; flags: qr aa rd ra ; qd: 1 an: 4 au: 5 ad: 9 
+;; QUESTIONS:
+;;  csext.ingotronic.ch., type = A, class = IN
+
+;; ANSWERS:
+csext.ingotronic.ch.    300 IN  CNAME   www.isc.org.
+csext.ingotronic.ch.    300 IN  RRSIG   CNAME 5 3 300 20130709214427 20130609213352 17430 ingotronic.ch. bzyFfQhKFZvoPSKFLR/Pau0ziPrcdJ/75KrAEO+NXDoDQtbZ3l7pHsm9V8AJiwyUc9CaNcFHhElCVPZhfhgyIgUjB7w2E2ccWix/PBek8NNwJP7oROTSuAZG8GKG+v6tHq5UvjR0NA/cXefhx0cveQtex7D0fNOADdB+/lxuBdY=

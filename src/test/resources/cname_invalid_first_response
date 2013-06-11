@@ -1,0 +1,8 @@
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 47646
+;; flags: qr aa rd ra ; qd: 1 an: 2 au: 6 ad: 1 
+;; QUESTIONS:
+;;  cvoid1.ingotronic.ch., type = CNAME, class = IN
+
+;; ANSWERS:
+cvoid1.ingotronic.ch.   300 IN  CNAME   www.ingotronic.ch.
+cvoid1.ingotronic.ch.   300 IN  RRSIG   CNAME 5 3 300 20130709213553 20130609213352 17430 ingotronic.ch. WSYlem4EntC4D1z+HyK8orAuxnh94tYdxYxwSz9w0pYDceisjg9GHp6AoJ0mnHc4BgOcuppiTsg11/TOslRSVnN+guth+0wnZ+9DxRwzNrP3R1PNip1f942xKpl64+UEryQzb+yiUBE/hQED8uXK0pZiOJOTHqDEsS8bIupmuCs=

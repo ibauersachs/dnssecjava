@@ -64,6 +64,13 @@ public class TestCNames extends TestBase {
     }
 
     @Test
+    public void testCNameToSignedAExternal() throws IOException {
+        Message response = resolver.send(createMessage("csext.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+    }
+
+    @Test
     public void testCNameToInvalidSigned() throws IOException {
         Message response = resolver.send(createMessage("cfailed.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -113,6 +120,16 @@ public class TestCNames extends TestBase {
     }
 
     @Test
+    public void testCNameToVoidFailsWithFakedFirstResponse() throws IOException {
+        // cvoid1 originally points to a non-existing domain but is changed to
+        // point to an existing (hence it must fail signature verification)
+        add("cvoid1.ingotronic.ch./CNAME", messageFromRes("/cname_invalid_first_response"));
+        Message response = resolver.send(createMessage("cvoid1.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+    }
+
+    @Test
     public void testCNameToUnsignedVoid() throws IOException {
         Message response = resolver.send(createMessage("cvoid4.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -124,6 +141,22 @@ public class TestCNames extends TestBase {
         Message response = resolver.send(createMessage("cvoid.dnssectest.jitsi.net./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    }
+
+    @Test
+    public void testCNameToExternalSignedWithPartialResponse() throws IOException {
+        add("csext.ingotronic.ch./A", messageFromRes("/cname_incomplete_chain"));
+        Message response = resolver.send(createMessage("csext.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNotNull(firstA(response));
+    }
+
+    @Test
+    public void testCNameToSubSigned() throws IOException {
+        Message response = resolver.send(createMessage("cssub.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
     }
 
     @Test

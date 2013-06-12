@@ -251,7 +251,7 @@ public class ValUtils {
 
                 // Convert the candidate DNSKEY into a hash using the same DS
                 // hash algorithm.
-                DSRecord keyDigest = new DSRecord(Name.root, DClass.IN, 0, ds.getDigestID(), dnskey);
+                DSRecord keyDigest = new DSRecord(Name.root, ds.getDClass(), 0, ds.getDigestID(), dnskey);
                 byte[] keyHash = keyDigest.getDigest();
                 byte[] dsHash = ds.getDigest();
 

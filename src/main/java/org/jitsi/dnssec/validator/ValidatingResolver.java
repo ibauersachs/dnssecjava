@@ -71,6 +71,7 @@ import org.jitsi.dnssec.Util;
 import org.jitsi.dnssec.validator.ValUtils.ResponseClassification;
 import org.xbill.DNS.CNAMERecord;
 import org.xbill.DNS.DClass;
+import org.xbill.DNS.DNAMERecord;
 import org.xbill.DNS.ExtendedFlags;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Master;
@@ -78,6 +79,7 @@ import org.xbill.DNS.Message;
 import org.xbill.DNS.NSEC3Record;
 import org.xbill.DNS.NSECRecord;
 import org.xbill.DNS.Name;
+import org.xbill.DNS.NameTooLongException;
 import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Resolver;
@@ -301,17 +303,36 @@ public class ValidatingResolver implements Resolver {
         SRRset[] rrsets = response.getSectionRRsets(Section.ANSWER);
         Name wc = null;
         boolean wcNsecOk = false;
-        boolean dname = false;
+        DNAMERecord dname = null;
         List<NSEC3Record> nsec3s = null;
 
         SRRset keyRrset = null;
         for (int i = 0; i < rrsets.length; i++) {
-            // Skip the CNAME following a (validated) DNAME.
-            // Because of the normalization routines in NameserverClient, there
-            // will always be an unsigned CNAME following a DNAME (unless
-            // qtype=DNAME).
-            if (rrsets[i].getType() == Type.CNAME && dname) {
-                dname = false;
+            // Validate the CNAME following a (validated) DNAME is correctly
+            // synthesized.
+            if (rrsets[i].getType() == Type.CNAME && dname != null) {
+                if (rrsets[i].size() > 1) {
+                    logger.debug("Synthesized CNAME RRset has multiple records - that doesn't make sense.");
+                    response.setStatus(SecurityStatus.BOGUS);
+                    return;
+                }
+
+                CNAMERecord cname = (CNAMERecord)rrsets[i].first();
+                try {
+                    if (!Name.concatenate(cname.getName().relativize(dname.getName()), dname.getTarget()).equals(cname.getTarget())) {
+                        logger.debug("Synthesized CNAME included in answer doesn't match DNAME synthesis rules, thus bogus.");
+                        response.setStatus(SecurityStatus.BOGUS);
+                        return;
+                    }
+                }
+                catch (NameTooLongException e) {
+                    logger.debug("Synthesized name would be too long, thus bogus");
+                    response.setStatus(SecurityStatus.BOGUS);
+                    return;
+                }
+
+                rrsets[i].setSecurityStatus(SecurityStatus.SECURE);
+                dname = null;
                 continue;
             }
 
@@ -344,7 +365,7 @@ public class ValidatingResolver implements Resolver {
 
             // Notice a DNAME that should be followed by an unsigned CNAME.
             if (qtype != Type.DNAME && rrsets[i].getType() == Type.DNAME) {
-                dname = true;
+                dname = (DNAMERecord)rrsets[i].first();
             }
         }
 
@@ -532,10 +553,22 @@ public class ValidatingResolver implements Resolver {
 
         SMessage m = response;
 
-        // Since we are here, there must be nothing in the ANSWER section to
-        // validate. (Note: CNAME/DNAME responses will not directly get here --
-        // instead they are broken down into individual CNAME/DNAME/final answer
-        // responses.)
+        // Since we are here, the ANSWER section is either empty (and hence
+        // there's only the NODATA to validate) OR it contains an incomplete
+        // chain. In this case, the records were already validated before and we
+        // can concentrate on following the qname that lead to the NODATA
+        // classification
+        for (SRRset set : m.getSectionRRsets(Section.ANSWER)) {
+            if (set.getSecurityStatus() != SecurityStatus.SECURE) {
+                logger.debug("CNAME_NODATA response has failed ANSWER rrset: " + set);
+                m.setStatus(SecurityStatus.BOGUS);
+                return;
+            }
+
+            if (set.getType() == Type.CNAME) {
+                qname = ((CNAMERecord)set.first()).getTarget();
+            }
+        }
 
         // validate the AUTHORITY section
         SRRset[] rrsets = m.getSectionRRsets(Section.AUTHORITY);
@@ -549,31 +582,6 @@ public class ValidatingResolver implements Resolver {
         List<NSEC3Record> nsec3s = null; // A collection of NSEC3 RRs found in
                                          // the authority section.
         Name nsec3Signer = null; // The RRSIG signer field for the NSEC3 RRs.
-
-        for (SRRset set : m.getSectionRRsets(Section.ANSWER)) {
-//            KeyEntry ke = this.prepareFindKey(set, qname);
-//            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
-//                return;
-//            }
-//
-//            SRRset keyRrset = ke.getRRset();
-//            if (keyRrset == null) {
-//                logger.debug("NODATA response has failed ANSWER rrset: " + set);
-//                response.setStatus(SecurityStatus.BOGUS);
-//                return;
-//            }
-//
-//            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
-//            if (status != SecurityStatus.SECURE) {
-//                logger.debug("NODATA response has failed ANSWER rrset: " + set);
-//                m.setStatus(SecurityStatus.BOGUS);
-//                return;
-//            }
-
-            if (set.getType() == Type.CNAME) {
-                qname = ((CNAMERecord)set.first()).getTarget();
-            }
-        }
 
         for (int i = 0; i < rrsets.length; i++) {
             KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
@@ -670,45 +678,32 @@ public class ValidatingResolver implements Resolver {
      * @param keyRrset The trusted DNSKEY rrset that signs this response.
      */
     private void validateNameErrorResponse(Name qname, SMessage response) {
-        // FIXME: should we check to see if there is anything in the answer
-        // section? if so, what should the result be?
-
-        // Validate the authority section -- all RRsets in the authority section
-        // must be signed and valid.
-        // In addition, the NSEC record(s) must prove the NXDOMAIN condition.
-
-        boolean hasValidNSEC = false;
-        boolean hasValidWCNSEC = false;
-        SRRset[] rrsets = response.getSectionRRsets(Section.AUTHORITY);
-        List<NSEC3Record> nsec3s = null;
-        Name nsec3Signer = null;
-
+        // The ANSWER section is either empty OR it contains an xNAME chain that
+        // ultimately lead to the NAMEERROR response. In this case the ANSWER
+        // section has already been validated before and we can concentrate on
+        // following the xNAMEs to find the qname that caused the NXDOMAIN.
         for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
-//            KeyEntry ke = this.prepareFindKey(set, qname);
-//            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
-//                return;
-//            }
-//
-//            SRRset keyRrset = ke.getRRset();
-//            if (keyRrset == null) {
-//                logger.debug("NameError response has failed ANSWER rrset: " + set);
-//                response.setStatus(SecurityStatus.BOGUS);
-//                return;
-//            }
-//
-//            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
-//            if (status != SecurityStatus.SECURE) {
-//                logger.debug("NameError response has failed ANSWER rrset: " + set);
-//                response.setStatus(SecurityStatus.BOGUS);
-//                return;
-//            }
+            if (set.getSecurityStatus() != SecurityStatus.SECURE) {
+                logger.debug("CNAME_NAMEERROR response has failed ANSWER rrset: " + set);
+                response.setStatus(SecurityStatus.BOGUS);
+                return;
+            }
 
             if (set.getType() == Type.CNAME) {
                 qname = ((CNAMERecord)set.first()).getTarget();
             }
         }
 
+        // Validate the authority section -- all RRsets in the authority section
+        // must be signed and valid.
+        // In addition, the NSEC record(s) must prove the NXDOMAIN condition.
+        boolean hasValidNSEC = false;
+        boolean hasValidWCNSEC = false;
+        List<NSEC3Record> nsec3s = null;
+        Name nsec3Signer = null;
         SRRset keyRrset = null;
+
+        SRRset[] rrsets = response.getSectionRRsets(Section.AUTHORITY);
         for (int i = 0; i < rrsets.length; i++) {
             KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
             if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
@@ -837,7 +832,7 @@ public class ValidatingResolver implements Resolver {
         if (state.trustAnchorRRset == null) {
             // response isn't under a trust anchor, so we cannot validate.
             return KeyEntry.newNullKeyEntry(rrset.getSignerName(), rrset.getDClass(), DEFAULT_TA_BAD_KEY_TTL);
-//            return null;
+            // return null;
         }
 
         state.keyEntry = this.keyCache.find(state.signerName, rrset.getDClass());
@@ -872,14 +867,14 @@ public class ValidatingResolver implements Resolver {
         // We know that state.keyEntry is not a null or bad key -- if it were,
         // then previous processing should have directed this event to a
         // different state.
-//        Message req = event.getRequest();
-//        Name qname = req.getQuestion().getName();
+        // Message req = event.getRequest();
+        // Name qname = req.getQuestion().getName();
         int qclass = DClass.IN; // req.getQuestion().getDClass();
 
         Name targetKeyName = state.signerName;
-//        if (targetKeyName == null) {
-//            targetKeyName = qname;
-//        }
+        // if (targetKeyName == null) {
+        // targetKeyName = qname;
+        // }
 
         Name currentKeyName = Name.empty;
         if (state.keyEntry != null) {
@@ -975,7 +970,15 @@ public class ValidatingResolver implements Resolver {
 
                 // Otherwise, we return the positive response.
                 logger.trace("CNAME rrset was good, unsigned response.");
-                return KeyEntry.newNullKeyEntry(cnameRrset.getName()/*((CNAMERecord)cnameRrset.first()).getTarget()*/, qclass, DEFAULT_TA_BAD_KEY_TTL);
+                return KeyEntry.newNullKeyEntry(cnameRrset.getName()/*
+                                                                     * ((CNAMERecord
+                                                                     * )
+                                                                     * cnameRrset
+                                                                     * .
+                                                                     * first()).
+                                                                     * getTarget
+                                                                     * ()
+                                                                     */, qclass, DEFAULT_TA_BAD_KEY_TTL);
 
             case NODATA:
                 // NODATA means that the qname exists, but that there was no DS.
@@ -1128,7 +1131,7 @@ public class ValidatingResolver implements Resolver {
             return false;
         }
 
-        //this.processResponse(forEvent);
+        // this.processResponse(forEvent);
         this.processFindKey(forEvent, forState);
         return false;
     }
@@ -1169,7 +1172,7 @@ public class ValidatingResolver implements Resolver {
         this.keyCache.store(forState.keyEntry);
 
         // If good, we stay in the FINDKEY state.
-        //this.processResponse(forEvent);
+        // this.processResponse(forEvent);
         this.processFindKey(forEvent, forState);
         return false;
     }
@@ -1395,7 +1398,7 @@ public class ValidatingResolver implements Resolver {
         // This should synchronously process the request, based on the way the
         // resolver tail is configured.
         this.sendRequest(event);
-        //this.processInit(event, event.getModuleState());
+        // this.processInit(event, event.getModuleState());
         this.processValidate(event, event.getModuleState());
 
         return event.getResponse().getMessage();

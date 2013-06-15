@@ -970,15 +970,7 @@ public class ValidatingResolver implements Resolver {
 
                 // Otherwise, we return the positive response.
                 logger.trace("CNAME rrset was good, unsigned response.");
-                return KeyEntry.newNullKeyEntry(cnameRrset.getName()/*
-                                                                     * ((CNAMERecord
-                                                                     * )
-                                                                     * cnameRrset
-                                                                     * .
-                                                                     * first()).
-                                                                     * getTarget
-                                                                     * ()
-                                                                     */, qclass, DEFAULT_TA_BAD_KEY_TTL);
+                return KeyEntry.newNullKeyEntry(cnameRrset.getName(), qclass, DEFAULT_TA_BAD_KEY_TTL);
 
             case NODATA:
                 // NODATA means that the qname exists, but that there was no DS.

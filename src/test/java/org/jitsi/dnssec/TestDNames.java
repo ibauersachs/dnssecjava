@@ -49,6 +49,6 @@ public class TestDNames extends TestBase {
     public void testDNameToNxDomainIsValid() throws IOException {
         Message response = resolver.send(createMessage("x.alias.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
     }
 }

@@ -239,39 +239,6 @@ public class ValidatingResolver implements Resolver {
         req.getHeader().setFlag(Flags.CD);
     }
 
-    // ----------------- Validation Support ----------------------
-
-    /**
-     * Check to see if a given response needs to go through the validation
-     * process. Reasons for this routine to return false are: the response was
-     * already validated, or the response is a kind of message that is
-     * unvalidatable (i.e., SERVFAIL, REFUSED, etc.)
-     * 
-     * @param response The response to check.
-     * @return true if the response could use validation (although this does not
-     *         mean we can actually validate this response).
-     */
-    private boolean needsValidation(DNSEvent event, ValEventState state) {
-        SMessage response = event.getResponse();
-        if (response.getStatus().getStatus() > SecurityStatus.BOGUS.getStatus()) {
-            logger.debug("Response has already been validated.");
-            return false;
-        }
-
-        int rcode = response.getRcode();
-        if (rcode != Rcode.NOERROR && rcode != Rcode.NXDOMAIN) {
-            logger.debug("Cannot validate " + Rcode.string(rcode) + " answer.");
-            // rfc4035#section-5.5
-            if (event.forEvent() != null) {
-                event.forEvent().getResponse().getHeader().setRcode(Rcode.SERVFAIL);
-            }
-
-            return false;
-        }
-
-        return true;
-    }
-
     // ----------------- Resolution Support -----------------------
 
     /**
@@ -304,12 +271,9 @@ public class ValidatingResolver implements Resolver {
      *            response to this event goes after finishing validation.
      * @return The generated event.
      */
-    private DNSEvent generateLocalEvent(DNSEvent forEvent, Message req, int initialState, int finalState) {
+    private DNSEvent generateLocalEvent(DNSEvent forEvent, Message req) {
         DNSEvent event = new DNSEvent(req, forEvent);
         ValEventState state = new ValEventState();
-        state.state = initialState;
-        state.finalState = finalState;
-
         event.setModuleState(state);
 
         return event;
@@ -329,7 +293,7 @@ public class ValidatingResolver implements Resolver {
      * @param keyRrset The trusted DNSKEY rrset that matches the signer of the
      *            answer.
      */
-    private void validatePositiveResponse(SMessage response, Message request, SRRset keyRrset) {
+    private void validatePositiveResponse(SMessage response, Message request) {
         Name qname = request.getQuestion().getName();
         int qtype = request.getQuestion().getType();
 
@@ -340,17 +304,30 @@ public class ValidatingResolver implements Resolver {
         boolean dname = false;
         List<NSEC3Record> nsec3s = null;
 
+        SRRset keyRrset = null;
         for (int i = 0; i < rrsets.length; i++) {
             // Skip the CNAME following a (validated) DNAME.
             // Because of the normalization routines in NameserverClient, there
             // will always be an unsigned CNAME following a DNAME (unless
             // qtype=DNAME).
-            if (dname && rrsets[i].getType() == Type.CNAME) {
+            if (rrsets[i].getType() == Type.CNAME && dname) {
                 dname = false;
                 continue;
             }
 
             // Verify the answer rrset.
+            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
+            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+                return;
+            }
+
+            keyRrset = ke.getRRset();
+            if (keyRrset == null) {
+                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                response.setStatus(SecurityStatus.BOGUS);
+                return;
+            }
+
             SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
@@ -375,6 +352,18 @@ public class ValidatingResolver implements Resolver {
         // NS rrset (which could be missing, no problem)
         rrsets = response.getSectionRRsets(Section.AUTHORITY);
         for (int i = 0; i < rrsets.length; i++) {
+            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
+            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+                return;
+            }
+
+            keyRrset = ke.getRRset();
+            if (keyRrset == null) {
+                logger.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
+                response.setStatus(SecurityStatus.BOGUS);
+                return;
+            }
+
             SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             // If anything in the authority section fails to be secure, we have
             // a bad message.
@@ -457,7 +446,8 @@ public class ValidatingResolver implements Resolver {
      * @param keyRrset The trusted DNSKEY rrset that matches the signer of the
      *            answer.
      */
-    private void validateAnyResponse(SMessage response, Message request, SRRset keyRrset) {
+    private void validateAnyResponse(SMessage response, Message request) {
+        Name qname = request.getQuestion().getName();
         int qtype = request.getQuestion().getType();
 
         if (qtype != Type.ANY) {
@@ -469,6 +459,18 @@ public class ValidatingResolver implements Resolver {
         // validate the ANSWER section.
         SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
         for (int i = 0; i < rrsets.length; i++) {
+            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
+            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+                return;
+            }
+
+            SRRset keyRrset = ke.getRRset();
+            if (keyRrset == null) {
+                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                response.setStatus(SecurityStatus.BOGUS);
+                return;
+            }
+
             SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
@@ -483,6 +485,18 @@ public class ValidatingResolver implements Resolver {
         // (which could be missing, no problem)
         rrsets = m.getSectionRRsets(Section.AUTHORITY);
         for (int i = 0; i < rrsets.length; i++) {
+            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
+            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+                return;
+            }
+
+            SRRset keyRrset = ke.getRRset();
+            if (keyRrset == null) {
+                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                response.setStatus(SecurityStatus.BOGUS);
+                return;
+            }
+
             SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             // If anything in the authority section fails to be secure, we have
             // a bad message.
@@ -512,7 +526,7 @@ public class ValidatingResolver implements Resolver {
      * @param request The request that generated this response.
      * @param keyRrset The trusted DNSKEY rrset that signs this response.
      */
-    private void validateNodataResponse(SMessage response, Message request, SRRset keyRrset) {
+    private void validateNodataResponse(SMessage response, Message request) {
         Name qname = request.getQuestion().getName();
         int qtype = request.getQuestion().getType();
 
@@ -536,7 +550,44 @@ public class ValidatingResolver implements Resolver {
                                          // the authority section.
         Name nsec3Signer = null; // The RRSIG signer field for the NSEC3 RRs.
 
+        for (SRRset set : m.getSectionRRsets(Section.ANSWER)) {
+//            KeyEntry ke = this.prepareFindKey(set, qname);
+//            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
+//                return;
+//            }
+//
+//            SRRset keyRrset = ke.getRRset();
+//            if (keyRrset == null) {
+//                logger.debug("NODATA response has failed ANSWER rrset: " + set);
+//                response.setStatus(SecurityStatus.BOGUS);
+//                return;
+//            }
+//
+//            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
+//            if (status != SecurityStatus.SECURE) {
+//                logger.debug("NODATA response has failed ANSWER rrset: " + set);
+//                m.setStatus(SecurityStatus.BOGUS);
+//                return;
+//            }
+
+            if (set.getType() == Type.CNAME) {
+                qname = ((CNAMERecord)set.first()).getTarget();
+            }
+        }
+
         for (int i = 0; i < rrsets.length; i++) {
+            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
+            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+                return;
+            }
+
+            SRRset keyRrset = ke.getRRset();
+            if (keyRrset == null) {
+                logger.debug("NODATA response has failed AUTHORITY rrset: " + rrsets[i]);
+                response.setStatus(SecurityStatus.BOGUS);
+                return;
+            }
+
             SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             if (status != SecurityStatus.SECURE) {
                 logger.debug("NODATA response has failed AUTHORITY rrset: " + rrsets[i]);
@@ -618,7 +669,7 @@ public class ValidatingResolver implements Resolver {
      * @param response The response to validate.
      * @param keyRrset The trusted DNSKEY rrset that signs this response.
      */
-    private void validateNameErrorResponse(Name qname, SMessage response, SRRset keyRrset) {
+    private void validateNameErrorResponse(Name qname, SMessage response) {
         // FIXME: should we check to see if there is anything in the answer
         // section? if so, what should the result be?
 
@@ -632,7 +683,45 @@ public class ValidatingResolver implements Resolver {
         List<NSEC3Record> nsec3s = null;
         Name nsec3Signer = null;
 
+        for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
+//            KeyEntry ke = this.prepareFindKey(set, qname);
+//            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
+//                return;
+//            }
+//
+//            SRRset keyRrset = ke.getRRset();
+//            if (keyRrset == null) {
+//                logger.debug("NameError response has failed ANSWER rrset: " + set);
+//                response.setStatus(SecurityStatus.BOGUS);
+//                return;
+//            }
+//
+//            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
+//            if (status != SecurityStatus.SECURE) {
+//                logger.debug("NameError response has failed ANSWER rrset: " + set);
+//                response.setStatus(SecurityStatus.BOGUS);
+//                return;
+//            }
+
+            if (set.getType() == Type.CNAME) {
+                qname = ((CNAMERecord)set.first()).getTarget();
+            }
+        }
+
+        SRRset keyRrset = null;
         for (int i = 0; i < rrsets.length; i++) {
+            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
+            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+                return;
+            }
+
+            keyRrset = ke.getRRset();
+            if (keyRrset == null) {
+                logger.debug("NameError response has failed AUTHORITY rrset: " + rrsets[i]);
+                response.setStatus(SecurityStatus.BOGUS);
+                return;
+            }
+
             SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
             if (status != SecurityStatus.SECURE) {
                 logger.debug("NameError response has failed AUTHORITY rrset: " + rrsets[i]);
@@ -732,123 +821,41 @@ public class ValidatingResolver implements Resolver {
             logger.error("failed to send query", e);
             event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
         }
-
-        processResponse(event);
     }
 
-    private void processResponse(DNSEvent event) {
-        logger.trace("processing response");
-        boolean cont = true;
+    private KeyEntry prepareFindKey(SRRset rrset, Name qname) {
+        DNSEvent event = new DNSEvent(new Message());
+        event.setModuleState(new ValEventState());
         ValEventState state = event.getModuleState();
+        state.signerName = rrset.getSignerName();
 
-        // Loop on event states. If a processing routine returns false, that
-        // means
-        // to drop the event. True means to continue. Responses that should be
-        // propagated back must end in the "FINISHED" state.
-
-        while (cont) {
-            switch (state.state) {
-                case ValEventState.INIT_STATE:
-                    cont = processInit(event, state);
-                    break;
-                case ValEventState.FINDKEY_STATE:
-                    cont = processFindKey(event, state);
-                    break;
-                case ValEventState.FINDKEY_DS_RESP_STATE:
-                    cont = processDSResponse(event, state);
-                    break;
-                case ValEventState.FINDKEY_DNSKEY_RESP_STATE:
-                    cont = processDNSKEYResponse(event, state);
-                    break;
-                case ValEventState.VALIDATE_STATE:
-                    cont = processValidate(event, state);
-                    break;
-                case ValEventState.CNAME_STATE:
-                    cont = processCNAME(event, state);
-                    break;
-                case ValEventState.CNAME_RESP_STATE:
-                    cont = processCNAMEResponse(event, state);
-                    break;
-                case ValEventState.CNAME_ANS_RESP_STATE:
-                    cont = processCNAMEAnswer(event, state);
-                    break;
-                case ValEventState.FINISHED_STATE:
-                    cont = processFinishedState(event, state);
-                    break;
-                default:
-                    logger.error("unknown validation event state: " + state.state);
-                    cont = false;
-                    break;
-            }
-        }
-    }
-
-    /**
-     * Process the INIT state. First tier responses start in the INIT state.
-     * This is where they are vetted for validation suitability, and the initial
-     * key search is done.
-     * 
-     * Currently, events the come through this routine will be either promoted
-     * to FINISHED/CNAME_RESP (no validation needed), FINDKEY (next step to
-     * validation), or will be (temporarily) retired and a new priming request
-     * event will be generated.
-     * 
-     * @param event The response event being processed.
-     * @param state The state object associated with the event.
-     * @return true if the event should be processed further on return, false if
-     *         not.
-     */
-    private boolean processInit(DNSEvent event, ValEventState state) {
-        SMessage resp = event.getResponse();
-        Message req = event.getRequest();
-
-        if (!this.needsValidation(event, state)) {
-            state.state = state.finalState;
-            return true;
+        if (state.signerName == null) {
+            state.signerName = qname;
         }
 
-        Name qname = req.getQuestion().getName();
-        int qclass = req.getQuestion().getDClass();
-
-        state.trustAnchorRRset = this.trustAnchors.find(qname, qclass);
+        state.trustAnchorRRset = this.trustAnchors.find(state.signerName, rrset.getDClass());
         if (state.trustAnchorRRset == null) {
             // response isn't under a trust anchor, so we cannot validate.
-            state.state = state.finalState;
-            return true;
+            return KeyEntry.newNullKeyEntry(rrset.getSignerName(), rrset.getDClass(), DEFAULT_TA_BAD_KEY_TTL);
+//            return null;
         }
 
-        // Determine the signer/lookup name
-        state.signerName = this.valUtils.findSigner(resp, req);
-        Name lookupName = (state.signerName == null) ? qname : state.signerName;
-        state.keyEntry = this.keyCache.find(lookupName, qclass);
-
-        if (state.keyEntry == null) {
+        state.keyEntry = this.keyCache.find(state.signerName, rrset.getDClass());
+        if (state.keyEntry == null || (!state.keyEntry.getName().equals(state.signerName) && state.keyEntry.isGood())) {
             // start the FINDKEY phase with the trust anchor
             if (state.trustAnchorRRset.getType() == Type.DS) {
                 state.dsRRset = state.trustAnchorRRset;
             }
-            else {
+            else if (state.keyEntry == null) {
                 state.keyEntry = KeyEntry.newKeyEntry(state.trustAnchorRRset);
             }
 
             // and otherwise, don't continue processing this event.
             // (it will be reactivated when the priming query returns).
-            state.state = ValEventState.FINDKEY_STATE;
-            return true;
-        }
-        else if (state.keyEntry.isNull()) {
-            // response is under a null key, so we cannot validate
-            // However, we do set the status to INSECURE, since it is
-            // essentially proven insecure.
-            resp.setStatus(SecurityStatus.INSECURE);
-            state.state = state.finalState;
-            return true;
+            processFindKey(event, state);
         }
 
-        // otherwise, we have our "closest" cached key -- continue processing in
-        // the next state.
-        state.state = ValEventState.FINDKEY_STATE;
-        return true;
+        return state.keyEntry;
     }
 
     /**
@@ -865,14 +872,14 @@ public class ValidatingResolver implements Resolver {
         // We know that state.keyEntry is not a null or bad key -- if it were,
         // then previous processing should have directed this event to a
         // different state.
-        Message req = event.getRequest();
-        Name qname = req.getQuestion().getName();
-        int qclass = req.getQuestion().getDClass();
+//        Message req = event.getRequest();
+//        Name qname = req.getQuestion().getName();
+        int qclass = DClass.IN; // req.getQuestion().getDClass();
 
         Name targetKeyName = state.signerName;
-        if (targetKeyName == null) {
-            targetKeyName = qname;
-        }
+//        if (targetKeyName == null) {
+//            targetKeyName = qname;
+//        }
 
         Name currentKeyName = Name.empty;
         if (state.keyEntry != null) {
@@ -881,7 +888,6 @@ public class ValidatingResolver implements Resolver {
 
         // If our current key entry matches our target, then we are done.
         if (currentKeyName.equals(targetKeyName)) {
-            state.state = ValEventState.VALIDATE_STATE;
             return true;
         }
 
@@ -896,7 +902,6 @@ public class ValidatingResolver implements Resolver {
 
         // the next key name would be trying to invent a name, so we stop here
         if (l < 0) {
-            state.state = ValEventState.VALIDATE_STATE;
             return true;
         }
 
@@ -907,15 +912,17 @@ public class ValidatingResolver implements Resolver {
 
         if (state.dsRRset == null || !state.dsRRset.getName().equals(nextKeyName)) {
             Message dsRequest = this.generateLocalRequest(nextKeyName, Type.DS, qclass);
-            DNSEvent dsEvent = this.generateLocalEvent(event, dsRequest, ValEventState.FINDKEY_DS_RESP_STATE, ValEventState.FINDKEY_DS_RESP_STATE);
+            DNSEvent dsEvent = this.generateLocalEvent(event, dsRequest);
             this.sendRequest(dsEvent);
+            this.processDSResponse(dsEvent, dsEvent.getModuleState());
             return false;
         }
 
         // Otherwise, it is time to query for the DNSKEY
         Message dnskeyRequest = this.generateLocalRequest(state.dsRRset.getName(), Type.DNSKEY, qclass);
-        DNSEvent dnskeyEvent = this.generateLocalEvent(event, dnskeyRequest, ValEventState.FINDKEY_DNSKEY_RESP_STATE, ValEventState.FINDKEY_DNSKEY_RESP_STATE);
+        DNSEvent dnskeyEvent = this.generateLocalEvent(event, dnskeyRequest);
         this.sendRequest(dnskeyEvent);
+        this.processDNSKEYResponse(dnskeyEvent, dnskeyEvent.getModuleState());
 
         return false;
     }
@@ -955,6 +962,20 @@ public class ValidatingResolver implements Resolver {
                 // Otherwise, we return the positive response.
                 logger.trace("DS rrset was good.");
                 return KeyEntry.newKeyEntry(dsRrset);
+
+            case CNAME:
+                // Verify only returns BOGUS or SECURE. If the rrset is bogus,
+                // then we are done.
+                SRRset cnameRrset = response.findAnswerRRset(qname, Type.CNAME, qclass);
+                status = this.valUtils.verifySRRset(cnameRrset, keyRrset);
+                if (status != SecurityStatus.SECURE) {
+                    logger.debug("CNAME rrset in DS response did not verify");
+                    return bogusKE;
+                }
+
+                // Otherwise, we return the positive response.
+                logger.trace("CNAME rrset was good, unsigned response.");
+                return KeyEntry.newNullKeyEntry(cnameRrset.getName()/*((CNAMERecord)cnameRrset.first()).getTarget()*/, qclass, DEFAULT_TA_BAD_KEY_TTL);
 
             case NODATA:
                 // NODATA means that the qname exists, but that there was no DS.
@@ -1104,10 +1125,11 @@ public class ValidatingResolver implements Resolver {
             }
 
             // The FINDKEY phase has ended, so move on.
-            forState.state = ValEventState.VALIDATE_STATE;
+            return false;
         }
 
-        this.processResponse(forEvent);
+        //this.processResponse(forEvent);
+        this.processFindKey(forEvent, forState);
         return false;
     }
 
@@ -1127,8 +1149,7 @@ public class ValidatingResolver implements Resolver {
             // If the DNSKEY rrset was missing, this is the end of the line.
             logger.debug("Missing DNSKEY RRset in response to DNSKEY query.");
             forState.keyEntry = KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
-            forState.state = ValEventState.VALIDATE_STATE;
-            this.processResponse(forEvent);
+
             return false;
         }
 
@@ -1140,8 +1161,7 @@ public class ValidatingResolver implements Resolver {
             if (logger.isDebugEnabled() && forState.keyEntry.isBad()) {
                 logger.debug("Did not match a DS to a DNSKEY, thus bogus.");
             }
-            forState.state = ValEventState.VALIDATE_STATE;
-            this.processResponse(forEvent);
+
             return false;
         }
 
@@ -1149,196 +1169,88 @@ public class ValidatingResolver implements Resolver {
         this.keyCache.store(forState.keyEntry);
 
         // If good, we stay in the FINDKEY state.
-        this.processResponse(forEvent);
+        //this.processResponse(forEvent);
+        this.processFindKey(forEvent, forState);
         return false;
+    }
+
+    private boolean processKeyValidate(SMessage resp, Name signerName, KeyEntry keyEntry) {
+        // signerName being null is the indicator that this response was
+        // unsigned
+        if (signerName == null) {
+            logger.debug("processKeyValidate: no signerName.");
+            // Unsigned responses must be underneath a "null" key entry.
+            if (keyEntry.isNull()) {
+                logger.debug("Unsigned response was proved to be validly INSECURE");
+                resp.setStatus(SecurityStatus.INSECURE);
+                return false;
+            }
+
+            logger.debug("Could not establish validation of " + "INSECURE status of unsigned response.");
+            resp.setStatus(SecurityStatus.BOGUS);
+            return false;
+        }
+
+        if (keyEntry.isBad()) {
+            logger.debug("Could not establish a chain of trust to keys for: " + keyEntry.getName());
+            resp.setStatus(SecurityStatus.BOGUS);
+            return false;
+        }
+
+        if (keyEntry.isNull()) {
+            logger.debug("Verified that response is INSECURE");
+            resp.setStatus(SecurityStatus.INSECURE);
+            return false;
+        }
+
+        return true;
     }
 
     private boolean processValidate(DNSEvent event, ValEventState state) {
         Message req = event.getRequest();
         SMessage resp = event.getResponse();
 
-        // This is the default next state.
-        state.state = state.finalState;
-
-        // signerName being null is the indicator that this response was
-        // unsigned
-        if (state.signerName == null) {
-            logger.debug("processValidate: event " + event + " has no signerName.");
-            // Unsigned responses must be underneath a "null" key entry.
-            if (state.keyEntry.isNull()) {
-                logger.debug("Unsigned response was proved to be validly INSECURE");
-                resp.setStatus(SecurityStatus.INSECURE);
-                return true;
-            }
-            logger.debug("Could not establish validation of " + "INSECURE status of unsigned response.");
-            resp.setStatus(SecurityStatus.BOGUS);
-            return true;
-        }
-
-        if (state.keyEntry.isBad()) {
-            logger.debug("Could not establish a chain of trust to keys for: " + state.keyEntry.getName());
-            resp.setStatus(SecurityStatus.BOGUS);
-            return true;
-        }
-
-        if (state.keyEntry.isNull()) {
-            logger.debug("Verified that response is INSECURE");
-            resp.setStatus(SecurityStatus.INSECURE);
-            return true;
-        }
-
         ResponseClassification subtype = ValUtils.classifyResponse(resp);
-        SRRset keyRrset = state.keyEntry.getRRset();
 
         switch (subtype) {
             case POSITIVE:
                 logger.trace("Validating a positive response");
-                this.validatePositiveResponse(resp, req, keyRrset);
+                this.validatePositiveResponse(resp, req);
                 break;
             case NODATA:
                 logger.trace("Validating a nodata response");
-                this.validateNodataResponse(resp, req, keyRrset);
+                this.validateNodataResponse(resp, req);
+                break;
+            case CNAME_NODATA:
+                logger.trace("Validating a CNAME_NODATA response");
+                this.validatePositiveResponse(resp, req);
+                if (resp.getStatus() != SecurityStatus.INSECURE) {
+                    resp.setStatus(SecurityStatus.UNCHECKED);
+                    this.validateNodataResponse(resp, req);
+                }
                 break;
             case NAMEERROR:
                 logger.trace("Validating a nxdomain response");
-                this.validateNameErrorResponse(req.getQuestion().getName(), resp, keyRrset);
+                this.validateNameErrorResponse(req.getQuestion().getName(), resp);
                 break;
-            case CNAME:
-                logger.trace("Validating a cname response");
-                // forward on to the special CNAME state for this.
-                state.state = ValEventState.CNAME_STATE;
+            case CNAME_NAMEERROR:
+                logger.trace("Validating a cname_nxdomain response");
+                this.validatePositiveResponse(resp, req);
+                if (resp.getStatus() != SecurityStatus.INSECURE) {
+                    resp.setStatus(SecurityStatus.UNCHECKED);
+                    this.validateNameErrorResponse(req.getQuestion().getName(), resp);
+                }
                 break;
             case ANY:
                 logger.trace("Validating a postive ANY response");
-                this.validateAnyResponse(resp, req, keyRrset);
+                this.validateAnyResponse(resp, req);
                 break;
             default:
                 logger.error("unhandled response subtype: " + subtype);
         }
 
+        this.processFinishedState(event, state);
         return true;
-    }
-
-    /**
-     * This state is used for validating CNAME-type responses -- i.e., responses
-     * that have CNAME chains.
-     * 
-     * It primarily is responsible for breaking down the response into a series
-     * of separately validated queries & responses.
-     */
-    private boolean processCNAME(DNSEvent event, ValEventState state) {
-        Message req = event.getRequest();
-
-        Name qname = req.getQuestion().getName();
-        int qtype = req.getQuestion().getType();
-        int qclass = req.getQuestion().getDClass();
-
-        SMessage m = event.getResponse();
-
-        if (state.cnameSname == null) {
-            state.cnameSname = qname;
-        }
-
-        // We break the chain down by re-querying for the specific CNAME or
-        // DNAME (or final answer).
-        SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
-
-        while (state.cnameIndex < rrsets.length) {
-            SRRset rrset = rrsets[state.cnameIndex++];
-            Name rname = rrset.getName();
-            int rtype = rrset.getType();
-
-            // Skip DNAMEs -- prefer to query for the generated CNAME,
-            if (rtype == Type.DNAME && qtype != Type.DNAME) {
-                continue;
-            }
-
-            // Set the SNAME if we are dealing with a CNAME
-            if (rtype == Type.CNAME) {
-                CNAMERecord cname = (CNAMERecord)rrset.first();
-                state.cnameSname = cname.getTarget();
-            }
-
-            // Note if the current rrset is the answer. In that case, we want to
-            // set the final state differently.
-            // For non-answers, the response ultimately comes back here.
-            int finalState = ValEventState.CNAME_RESP_STATE;
-            if (rtype == qtype && rrset.getName().equals(state.cnameSname)) {
-                // If this is an answer, however, break out of this loop.
-                finalState = ValEventState.CNAME_ANS_RESP_STATE;
-            }
-
-            // Generate the sub-query.
-            Message localRequest = this.generateLocalRequest(rname, rtype, qclass);
-            DNSEvent localEvent = this.generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, finalState);
-
-            // ...and send it along.
-            this.sendRequest(localEvent);
-            return false;
-        }
-
-        // The name was not found in the answer sections received so far. If we
-        // got an NXDOMAIN response, the CNAME(s) point to a non-existing domain
-        // or the requested type is not available at the target name (NOERROR).
-        // The NSEC(3)(s) hopefully prove that.
-        SRRset rrset = rrsets[state.cnameIndex - 1];
-        int rtype = rrset.getType();
-
-        // Set the SNAME if we are dealing with a CNAME
-        if (rtype == Type.CNAME) {
-            CNAMERecord cname = (CNAMERecord)rrset.first();
-            state.cnameSname = cname.getTarget();
-        }
-
-        // Generate the sub-query for the final query.
-        Message localRequest = this.generateLocalRequest(state.cnameSname, rtype, qclass);
-        DNSEvent localEvent = this.generateLocalEvent(event, localRequest, ValEventState.INIT_STATE, ValEventState.CNAME_ANS_RESP_STATE);
-
-        // ...and send it along.
-        this.sendRequest(localEvent);
-        return false;
-    }
-
-    /**
-     * Process a CNAME intermediate response.
-     */
-    private boolean processCNAMEResponse(DNSEvent event, ValEventState state) {
-        DNSEvent forEvent = event.forEvent();
-        ValEventState forState = forEvent.getModuleState();
-
-        // If the response was not secure, transfer this result to the original
-        // query and abort.
-        SMessage resp = event.getResponse();
-        if (resp.getStatus() != SecurityStatus.SECURE) {
-            forEvent.getResponse().setStatus(resp.getStatus());
-            forState.state = forState.finalState;
-            this.processResponse(forEvent);
-            return false;
-        }
-
-        // The response was valid, so continue processing the original CNAME
-        // query by following the chain.
-        forState.state = ValEventState.CNAME_STATE;
-        this.processResponse(forEvent);
-        return false;
-    }
-
-    /**
-     * Transfer the security status of the final CNAME answer to the original
-     * query.
-     */
-    private boolean processCNAMEAnswer(DNSEvent event, ValEventState state) {
-        DNSEvent forEvent = event.forEvent();
-        ValEventState forState = forEvent.getModuleState();
-
-        SMessage resp = event.getResponse();
-        SMessage forResp = forEvent.getResponse();
-
-        forResp.setStatus(resp.getStatus());
-
-        forState.state = forState.finalState;
-        this.processResponse(forEvent);
-        return false;
     }
 
     /**
@@ -1358,7 +1270,12 @@ public class ValidatingResolver implements Resolver {
                 case BOGUS:
                     // For now, in the absence of any other API information, we
                     // return SERVFAIL.
-                    resp = Util.errorMessage(origRequest, Rcode.SERVFAIL);
+                    int code = resp.getHeader().getRcode();
+                    if (code == Rcode.NOERROR || code == Rcode.NXDOMAIN) {
+                        code = Rcode.SERVFAIL;
+                    }
+
+                    resp = Util.errorMessage(origRequest, code);
                     event.setResponse(resp);
                     break;
                 case SECURE:
@@ -1478,6 +1395,8 @@ public class ValidatingResolver implements Resolver {
         // This should synchronously process the request, based on the way the
         // resolver tail is configured.
         this.sendRequest(event);
+        //this.processInit(event, event.getModuleState());
+        this.processValidate(event, event.getModuleState());
 
         return event.getResponse().getMessage();
     }

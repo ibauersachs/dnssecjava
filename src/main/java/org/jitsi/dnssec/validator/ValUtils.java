@@ -99,7 +99,13 @@ public class ValUtils {
         NAMEERROR,
 
         /** A response to a qtype=ANY query. */
-        ANY;
+        ANY,
+
+        /** A response with CNAMES that points to a non-existing type. */
+        CNAME_NODATA,
+
+        /** A response with CNAMES that points into the void. */
+        CNAME_NAMEERROR;
     }
 
     private static Logger log = Logger.getLogger(ValUtils.class);
@@ -145,16 +151,26 @@ public class ValUtils {
 
         SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
 
-        // Note that DNAMEs will be ignored here, unless qtype=DNAME. Unless
-        // qtype=CNAME, this will yield a CNAME response.
+        boolean hadCname = false;
         for (int i = 0; i < rrsets.length; i++) {
             if (rrsets[i].getType() == qtype) {
                 return ResponseClassification.POSITIVE;
             }
 
             if (rrsets[i].getType() == Type.CNAME) {
-                return ResponseClassification.CNAME;
+                hadCname = true;
+                if (qtype == Type.DS) {
+                    return ResponseClassification.CNAME;
+                }
             }
+        }
+
+        if (m.getRcode() == Rcode.NXDOMAIN && hadCname) {
+            return ResponseClassification.CNAME_NAMEERROR;
+        }
+
+        if (hadCname) {
+            return ResponseClassification.CNAME_NODATA;
         }
 
         log.warn("Failed to classify response message:\n" + m);

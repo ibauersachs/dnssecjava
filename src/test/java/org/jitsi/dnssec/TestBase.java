@@ -74,7 +74,7 @@ public abstract class TestBase {
         resolver = new ValidatingResolver(new SimpleResolver("62.192.5.131") {
             @Override
             public Message send(Message query) throws IOException {
-                System.err.println(query.getQuestion().getName() + "/" + Type.string(query.getQuestion().getType()));
+                System.out.println("---" + query.getQuestion().getName() + "/" + Type.string(query.getQuestion().getType()));
                 Message response = queryResponsePairs.get(query.getQuestion().getName() + "/" + Type.string(query.getQuestion().getType()));
                 if (response != null) {
                     return response;

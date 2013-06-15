@@ -61,31 +61,9 @@ import org.xbill.DNS.Name;
  * @version $Revision: 286 $
  */
 public class ValEventState {
-    public static final int INIT_STATE = 0;
-    public static final int FINDKEY_STATE = 2;
-    public static final int FINDKEY_DS_RESP_STATE = 3;
-    public static final int FINDKEY_DNSKEY_RESP_STATE = 4;
-    public static final int VALIDATE_STATE = 5;
-    public static final int CNAME_STATE = 6;
-    public static final int CNAME_RESP_STATE = 7;
-    public static final int CNAME_ANS_RESP_STATE = 8;
-    public static final int FINISHED_STATE = 9;
-
-    /** This is the next (or current) state for the attached event. */
-    protected int state;
-    /** This is the "final" state for the event. */
-    protected int finalState;
     protected SRRset trustAnchorRRset;
     protected SRRset dsRRset;
     protected Name emptyDSName; //--> passed from DSResponse to FindKey
     protected KeyEntry keyEntry;
     protected Name signerName;
-    protected int cnameIndex;
-    protected Name cnameSname;
-
-    public ValEventState() {
-        // defaults.
-        this.state = INIT_STATE;
-        this.finalState = FINISHED_STATE;
-    }
 }

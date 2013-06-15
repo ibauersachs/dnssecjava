@@ -25,14 +25,9 @@ import static org.junit.Assert.*;
 import java.io.IOException;
 
 import org.junit.Test;
-import org.xbill.DNS.DClass;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
-import org.xbill.DNS.Name;
 import org.xbill.DNS.Rcode;
-import org.xbill.DNS.Record;
-import org.xbill.DNS.Section;
-import org.xbill.DNS.Type;
 
 public class TestCNames extends TestBase {
     @Test
@@ -120,16 +115,6 @@ public class TestCNames extends TestBase {
     }
 
     @Test
-    public void testCNameToVoidFailsWithFakedFirstResponse() throws IOException {
-        // cvoid1 originally points to a non-existing domain but is changed to
-        // point to an existing (hence it must fail signature verification)
-        add("cvoid1.ingotronic.ch./CNAME", messageFromRes("/cname_invalid_first_response"));
-        Message response = resolver.send(createMessage("cvoid1.ingotronic.ch./A"));
-        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.SERVFAIL, response.getRcode());
-    }
-
-    @Test
     public void testCNameToUnsignedVoid() throws IOException {
         Message response = resolver.send(createMessage("cvoid4.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -144,31 +129,10 @@ public class TestCNames extends TestBase {
     }
 
     @Test
-    public void testCNameToExternalSignedWithPartialResponse() throws IOException {
-        add("csext.ingotronic.ch./A", messageFromRes("/cname_incomplete_chain"));
-        Message response = resolver.send(createMessage("csext.ingotronic.ch./A"));
-        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.NOERROR, response.getRcode());
-        assertNotNull(firstA(response));
-    }
-
-    @Test
     public void testCNameToSubSigned() throws IOException {
         Message response = resolver.send(createMessage("cssub.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
-    }
-
-    @Test
-    public void testCNameToExternalReturnsServfailIfIntermediateFails() throws IOException {
-        Message m = new Message();
-        m.getHeader().setRcode(Rcode.NOTAUTH);
-        m.addRecord(Record.newRecord(Name.fromString("gibtsnicht.ingotronic.ch."), Type.CNAME, DClass.IN), Section.QUESTION);
-        add("gibtsnicht.ingotronic.ch./CNAME", m);
-
-        Message response = resolver.send(createMessage("cvoid1.ingotronic.ch./A"));
-        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.SERVFAIL, response.getRcode());
     }
 
     @Test

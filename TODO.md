@@ -1,6 +1,6 @@
-~~CNAME Handling
+<del>CNAME Handling
 --------------
-The CNAME handling is terribly inefficient. A recursive nameserver is required
+<del>The CNAME handling is terribly inefficient. A recursive nameserver is required
 to deliver all intermediate results in the response to the original query. The
 code however still splits up the query into each part and performs a query for
 each CNAME till the end of the chain is reached.
@@ -9,11 +9,11 @@ query, but is not so easy because the validation only has the keys for each
 original query.
 A possible workaround would be to synthesize the intermediate responses from
 the original query. Easy for positive responses, but for NXDOMAIN - which
-NSEC(3)s are to be included...?~~
+NSEC(3)s are to be included...?
 
-~~DNAME Handling
+<del>DNAME Handling
 --------------
-A DNAME causes validation failures during priming because the synthesized
+<del>A DNAME causes validation failures during priming because the synthesized
 CNAME is not considered valid. Some unit-tests are failing due to this.~~
 
 Code Coverage
@@ -25,10 +25,10 @@ Unit Tests
 ----------
 - The tests currently rely on an online connection to a recursive server and
   external zones. They must be able to run offline.
-~~- Some tests will start to fail after June 9, 2013 because the signature date
+- <del>Some tests will start to fail after June 9, 2013 because the signature date
   is compared against the current system time. This must be changed to take
   the test authoring time. To make this possible DNSJAVA must probably be
-  changed.~~
+  changed.
 
 DNSJAVA
 -------

@@ -11,10 +11,10 @@ A possible workaround would be to synthesize the intermediate responses from
 the original query. Easy for positive responses, but for NXDOMAIN - which
 NSEC(3)s are to be included...?~~
 
-DNAME Handling
+~~DNAME Handling
 --------------
 A DNAME causes validation failures during priming because the synthesized
-CNAME is not considered valid. Some unit-tests are failing due to this.
+CNAME is not considered valid. Some unit-tests are failing due to this.~~
 
 Code Coverage
 -------------
@@ -23,7 +23,7 @@ enabled.
 
 Unit Tests
 ----------
-- The test currently rely on an online connection to a recursive server and
+- The tests currently rely on an online connection to a recursive server and
   external zones. They must be able to run offline.
 ~~- Some tests will start to fail after June 9, 2013 because the signature date
   is compared against the current system time. This must be changed to take

@@ -3,8 +3,7 @@ package org.jitsi.dnssec;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.Reader;
 
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.Master;
@@ -16,8 +15,8 @@ import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
 public class MessageReader {
-    public Message readMessage(InputStream in) throws IOException {
-        BufferedReader r = new BufferedReader(new InputStreamReader(in));
+    public Message readMessage(Reader in) throws IOException {
+        BufferedReader r = new BufferedReader(in);
 
         Message m = new Message();
         String line = null;
@@ -60,7 +59,7 @@ public class MessageReader {
                     line = r.readLine();
                     data = line.split(",");
                     Record q = Record.newRecord(
-                            Name.fromString(data[0].substring(";;\\s*".length() - 1)),
+                            Name.fromString(data[0].substring(";; *".length() - 1)),
                             Type.value(data[1].split("\\s*=\\s*")[1]),
                             DClass.value(data[2].split("\\s*=\\s*")[1]));
                     m.addRecord(q, Section.QUESTION);

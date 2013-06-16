@@ -21,6 +21,8 @@
 package org.jitsi.dnssec;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -108,7 +110,11 @@ public abstract class TestBase {
     }
 
     protected Message messageFromRes(String fileName) throws IOException {
-        return messageReader.readMessage(getClass().getResourceAsStream(fileName));
+        return messageReader.readMessage(new InputStreamReader(getClass().getResourceAsStream(fileName)));
+    }
+
+    protected Message messageFromString(String message) throws IOException {
+        return messageReader.readMessage(new StringReader(message));
     }
 
     @SuppressWarnings("unchecked")

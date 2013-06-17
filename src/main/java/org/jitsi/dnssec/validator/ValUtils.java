@@ -76,7 +76,7 @@ import org.xbill.DNS.Type;
  * @author davidb
  */
 public class ValUtils {
-    private static Logger log = Logger.getLogger(ValUtils.class);
+    private static final Logger logger = Logger.getLogger(ValUtils.class);
 
     /** A local copy of the verifier object. */
     private DnsSecVerifier verifier;
@@ -141,7 +141,7 @@ public class ValUtils {
             return ResponseClassification.CNAME_NODATA;
         }
 
-        log.warn("Failed to classify response message:\n" + m);
+        logger.warn("Failed to classify response message:\n" + m);
         return ResponseClassification.UNKNOWN;
     }
 
@@ -166,7 +166,7 @@ public class ValUtils {
      */
     public KeyEntry verifyNewDNSKEYs(SRRset dnskeyRrset, SRRset dsRrset, long badKeyTTL) {
         if (!dnskeyRrset.getName().equals(dsRrset.getName())) {
-            log.debug("DNSKEY RRset did not match DS RRset by name!");
+            logger.debug("DNSKEY RRset did not match DS RRset by name!");
             return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
         }
 
@@ -210,7 +210,7 @@ public class ValUtils {
                 // verifies *with this key*.
                 SecurityStatus res = this.verifier.verify(dnskeyRrset, dnskey);
                 if (res == SecurityStatus.SECURE) {
-                    log.trace("DS matched DNSKEY.");
+                    logger.trace("DS matched DNSKEY.");
                     dnskeyRrset.setSecurityStatus(SecurityStatus.SECURE);
                     return KeyEntry.newKeyEntry(dnskeyRrset);
                 }
@@ -222,12 +222,12 @@ public class ValUtils {
         // None of the DS's worked out.
         // If no DSs were understandable, then this is OK.
         if (!hasUsefulDS) {
-            log.debug("No usuable DS records were found -- treating as insecure.");
+            logger.debug("No usuable DS records were found -- treating as insecure.");
             return KeyEntry.newNullKeyEntry(dsRrset.getName(), dsRrset.getDClass(), dsRrset.getTTL());
         }
 
         // If any were understandable, then it is bad.
-        log.debug("Failed to match any usable DS to a DNSKEY.");
+        logger.debug("Failed to match any usable DS to a DNSKEY.");
         return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
     }
 
@@ -244,17 +244,17 @@ public class ValUtils {
         String rrsetName = rrset.getName() + "/" + Type.string(rrset.getType()) + "/" + DClass.string(rrset.getDClass());
 
         if (rrset.getSecurityStatus() == SecurityStatus.SECURE) {
-            log.trace("verifySRRset: rrset <" + rrsetName + "> previously found to be SECURE");
+            logger.trace("verifySRRset: rrset <" + rrsetName + "> previously found to be SECURE");
             return SecurityStatus.SECURE;
         }
 
         SecurityStatus status = this.verifier.verify(rrset, keyRrset);
         if (status != SecurityStatus.SECURE) {
-            log.debug("verifySRRset: rrset <" + rrsetName + "> found to be BAD");
+            logger.debug("verifySRRset: rrset <" + rrsetName + "> found to be BAD");
             status = SecurityStatus.BOGUS;
         }
         else {
-            log.trace("verifySRRset: rrset <" + rrsetName + "> found to be SECURE");
+            logger.trace("verifySRRset: rrset <" + rrsetName + "> found to be SECURE");
         }
 
         rrset.setSecurityStatus(status);

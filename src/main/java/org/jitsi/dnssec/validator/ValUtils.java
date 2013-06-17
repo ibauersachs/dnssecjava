@@ -271,10 +271,6 @@ public class ValUtils {
      *         null if not.
      */
     public static Name rrsetWildcard(RRset rrset) {
-        if (rrset == null) {
-            return null;
-        }
-
         RRSIGRecord rrsig = (RRSIGRecord)rrset.sigs().next();
 
         // if the RRSIG label count is shorter than the number of actual labels,
@@ -284,6 +280,7 @@ public class ValUtils {
         if (labelDiff > 0) {
             return rrset.getName().wild(labelDiff);
         }
+
         return null;
     }
 
@@ -296,10 +293,6 @@ public class ValUtils {
      *         common name is the root.
      */
     public static Name longestCommonName(Name domain1, Name domain2) {
-        if (domain1 == null || domain2 == null) {
-            return null;
-        }
-
         int l = Math.min(domain1.labels(), domain2.labels());
         for (int i = 1; i < l; i++) {
             Name ns1 = new Name(domain1, i);

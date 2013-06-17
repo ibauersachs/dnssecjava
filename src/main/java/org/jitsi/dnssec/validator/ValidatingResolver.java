@@ -68,7 +68,6 @@ import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
 import org.jitsi.dnssec.Util;
-import org.jitsi.dnssec.validator.ValUtils.ResponseClassification;
 import org.xbill.DNS.CNAMERecord;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNAMERecord;

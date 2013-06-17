@@ -20,6 +20,9 @@
 
 package org.jitsi.dnssec;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
@@ -33,7 +36,13 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.jitsi.dnssec.validator.ValidatingResolver;
+import org.joda.time.DateTime;
+import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Before;
+import org.junit.Rule;
+import org.junit.rules.TestRule;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.DClass;
@@ -46,14 +55,16 @@ import org.xbill.DNS.SimpleResolver;
 import org.xbill.DNS.Type;
 
 public abstract class TestBase {
-    protected final static String localhost = "127.0.0.1";
-
-    protected ValidatingResolver resolver;
+    private final static boolean offline = Boolean.getBoolean("org.jitsi.dnssecjava.offline");
+    private final static boolean record = Boolean.getBoolean("org.jitsi.dnssecjava.record");
 
     private Map<String, Message> queryResponsePairs = new HashMap<String, Message>();
-    private MessageReader messageReader;
+    private MessageReader messageReader = new MessageReader();
+    private FileWriter w;
+    private BufferedReader r;
 
-    private final static boolean offline = false;
+    protected final static String localhost = "127.0.0.1";
+    protected ValidatingResolver resolver;
 
     {
         Logger root = Logger.getRootLogger();
@@ -65,31 +76,77 @@ public abstract class TestBase {
         }
     }
 
-    @Before
-    public void setup() throws NumberFormatException, IOException, DNSSECException {
-        messageReader = new MessageReader();
+    @Rule
+    public TestRule watcher = new TestWatcher() {
+        @Override
+        protected void starting(Description description) {
+            try {
+                String filename = "/recordings/" + description.getClassName().replace(".", "_") + "/" + description.getMethodName();
+                if (record) {
+                    File f = new File("./src/test/resources" + filename);
+                    f.getParentFile().mkdir();
+                    w = new FileWriter(f.getAbsoluteFile());
+                    w.write("#Date: " + new DateTime().toString(ISODateTimeFormat.dateTimeNoMillis()));
+                    w.write("\n");
+                }
+                else if (offline) {
+                    r = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(filename)));
+                    SystemMock.overriddenMillis = DateTime.parse(r.readLine().substring("#Date: ".length()), ISODateTimeFormat.dateTimeNoMillis()).getMillis();
+                    Message m;
+                    while ((m = messageReader.readMessage(r)) != null) {
+                        queryResponsePairs.put(key(m), m);
+                    }
 
-        if (offline) {
-            // TODO: read all not already existing queries into the query-response map
+                    r.close();
+                }
+            }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
 
+        @Override
+        protected void finished(Description description) {
+            try {
+                if (record) {
+                    w.flush();
+                    w.close();
+                    w = null;
+                }
+
+                SystemMock.overriddenMillis = 0;
+            }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    };
+
+    @Before
+    public void setup() throws NumberFormatException, IOException, DNSSECException {
         resolver = new ValidatingResolver(new SimpleResolver("62.192.5.131") {
             @Override
             public Message send(Message query) throws IOException {
-                System.out.println("---" + query.getQuestion().getName() + "/" + Type.string(query.getQuestion().getType()));
-                Message response = queryResponsePairs.get(query.getQuestion().getName() + "/" + Type.string(query.getQuestion().getType()));
+                System.out.println("---" + key(query));
+                Message response = queryResponsePairs.get(key(query));
                 if (response != null) {
                     return response;
                 }
                 else if (offline) {
-                    throw new RuntimeException("Response for " + query.getQuestion().toString() + " not found.");
+                    throw new RuntimeException("Response for " + key(query) + " not found.");
                 }
 
-                return super.send(query);
+                Message networkResult = super.send(query);
+                if (record) {
+                    w.write(networkResult.toString());
+                    w.write("\n\n###############################################\n\n");
+                }
+
+                return networkResult;
             }
         });
 
-        resolver.loadTrustAnchors(getClass().getResourceAsStream( "/trust_anchors"));
+        resolver.loadTrustAnchors(getClass().getResourceAsStream("/trust_anchors"));
         System.err.println("--------------");
     }
 
@@ -141,10 +198,14 @@ public abstract class TestBase {
     private byte[] fromHex(String hex) {
         byte[] data = new byte[hex.length() / 2];
         for (int i = 0; i < hex.length() / 2; i++) {
-            data[i] = (byte) Short.parseShort(hex.substring(i * 2, i * 2 + 2), 16);
+            data[i] = (byte)Short.parseShort(hex.substring(i * 2, i * 2 + 2), 16);
         }
 
         return data;
+    }
+
+    private String key(Message m) {
+        return m.getQuestion().getName() + "/" + Type.string(m.getQuestion().getType());
     }
 
     protected String toHex(byte[] data) {

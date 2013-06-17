@@ -16,14 +16,19 @@ NSEC(3)s are to be included...?
 <del>A DNAME causes validation failures during priming because the synthesized
 CNAME is not considered valid. Some unit-tests are failing due to this.~~
 
+API
+---
+- Provide the final failure reason as a (localizable) string
+
 Code Coverage
 -------------
-The code still has a lot of untested parts, especially NSEC3 with opt-out
-enabled.
+- The code still has a lot of untested parts, especially NSEC3 with opt-out
+  enabled.
+- JaCoCo/EclEmma doesn't work with jmockit enabled at the same time.
 
 Unit Tests
 ----------
-- The tests currently rely on an online connection to a recursive server and
+- <del>The tests currently rely on an online connection to a recursive server and
   external zones. They must be able to run offline.
 - <del>Some tests will start to fail after June 9, 2013 because the signature date
   is compared against the current system time. This must be changed to take

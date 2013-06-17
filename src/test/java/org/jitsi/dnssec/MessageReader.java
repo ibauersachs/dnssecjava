@@ -16,15 +16,22 @@ import org.xbill.DNS.Type;
 
 public class MessageReader {
     public Message readMessage(Reader in) throws IOException {
-        BufferedReader r = new BufferedReader(in);
+        BufferedReader r;
+        if (in instanceof BufferedReader) {
+            r = (BufferedReader)in;
+        }
+        else {
+            r = new BufferedReader(in);
+        }
 
-        Message m = new Message();
+        Message m = null;
         String line = null;
         int section = 103;
         while ((line = r.readLine()) != null) {
             String[] data;
             if (line.startsWith(";; ->>HEADER<<- ")) {
                 section = 101;
+                m = new Message();
             }
             else if (line.startsWith(";; QUESTIONS:")) {
                 section = 102;
@@ -42,6 +49,9 @@ public class MessageReader {
             }
             else if (line.startsWith(";; ADDITIONAL RECORDS:")) {
                 section = 100;
+            }
+            else if (line.startsWith("####")) {
+                return m;
             }
 
             switch (section) {

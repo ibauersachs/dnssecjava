@@ -60,7 +60,6 @@ import org.jitsi.dnssec.SecurityStatus;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DSRecord;
-import org.xbill.DNS.Message;
 import org.xbill.DNS.NSECRecord;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.RRSIGRecord;
@@ -175,50 +174,6 @@ public class ValUtils {
 
         log.warn("Failed to classify response message:\n" + m);
         return ResponseClassification.UNKNOWN;
-    }
-
-    /**
-     * Given a response, determine the name of the "signer". This is primarily
-     * to determine if the response is, in fact, signed at all, and, if so, what
-     * is the name of the most pertinent keyset.
-     * 
-     * @param m The response to analyze.
-     * @param request The request that generated the response.
-     * @return a signer name, if the response is signed (even partially), or
-     *         null if the response isn't signed.
-     */
-    public Name findSigner(SMessage m, Message request) {
-        ResponseClassification subtype = classifyResponse(m);
-        Name qname = request.getQuestion().getName();
-        SRRset[] rrsets;
-        switch (subtype) {
-            case POSITIVE:
-            case CNAME:
-            case ANY:
-                // Check to see if the ANSWER section RRset
-                rrsets = m.getSectionRRsets(Section.ANSWER);
-                for (int i = 0; i < rrsets.length; i++) {
-                    if (rrsets[i].getName().equals(qname)) {
-                        return rrsets[i].getSignerName();
-                    }
-                }
-
-                return null;
-            case NAMEERROR:
-            case NODATA:
-                // Check to see if the AUTH section NSEC record(s) have rrsigs
-                rrsets = m.getSectionRRsets(Section.AUTHORITY);
-                for (int i = 0; i < rrsets.length; i++) {
-                    if (rrsets[i].getType() == Type.NSEC || rrsets[i].getType() == Type.NSEC3) {
-                        return rrsets[i].getSignerName();
-                    }
-                }
-
-                return null;
-            default:
-                log.debug("findSigner: could not find signer name " + "for unknown type response.");
-                return null;
-        }
     }
 
     /**

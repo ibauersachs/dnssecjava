@@ -62,11 +62,11 @@ import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DSRecord;
 import org.xbill.DNS.NSECRecord;
 import org.xbill.DNS.Name;
+import org.xbill.DNS.NameTooLongException;
 import org.xbill.DNS.RRSIGRecord;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Section;
-import org.xbill.DNS.TextParseException;
 import org.xbill.DNS.Type;
 
 /**
@@ -77,6 +77,8 @@ import org.xbill.DNS.Type;
  */
 public class ValUtils {
     private static final Logger logger = Logger.getLogger(ValUtils.class);
+
+    private static final Name WILDCARD = Name.fromConstantString("*");
 
     /** A local copy of the verifier object. */
     private DnsSecVerifier verifier;
@@ -344,16 +346,12 @@ public class ValUtils {
      * @param nsec The covering NSEC that defines the encloser.
      * @return The wildcard closest encloser name of <code>domain</code> as
      *         defined by <code>nsec</code>.
+     * @throws NameTooLongException If adding the wildcard label to the closest
+     *             encloser results in an invalid name.
      */
-    public static Name nsecWildcard(Name domain, NSECRecord nsec) {
-        try {
-            Name origin = closestEncloser(domain, nsec);
-            return new Name("*", origin);
-        }
-        catch (TextParseException e) {
-            // this should never happen.
-            return null;
-        }
+    public static Name nsecWildcard(Name domain, NSECRecord nsec) throws NameTooLongException {
+        Name origin = closestEncloser(domain, nsec);
+        return Name.concatenate(WILDCARD, origin);
     }
 
     /**

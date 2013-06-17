@@ -326,11 +326,9 @@ public class SMessage {
     public SRRset findRRset(Name name, int type, int dclass, int section) {
         this.checkSectionValidity(section);
 
-        SRRset[] rrsets = this.getSectionRRsets(section);
-
-        for (int i = 0; i < rrsets.length; i++) {
-            if (rrsets[i].getName().equals(name) && rrsets[i].getType() == type && rrsets[i].getDClass() == dclass) {
-                return rrsets[i];
+        for (SRRset set : this.getSectionRRsets(section)) {
+            if (set.getName().equals(name) && set.getType() == type && set.getDClass() == dclass) {
+                return set;
             }
         }
 

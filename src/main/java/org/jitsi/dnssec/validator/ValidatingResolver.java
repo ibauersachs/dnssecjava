@@ -299,24 +299,23 @@ public class ValidatingResolver implements Resolver {
         int qtype = request.getQuestion().getType();
 
         // validate the ANSWER section - this will be the answer itself
-        SRRset[] rrsets = response.getSectionRRsets(Section.ANSWER);
         Name wc = null;
         boolean wcNsecOk = false;
         DNAMERecord dname = null;
         List<NSEC3Record> nsec3s = null;
 
         SRRset keyRrset = null;
-        for (int i = 0; i < rrsets.length; i++) {
+        for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
             // Validate the CNAME following a (validated) DNAME is correctly
             // synthesized.
-            if (rrsets[i].getType() == Type.CNAME && dname != null) {
-                if (rrsets[i].size() > 1) {
+            if (set.getType() == Type.CNAME && dname != null) {
+                if (set.size() > 1) {
                     logger.debug("Synthesized CNAME RRset has multiple records - that doesn't make sense.");
                     response.setStatus(SecurityStatus.BOGUS);
                     return;
                 }
 
-                CNAMERecord cname = (CNAMERecord)rrsets[i].first();
+                CNAMERecord cname = (CNAMERecord)set.first();
                 try {
                     if (!Name.concatenate(cname.getName().relativize(dname.getName()), dname.getTarget()).equals(cname.getTarget())) {
                         logger.debug("Synthesized CNAME included in answer doesn't match DNAME synthesis rules, thus bogus.");
@@ -330,29 +329,29 @@ public class ValidatingResolver implements Resolver {
                     return;
                 }
 
-                rrsets[i].setSecurityStatus(SecurityStatus.SECURE);
+                set.setSecurityStatus(SecurityStatus.SECURE);
                 dname = null;
                 continue;
             }
 
             // Verify the answer rrset.
-            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
-            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+            KeyEntry ke = this.prepareFindKey(set, qname);
+            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
 
             keyRrset = ke.getRRset();
             if (keyRrset == null) {
-                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed ANSWER rrset: " + set);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
-            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
             if (status != SecurityStatus.SECURE) {
-                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed ANSWER rrset: " + set);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
@@ -360,35 +359,34 @@ public class ValidatingResolver implements Resolver {
             // Check to see if the rrset is the result of a wildcard expansion.
             // If so, an additional check will need to be made in the authority
             // section.
-            wc = ValUtils.rrsetWildcard(rrsets[i]);
+            wc = ValUtils.rrsetWildcard(set);
 
             // Notice a DNAME that should be followed by an unsigned CNAME.
-            if (qtype != Type.DNAME && rrsets[i].getType() == Type.DNAME) {
-                dname = (DNAMERecord)rrsets[i].first();
+            if (qtype != Type.DNAME && set.getType() == Type.DNAME) {
+                dname = (DNAMERecord)set.first();
             }
         }
 
         // validate the AUTHORITY section as well - this will generally be the
         // NS rrset (which could be missing, no problem)
-        rrsets = response.getSectionRRsets(Section.AUTHORITY);
-        for (int i = 0; i < rrsets.length; i++) {
-            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
-            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+        for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
+            KeyEntry ke = this.prepareFindKey(set, qname);
+            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
 
             keyRrset = ke.getRRset();
             if (keyRrset == null) {
-                logger.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed AUTHORITY rrset: " + set);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
-            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             // If anything in the authority section fails to be secure, we have
             // a bad message.
             if (status != SecurityStatus.SECURE) {
-                logger.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed AUTHORITY rrset: " + set);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
@@ -397,8 +395,8 @@ public class ValidatingResolver implements Resolver {
             // verified) NSEC record, try to use it to
             // 1) prove that qname doesn't exist and
             // 2) that the correct wildcard was used.
-            if (wc != null && rrsets[i].getType() == Type.NSEC) {
-                NSECRecord nsec = (NSECRecord)rrsets[i].first();
+            if (wc != null && set.getType() == Type.NSEC) {
+                NSECRecord nsec = (NSECRecord)set.first();
 
                 if (ValUtils.nsecProvesNameError(nsec, qname, keyRrset.getName())) {
                     Name nsecWc = ValUtils.nsecWildcard(qname, nsec);
@@ -414,12 +412,12 @@ public class ValidatingResolver implements Resolver {
 
             // Otherwise, if this is a positive wildcard response and we have
             // NSEC3 records, collect them.
-            if (wc != null && rrsets[i].getType() == Type.NSEC3) {
+            if (wc != null && set.getType() == Type.NSEC3) {
                 if (nsec3s == null) {
                     nsec3s = new ArrayList<NSEC3Record>();
                 }
 
-                nsec3s.add((NSEC3Record)rrsets[i].first());
+                nsec3s.add((NSEC3Record)set.first());
             }
         }
 
@@ -477,25 +475,24 @@ public class ValidatingResolver implements Resolver {
         SMessage m = response;
 
         // validate the ANSWER section.
-        SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
-        for (int i = 0; i < rrsets.length; i++) {
-            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
-            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+        for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
+            KeyEntry ke = this.prepareFindKey(set, qname);
+            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
 
             SRRset keyRrset = ke.getRRset();
             if (keyRrset == null) {
-                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed ANSWER rrset: " + set);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
-            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
             if (status != SecurityStatus.SECURE) {
-                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed ANSWER rrset: " + set);
                 m.setStatus(SecurityStatus.BOGUS);
                 return;
             }
@@ -503,25 +500,24 @@ public class ValidatingResolver implements Resolver {
 
         // validate the AUTHORITY section as well - this will be the NS rrset
         // (which could be missing, no problem)
-        rrsets = m.getSectionRRsets(Section.AUTHORITY);
-        for (int i = 0; i < rrsets.length; i++) {
-            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
-            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+        for (SRRset set : m.getSectionRRsets(Section.AUTHORITY)) {
+            KeyEntry ke = this.prepareFindKey(set, qname);
+            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
 
             SRRset keyRrset = ke.getRRset();
             if (keyRrset == null) {
-                logger.debug("Postive response has failed ANSWER rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed ANSWER rrset: " + set);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
-            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             // If anything in the authority section fails to be secure, we have
             // a bad message.
             if (status != SecurityStatus.SECURE) {
-                logger.debug("Postive response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("Postive response has failed AUTHORITY rrset: " + set);
                 m.setStatus(SecurityStatus.BOGUS);
                 return;
             }
@@ -570,8 +566,6 @@ public class ValidatingResolver implements Resolver {
         }
 
         // validate the AUTHORITY section
-        SRRset[] rrsets = m.getSectionRRsets(Section.AUTHORITY);
-
         boolean hasValidNSEC = false; // If true, then the NODATA has been
                                       // proven.
         Name ce = null; // for wildcard nodata responses. This is the proven
@@ -582,49 +576,49 @@ public class ValidatingResolver implements Resolver {
                                          // the authority section.
         Name nsec3Signer = null; // The RRSIG signer field for the NSEC3 RRs.
 
-        for (int i = 0; i < rrsets.length; i++) {
-            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
-            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+        for (SRRset set : m.getSectionRRsets(Section.AUTHORITY)) {
+            KeyEntry ke = this.prepareFindKey(set, qname);
+            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
 
             SRRset keyRrset = ke.getRRset();
             if (keyRrset == null) {
-                logger.debug("NODATA response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("NODATA response has failed AUTHORITY rrset: " + set);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
-            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             if (status != SecurityStatus.SECURE) {
-                logger.debug("NODATA response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("NODATA response has failed AUTHORITY rrset: " + set);
                 m.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
             // If we encounter an NSEC record, try to use it to prove NODATA.
             // This needs to handle the empty non-terminal (ENT) NODATA case.
-            if (rrsets[i].getType() == Type.NSEC) {
-                NSECRecord nsec = (NSECRecord)rrsets[i].first();
+            if (set.getType() == Type.NSEC) {
+                NSECRecord nsec = (NSECRecord)set.first();
                 if (ValUtils.nsecProvesNodata(nsec, qname, qtype)) {
                     hasValidNSEC = true;
                     if (nsec.getName().isWild()) {
                         wc = nsec;
                     }
                 }
-                else if (ValUtils.nsecProvesNameError(nsec, qname, rrsets[i].getSignerName())) {
+                else if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
                     ce = ValUtils.closestEncloser(qname, nsec);
                 }
             }
 
             // Collect any NSEC3 records present.
-            if (rrsets[i].getType() == Type.NSEC3) {
+            if (set.getType() == Type.NSEC3) {
                 if (nsec3s == null) {
                     nsec3s = new ArrayList<NSEC3Record>();
                 }
 
-                nsec3s.add((NSEC3Record)rrsets[i].first());
-                nsec3Signer = rrsets[i].getSignerName();
+                nsec3s.add((NSEC3Record)set.first());
+                nsec3Signer = set.getSignerName();
             }
         }
 
@@ -702,45 +696,44 @@ public class ValidatingResolver implements Resolver {
         Name nsec3Signer = null;
         SRRset keyRrset = null;
 
-        SRRset[] rrsets = response.getSectionRRsets(Section.AUTHORITY);
-        for (int i = 0; i < rrsets.length; i++) {
-            KeyEntry ke = this.prepareFindKey(rrsets[i], qname);
-            if (!this.processKeyValidate(response, rrsets[i].getSignerName(), ke)) {
+        for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
+            KeyEntry ke = this.prepareFindKey(set, qname);
+            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
 
             keyRrset = ke.getRRset();
             if (keyRrset == null) {
-                logger.debug("NameError response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("NameError response has failed AUTHORITY rrset: " + set);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
-            SecurityStatus status = this.valUtils.verifySRRset(rrsets[i], keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             if (status != SecurityStatus.SECURE) {
-                logger.debug("NameError response has failed AUTHORITY rrset: " + rrsets[i]);
+                logger.debug("NameError response has failed AUTHORITY rrset: " + set);
                 response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
-            if (rrsets[i].getType() == Type.NSEC) {
-                NSECRecord nsec = (NSECRecord)rrsets[i].first();
-                if (ValUtils.nsecProvesNameError(nsec, qname, rrsets[i].getSignerName())) {
+            if (set.getType() == Type.NSEC) {
+                NSECRecord nsec = (NSECRecord)set.first();
+                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
                     hasValidNSEC = true;
                 }
 
-                if (ValUtils.nsecProvesNoWC(nsec, qname, rrsets[i].getSignerName())) {
+                if (ValUtils.nsecProvesNoWC(nsec, qname, set.getSignerName())) {
                     hasValidWCNSEC = true;
                 }
             }
 
-            if (rrsets[i].getType() == Type.NSEC3) {
+            if (set.getType() == Type.NSEC3) {
                 if (nsec3s == null) {
                     nsec3s = new ArrayList<NSEC3Record>();
                 }
 
-                nsec3s.add((NSEC3Record)rrsets[i].first());
-                nsec3Signer = rrsets[i].getSignerName();
+                nsec3s.add((NSEC3Record)set.first());
+                nsec3Signer = set.getSignerName();
             }
         }
 
@@ -1007,17 +1000,16 @@ public class ValidatingResolver implements Resolver {
 
                 // Otherwise, there is no NSEC at qname. This could be an ENT.
                 // If not, this is broken.
-                SRRset[] nsecRrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC);
-                for (int i = 0; i < nsecRrsets.length; i++) {
-                    status = this.valUtils.verifySRRset(nsecRrsets[i], keyRrset);
+                for (SRRset set : response.getSectionRRsets(Section.AUTHORITY, Type.NSEC)) {
+                    status = this.valUtils.verifySRRset(set, keyRrset);
                     if (status != SecurityStatus.SECURE) {
                         logger.debug("NSEC for empty non-terminal did not verify.");
                         return bogusKE;
                     }
-                    NSECRecord nsec = (NSECRecord)nsecRrsets[i].first();
+                    NSECRecord nsec = (NSECRecord)set.first();
                     if (ValUtils.nsecProvesNodata(nsec, qname, Type.DS)) {
                         logger.debug("NSEC for empty non-terminal proved no DS.");
-                        return KeyEntry.newNullKeyEntry(qname, qclass, nsecRrsets[i].getTTL());
+                        return KeyEntry.newNullKeyEntry(qname, qclass, set.getTTL());
                     }
                 }
 
@@ -1028,8 +1020,8 @@ public class ValidatingResolver implements Resolver {
                 long nsec3TTL = -1;
                 if (nsec3Rrsets != null && nsec3Rrsets.length > 0) {
                     // Attempt to prove no DS with NSEC3s.
-                    for (int i = 0; i < nsec3Rrsets.length; i++) {
-                        status = this.valUtils.verifySRRset(nsec3Rrsets[i], keyRrset);
+                    for (SRRset nsec3set : nsec3Rrsets) {
+                        status = this.valUtils.verifySRRset(nsec3set, keyRrset);
                         if (status != SecurityStatus.SECURE) {
                             // FIXME: we could just fail here -- there is an
                             // invalid rrset -- but is more robust to skip like
@@ -1038,10 +1030,10 @@ public class ValidatingResolver implements Resolver {
                             continue;
                         }
 
-                        NSEC3Record nsec3 = (NSEC3Record)nsec3Rrsets[i].first();
-                        nsec3Signer = nsec3Rrsets[i].getSignerName();
-                        if (nsec3TTL < 0 || nsec3Rrsets[i].getTTL() < nsec3TTL) {
-                            nsec3TTL = nsec3Rrsets[i].getTTL();
+                        NSEC3Record nsec3 = (NSEC3Record)nsec3set.first();
+                        nsec3Signer = nsec3set.getSignerName();
+                        if (nsec3TTL < 0 || nsec3set.getTTL() < nsec3TTL) {
+                            nsec3TTL = nsec3set.getTTL();
                         }
 
                         nsec3s.add(nsec3);

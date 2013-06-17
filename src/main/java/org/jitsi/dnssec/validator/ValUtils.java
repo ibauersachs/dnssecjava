@@ -117,15 +117,13 @@ public class ValUtils {
             return ResponseClassification.ANY;
         }
 
-        SRRset[] rrsets = m.getSectionRRsets(Section.ANSWER);
-
         boolean hadCname = false;
-        for (int i = 0; i < rrsets.length; i++) {
-            if (rrsets[i].getType() == qtype) {
+        for (RRset set : m.getSectionRRsets(Section.ANSWER)) {
+            if (set.getType() == qtype) {
                 return ResponseClassification.POSITIVE;
             }
 
-            if (rrsets[i].getType() == Type.CNAME) {
+            if (set.getType() == Type.CNAME) {
                 hadCname = true;
                 if (qtype == Type.DS) {
                     return ResponseClassification.CNAME;
@@ -388,6 +386,7 @@ public class ValUtils {
         if (qname.compareTo(owner) > 0 && (qname.compareTo(next) < 0) || signerName.equals(next)) {
             return true;
         }
+
         return false;
     }
 

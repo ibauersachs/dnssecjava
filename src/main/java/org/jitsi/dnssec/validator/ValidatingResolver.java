@@ -509,17 +509,22 @@ public class ValidatingResolver implements Resolver {
             }
         }
 
-        // validate the AUTHORITY section
-        boolean hasValidNSEC = false; // If true, then the NODATA has been
-                                      // proven.
-        Name ce = null; // for wildcard nodata responses. This is the proven
-                        // closest encloser.
-        NSECRecord wc = null; // for wildcard nodata responses. This is the
-                              // wildcard NSEC.
-        List<NSEC3Record> nsec3s = null; // A collection of NSEC3 RRs found in
-                                         // the authority section.
-        Name nsec3Signer = null; // The RRSIG signer field for the NSEC3 RRs.
+        // If true, then the NODATA has been proven.
+        boolean hasValidNSEC = false;
 
+        // for wildcard nodata responses. This is the proven closest encloser.
+        Name ce = null;
+
+        // for wildcard nodata responses. This is the wildcard NSEC.
+        NSECRecord wc = null;
+
+        // A collection of NSEC3 RRs found in the authority section.
+        List<NSEC3Record> nsec3s = null;
+
+        // The RRSIG signer field for the NSEC3 RRs.
+        Name nsec3Signer = null;
+
+        // validate the AUTHORITY section
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
             KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {

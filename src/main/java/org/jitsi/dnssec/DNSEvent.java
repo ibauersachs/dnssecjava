@@ -100,12 +100,6 @@ public class DNSEvent {
     private ValEventState state;
 
     /**
-     * This is the dependency depth of this event -- in other words, the length
-     * of the "nextEvent" chain.
-     */
-    private int depth;
-
-    /**
      * Create a request event.
      * 
      * @param request The initial request.
@@ -125,7 +119,6 @@ public class DNSEvent {
         this(request);
 
         this.forEvent = forEvent;
-        this.depth = forEvent.getDepth() + 1;
     }
 
     /**
@@ -183,14 +176,6 @@ public class DNSEvent {
      */
     public void setModuleState(ValEventState state) {
         this.state = state;
-    }
-
-    /**
-     * @return The depth of this event. The depth is the events position in a
-     *         dependency chain of events.
-     */
-    public int getDepth() {
-        return this.depth;
     }
 
     /**

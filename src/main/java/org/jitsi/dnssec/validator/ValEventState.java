@@ -61,7 +61,6 @@ import org.xbill.DNS.Name;
  * @version $Revision: 286 $
  */
 public class ValEventState {
-    protected SRRset trustAnchorRRset;
     protected SRRset dsRRset;
     protected Name emptyDSName; //--> passed from DSResponse to FindKey
     protected KeyEntry keyEntry;

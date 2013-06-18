@@ -827,21 +827,20 @@ public class ValidatingResolver implements Resolver {
             state.signerName = qname;
         }
 
-        state.trustAnchorRRset = this.trustAnchors.find(state.signerName, rrset.getDClass());
-        if (state.trustAnchorRRset == null) {
+        SRRset trustAnchorRRset = this.trustAnchors.find(state.signerName, rrset.getDClass());
+        if (trustAnchorRRset == null) {
             // response isn't under a trust anchor, so we cannot validate.
             return KeyEntry.newNullKeyEntry(rrset.getSignerName(), rrset.getDClass(), DEFAULT_TA_BAD_KEY_TTL);
-            // return null;
         }
 
         state.keyEntry = this.keyCache.find(state.signerName, rrset.getDClass());
         if (state.keyEntry == null || (!state.keyEntry.getName().equals(state.signerName) && state.keyEntry.isGood())) {
             // start the FINDKEY phase with the trust anchor
-            if (state.trustAnchorRRset.getType() == Type.DS) {
-                state.dsRRset = state.trustAnchorRRset;
+            if (trustAnchorRRset.getType() == Type.DS) {
+                state.dsRRset = trustAnchorRRset;
             }
             else if (state.keyEntry == null) {
-                state.keyEntry = KeyEntry.newKeyEntry(state.trustAnchorRRset);
+                state.keyEntry = KeyEntry.newKeyEntry(trustAnchorRRset);
             }
 
             // and otherwise, don't continue processing this event.

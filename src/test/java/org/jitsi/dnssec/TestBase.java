@@ -84,6 +84,7 @@ public abstract class TestBase {
                 String filename = "/recordings/" + description.getClassName().replace(".", "_") + "/" + description.getMethodName();
                 if (record) {
                     File f = new File("./src/test/resources" + filename);
+                    f.getParentFile().getParentFile().mkdir();
                     f.getParentFile().mkdir();
                     w = new FileWriter(f.getAbsoluteFile());
                     w.write("#Date: " + new DateTime().toString(ISODateTimeFormat.dateTimeNoMillis()));

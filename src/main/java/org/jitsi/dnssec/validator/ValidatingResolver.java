@@ -63,7 +63,6 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
-import org.jitsi.dnssec.DNSEvent;
 import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
@@ -225,61 +224,6 @@ public class ValidatingResolver implements Resolver {
         return this.trustAnchors;
     }
 
-    // ---------------- Request/ResponseType Preparation ------------
-    /**
-     * Given a request, decorate the request to fetch DNSSEC information.
-     * 
-     * @param req The request.
-     */
-    private void prepareRequest(Message req) {
-        // First we make sure that the request:
-        // A) has the DNSSEC OK (DO) bit turned on.
-        // B) has the Checking Disabled (CD) bit turned on. This is to prevent
-        // some upstream DNS software from validating for us.
-
-        req.getHeader().setFlag(Flags.CD);
-    }
-
-    // ----------------- Resolution Support -----------------------
-
-    /**
-     * Generate a request for a "local" event. That is, generate a request that
-     * is logically owned by this module.
-     * 
-     * @param qname The query name.
-     * @param qtype The query type.
-     * @param qclass The query class.
-     * 
-     * @return A request.
-     */
-    private Message generateLocalRequest(Name qname, int qtype, int qclass) {
-        Record r = Record.newRecord(qname, qtype, qclass);
-        Message m = Message.newQuery(r);
-        m.getHeader().setFlag(Flags.RD);
-        return m;
-    }
-
-    /**
-     * Generate a local event. Local events are tied to this module, and have a
-     * corresponding (first tier) event that is waiting for this event to
-     * resolve to continue.
-     * 
-     * @param forEvent The event that is generating this event.
-     * @param req The request for this event.
-     * @param initialState The initial state for this event. This controls where
-     *            the response to this event initially goes.
-     * @param finalState The final state for this event. This controls where the
-     *            response to this event goes after finishing validation.
-     * @return The generated event.
-     */
-    private DNSEvent generateLocalEvent(DNSEvent forEvent, Message req) {
-        DNSEvent event = new DNSEvent(req, forEvent);
-        ValEventState state = new ValEventState();
-        event.setModuleState(state);
-
-        return event;
-    }
-
     /**
      * Given a "postive" response -- a response that contains an answer to the
      * question, and no CNAME chain, validate this response. This generally
@@ -289,12 +233,10 @@ public class ValidatingResolver implements Resolver {
      * trusted DNSKEY rrset that signs this response must already have been
      * completed.
      * 
-     * @param response The response to validate.
      * @param request The request that generated this response.
-     * @param keyRrset The trusted DNSKEY rrset that matches the signer of the
-     *            answer.
+     * @param response The response to validate.
      */
-    private void validatePositiveResponse(SMessage response, Message request) {
+    private void validatePositiveResponse(Message request, SMessage response) {
         Name qname = request.getQuestion().getName();
         int qtype = request.getQuestion().getType();
 
@@ -466,12 +408,10 @@ public class ValidatingResolver implements Resolver {
      * trusted DNSKEY rrset that signs this response must already have been
      * completed.
      * 
-     * @param response The response to validate.
      * @param request The request that generated this response.
-     * @param keyRrset The trusted DNSKEY rrset that matches the signer of the
-     *            answer.
+     * @param response The response to validate.
      */
-    private void validateAnyResponse(SMessage response, Message request) {
+    private void validateAnyResponse(Message request, SMessage response) {
         Name qname = request.getQuestion().getName();
         int qtype = request.getQuestion().getType();
 
@@ -545,25 +485,22 @@ public class ValidatingResolver implements Resolver {
      * trusted DNSKEY rrset that signs this response must already have been
      * completed.
      * 
-     * @param response The response to validate.
      * @param request The request that generated this response.
-     * @param keyRrset The trusted DNSKEY rrset that signs this response.
+     * @param response The response to validate.
      */
-    private void validateNodataResponse(SMessage response, Message request) {
+    private void validateNodataResponse(Message request, SMessage response) {
         Name qname = request.getQuestion().getName();
         int qtype = request.getQuestion().getType();
-
-        SMessage m = response;
 
         // Since we are here, the ANSWER section is either empty (and hence
         // there's only the NODATA to validate) OR it contains an incomplete
         // chain. In this case, the records were already validated before and we
         // can concentrate on following the qname that lead to the NODATA
         // classification
-        for (SRRset set : m.getSectionRRsets(Section.ANSWER)) {
+        for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
             if (set.getSecurityStatus() != SecurityStatus.SECURE) {
                 logger.debug("CNAME_NODATA response has failed ANSWER rrset: " + set);
-                m.setStatus(SecurityStatus.BOGUS);
+                response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
@@ -583,7 +520,7 @@ public class ValidatingResolver implements Resolver {
                                          // the authority section.
         Name nsec3Signer = null; // The RRSIG signer field for the NSEC3 RRs.
 
-        for (SRRset set : m.getSectionRRsets(Section.AUTHORITY)) {
+        for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
             KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
@@ -599,7 +536,7 @@ public class ValidatingResolver implements Resolver {
             SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             if (status != SecurityStatus.SECURE) {
                 logger.debug("NODATA response has failed AUTHORITY rrset: " + set);
-                m.setStatus(SecurityStatus.BOGUS);
+                response.setStatus(SecurityStatus.BOGUS);
                 return;
             }
 
@@ -654,13 +591,13 @@ public class ValidatingResolver implements Resolver {
 
         if (!hasValidNSEC) {
             logger.debug("NODATA response failed to prove NODATA " + "status with NSEC/NSEC3");
-            logger.trace("Failed NODATA:\n" + m);
-            m.setStatus(SecurityStatus.BOGUS);
+            logger.trace("Failed NODATA:\n" + response);
+            response.setStatus(SecurityStatus.BOGUS);
             return;
         }
 
         logger.trace("sucessfully validated NODATA response.");
-        m.setStatus(SecurityStatus.SECURE);
+        response.setStatus(SecurityStatus.SECURE);
     }
 
     /**
@@ -675,7 +612,6 @@ public class ValidatingResolver implements Resolver {
      * 
      * @param qname The name to be proved to not exist.
      * @param response The response to validate.
-     * @param keyRrset The trusted DNSKEY rrset that signs this response.
      */
     private void validateNameErrorResponse(Name qname, SMessage response) {
         // The ANSWER section is either empty OR it contains an xNAME chain that
@@ -780,47 +716,33 @@ public class ValidatingResolver implements Resolver {
         response.setStatus(SecurityStatus.SECURE);
     }
 
-    // ----------------- Resolution Support -----------------------
-
-    private void sendRequest(DNSEvent event) {
-        Record q = event.getRequest().getQuestion();
+    private SMessage sendRequest(Message request) {
+        Record q = request.getQuestion();
         logger.trace("sending request: <" + q.getName() + "/" + Type.string(q.getType()) + "/" + DClass.string(q.getDClass()) + ">");
 
-        // Add a module state object to every request.
-        // Locally generated requests will already have state.
-        ValEventState state = event.getModuleState();
-        if (state == null) {
-            state = new ValEventState();
-            event.setModuleState(state);
-        }
-
-        // (Possibly) modify the request to add the CD bit.
-        this.prepareRequest(event.getRequest());
-
         // Send the request along by using a local copy of the request
-        Message localRequest = (Message)event.getRequest().clone();
+        Message localRequest = (Message)request.clone();
+        localRequest.getHeader().setFlag(Flags.CD);
         try {
             Message resp = this.headResolver.send(localRequest);
-            event.setResponse(new SMessage(resp));
+            return new SMessage(resp);
         }
         catch (SocketTimeoutException e) {
             logger.error("Query timed out, returning fail", e);
-            event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
+            return Util.errorMessage(localRequest, Rcode.SERVFAIL);
         }
         catch (UnknownHostException e) {
             logger.error("failed to send query", e);
-            event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
+            return Util.errorMessage(localRequest, Rcode.SERVFAIL);
         }
         catch (IOException e) {
             logger.error("failed to send query", e);
-            event.setResponse(Util.errorMessage(localRequest, Rcode.SERVFAIL));
+            return Util.errorMessage(localRequest, Rcode.SERVFAIL);
         }
     }
 
     private KeyEntry prepareFindKey(SRRset rrset, Name qname, int qclass) {
-        DNSEvent event = new DNSEvent(new Message());
-        event.setModuleState(new ValEventState());
-        ValEventState state = event.getModuleState();
+        FindKeyState state = new FindKeyState();
         state.signerName = rrset.getSignerName();
         state.qclass = qclass;
 
@@ -846,7 +768,7 @@ public class ValidatingResolver implements Resolver {
 
             // and otherwise, don't continue processing this event.
             // (it will be reactivated when the priming query returns).
-            processFindKey(event, state);
+            processFindKey(state);
         }
 
         return state.keyEntry;
@@ -858,11 +780,9 @@ public class ValidatingResolver implements Resolver {
      * if the correct key has already been reached, in which case it will
      * advance the event to the next state.
      * 
-     * @param event The first tier event.
-     * @param state The state for that event.
-     * @return true if this event should continue to be processed, false if not.
+     * @param state The state associated with the current key finding phase.
      */
-    private boolean processFindKey(DNSEvent event, ValEventState state) {
+    private void processFindKey(FindKeyState state) {
         // We know that state.keyEntry is not a null or bad key -- if it were,
         // then previous processing should have directed this event to a
         // different state.
@@ -875,7 +795,7 @@ public class ValidatingResolver implements Resolver {
 
         // If our current key entry matches our target, then we are done.
         if (currentKeyName.equals(targetKeyName)) {
-            return true;
+            return;
         }
 
         if (state.emptyDSName != null) {
@@ -889,29 +809,25 @@ public class ValidatingResolver implements Resolver {
 
         // the next key name would be trying to invent a name, so we stop here
         if (l < 0) {
-            return true;
+            return;
         }
 
         Name nextKeyName = new Name(targetKeyName, l);
         logger.trace("findKey: targetKeyName = " + targetKeyName + ", currentKeyName = " + currentKeyName + ", nextKeyName = " + nextKeyName);
+
         // The next step is either to query for the next DS, or to query for the
         // next DNSKEY.
-
         if (state.dsRRset == null || !state.dsRRset.getName().equals(nextKeyName)) {
-            Message dsRequest = this.generateLocalRequest(nextKeyName, Type.DS, qclass);
-            DNSEvent dsEvent = this.generateLocalEvent(event, dsRequest);
-            this.sendRequest(dsEvent);
-            this.processDSResponse(dsEvent, dsEvent.getModuleState());
-            return false;
+            Message dsRequest = Message.newQuery(Record.newRecord(nextKeyName, Type.DS, qclass));
+            SMessage dsResponse = this.sendRequest(dsRequest);
+            this.processDSResponse(dsRequest, dsResponse, state);
+            return;
         }
 
         // Otherwise, it is time to query for the DNSKEY
-        Message dnskeyRequest = this.generateLocalRequest(state.dsRRset.getName(), Type.DNSKEY, qclass);
-        DNSEvent dnskeyEvent = this.generateLocalEvent(event, dnskeyRequest);
-        this.sendRequest(dnskeyEvent);
-        this.processDNSKEYResponse(dnskeyEvent, dnskeyEvent.getModuleState());
-
-        return false;
+        Message dnskeyRequest = Message.newQuery(Record.newRecord(state.dsRRset.getName(), Type.DNSKEY, qclass));
+        SMessage dnskeyResponse = this.sendRequest(dnskeyRequest);
+        this.processDNSKEYResponse(dnskeyRequest, dnskeyResponse, state);
     }
 
     /**
@@ -1074,69 +990,54 @@ public class ValidatingResolver implements Resolver {
     /**
      * This handles the responses to locally generated DS queries.
      * 
-     * @param event The DS query response event.
-     * @param state The state associated with the DS response event.
-     * @return false, as generally there is never any additional processing for
-     *         these events.
+     * @param request The request for which the response is processed.
+     * @param response The response to process.
+     * @param state The state associated with the current key finding phase.
      */
-    private boolean processDSResponse(DNSEvent event, ValEventState state) {
-        Message dsRequest = event.getRequest();
-        SMessage dsResp = event.getResponse();
+    private void processDSResponse(Message request, SMessage response, FindKeyState state) {
+        Name qname = request.getQuestion().getName();
 
-        Name qname = dsRequest.getQuestion().getName();
+        state.emptyDSName = null;
+        state.dsRRset = null;
 
-        DNSEvent forEvent = event.forEvent();
-        ValEventState forState = forEvent.getModuleState();
-
-        forState.emptyDSName = null;
-        forState.dsRRset = null;
-
-        KeyEntry dsKE = this.dsResponseToKE(dsResp, dsRequest, forState.keyEntry.getRRset());
+        KeyEntry dsKE = this.dsResponseToKE(response, request, state.keyEntry.getRRset());
 
         if (dsKE == null) {
-            forState.emptyDSName = qname;
+            state.emptyDSName = qname;
             // ds response indicated that we aren't on a delegation point.
             // Keep the forState.state on FINDKEY.
         }
         else if (dsKE.isGood()) {
-            forState.dsRRset = dsKE.getRRset();
+            state.dsRRset = dsKE.getRRset();
             // Keep the forState.state on FINDKEY.
         }
         else {
             // NOTE: the reason for the DS to be not good (that is, either bad
             // or null) should have been logged by dsResponseToKE.
-            forState.keyEntry = dsKE;
+            state.keyEntry = dsKE;
             if (dsKE.isNull()) {
                 this.keyCache.store(dsKE);
             }
 
             // The FINDKEY phase has ended, so move on.
-            return false;
+            return;
         }
 
-        // this.processResponse(forEvent);
-        this.processFindKey(forEvent, forState);
-        return false;
+        this.processFindKey(state);
     }
 
-    private boolean processDNSKEYResponse(DNSEvent event, ValEventState state) {
-        Message dnskeyRequest = event.getRequest();
-        SMessage dnskeyResp = event.getResponse();
-        Name qname = dnskeyRequest.getQuestion().getName();
-        int qclass = dnskeyRequest.getQuestion().getDClass();
-
-        DNSEvent forEvent = event.forEvent();
-        ValEventState forState = forEvent.getModuleState();
+    private void processDNSKEYResponse(Message request, SMessage response, FindKeyState forState) {
+        Name qname = request.getQuestion().getName();
+        int qclass = request.getQuestion().getDClass();
 
         SRRset dsRrset = forState.dsRRset;
-        SRRset dnskeyRrset = dnskeyResp.findAnswerRRset(qname, Type.DNSKEY, qclass);
+        SRRset dnskeyRrset = response.findAnswerRRset(qname, Type.DNSKEY, qclass);
 
         if (dnskeyRrset == null) {
             // If the DNSKEY rrset was missing, this is the end of the line.
             logger.debug("Missing DNSKEY RRset in response to DNSKEY query.");
             forState.keyEntry = KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
-
-            return false;
+            return;
         }
 
         forState.keyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, dsRrset, DEFAULT_TA_BAD_KEY_TTL);
@@ -1148,19 +1049,17 @@ public class ValidatingResolver implements Resolver {
                 logger.debug("Did not match a DS to a DNSKEY, thus bogus.");
             }
 
-            return false;
+            return;
         }
 
         // The DNSKEY validated, so cache it as a trusted key rrset.
         this.keyCache.store(forState.keyEntry);
 
         // If good, we stay in the FINDKEY state.
-        // this.processResponse(forEvent);
-        this.processFindKey(forEvent, forState);
-        return false;
+        this.processFindKey(forState);
     }
 
-    private boolean processKeyValidate(SMessage resp, Name signerName, KeyEntry keyEntry) {
+    private boolean processKeyValidate(SMessage response, Name signerName, KeyEntry keyEntry) {
         // signerName being null is the indicator that this response was
         // unsigned
         if (signerName == null) {
@@ -1168,75 +1067,78 @@ public class ValidatingResolver implements Resolver {
             // Unsigned responses must be underneath a "null" key entry.
             if (keyEntry.isNull()) {
                 logger.debug("Unsigned response was proved to be validly INSECURE");
-                resp.setStatus(SecurityStatus.INSECURE);
+                response.setStatus(SecurityStatus.INSECURE);
                 return false;
             }
 
             logger.debug("Could not establish validation of " + "INSECURE status of unsigned response.");
-            resp.setStatus(SecurityStatus.BOGUS);
+            response.setStatus(SecurityStatus.BOGUS);
             return false;
         }
 
         if (keyEntry.isBad()) {
             logger.debug("Could not establish a chain of trust to keys for: " + keyEntry.getName());
-            resp.setStatus(SecurityStatus.BOGUS);
+            response.setStatus(SecurityStatus.BOGUS);
             return false;
         }
 
         if (keyEntry.isNull()) {
             logger.debug("Verified that response is INSECURE");
-            resp.setStatus(SecurityStatus.INSECURE);
+            response.setStatus(SecurityStatus.INSECURE);
             return false;
         }
 
         return true;
     }
 
-    private boolean processValidate(DNSEvent event, ValEventState state) {
-        Message req = event.getRequest();
-        SMessage resp = event.getResponse();
-
-        ResponseClassification subtype = ValUtils.classifyResponse(resp);
-
+    private SMessage processValidate(Message request, SMessage response) {
+        ResponseClassification subtype = ValUtils.classifyResponse(response);
         switch (subtype) {
             case POSITIVE:
                 logger.trace("Validating a positive response");
-                this.validatePositiveResponse(resp, req);
+                this.validatePositiveResponse(request, response);
                 break;
+
             case NODATA:
                 logger.trace("Validating a nodata response");
-                this.validateNodataResponse(resp, req);
+                this.validateNodataResponse(request, response);
                 break;
+
             case CNAME_NODATA:
                 logger.trace("Validating a CNAME_NODATA response");
-                this.validatePositiveResponse(resp, req);
-                if (resp.getStatus() != SecurityStatus.INSECURE) {
-                    resp.setStatus(SecurityStatus.UNCHECKED);
-                    this.validateNodataResponse(resp, req);
+                this.validatePositiveResponse(request, response);
+                if (response.getStatus() != SecurityStatus.INSECURE) {
+                    response.setStatus(SecurityStatus.UNCHECKED);
+                    this.validateNodataResponse(request, response);
                 }
+
                 break;
+
             case NAMEERROR:
                 logger.trace("Validating a nxdomain response");
-                this.validateNameErrorResponse(req.getQuestion().getName(), resp);
+                this.validateNameErrorResponse(request.getQuestion().getName(), response);
                 break;
+
             case CNAME_NAMEERROR:
                 logger.trace("Validating a cname_nxdomain response");
-                this.validatePositiveResponse(resp, req);
-                if (resp.getStatus() != SecurityStatus.INSECURE) {
-                    resp.setStatus(SecurityStatus.UNCHECKED);
-                    this.validateNameErrorResponse(req.getQuestion().getName(), resp);
+                this.validatePositiveResponse(request, response);
+                if (response.getStatus() != SecurityStatus.INSECURE) {
+                    response.setStatus(SecurityStatus.UNCHECKED);
+                    this.validateNameErrorResponse(request.getQuestion().getName(), response);
                 }
+
                 break;
+
             case ANY:
                 logger.trace("Validating a postive ANY response");
-                this.validateAnyResponse(resp, req);
+                this.validateAnyResponse(request, response);
                 break;
+
             default:
                 logger.error("unhandled response subtype: " + subtype);
         }
 
-        this.processFinishedState(event, state);
-        return true;
+        return this.processFinishedState(request, response);
     }
 
     /**
@@ -1244,28 +1146,24 @@ public class ValidatingResolver implements Resolver {
      * Primarily this means setting the AD bit or not and possibly stripping
      * DNSSEC data.
      */
-    private boolean processFinishedState(DNSEvent event, ValEventState state) {
-        SMessage resp = event.getResponse();
-        Message origRequest = event.getOrigRequest();
-
+    private SMessage processFinishedState(Message request, SMessage response) {
         // If the CD bit is set, do not process the (cached) validation status.
-        if (!origRequest.getHeader().getFlag(Flags.CD)) {
+        if (!request.getHeader().getFlag(Flags.CD)) {
             // If the response message validated, set the AD bit.
-            SecurityStatus status = resp.getStatus();
+            SecurityStatus status = response.getStatus();
             switch (status) {
                 case BOGUS:
                     // For now, in the absence of any other API information, we
                     // return SERVFAIL.
-                    int code = resp.getHeader().getRcode();
+                    int code = response.getHeader().getRcode();
                     if (code == Rcode.NOERROR || code == Rcode.NXDOMAIN) {
                         code = Rcode.SERVFAIL;
                     }
 
-                    resp = Util.errorMessage(origRequest, code);
-                    event.setResponse(resp);
+                    response = Util.errorMessage(request, code);
                     break;
                 case SECURE:
-                    resp.getHeader().setFlag(Flags.AD);
+                    response.getHeader().setFlag(Flags.AD);
                     break;
                 case UNCHECKED:
                 case INSECURE:
@@ -1275,7 +1173,7 @@ public class ValidatingResolver implements Resolver {
             }
         }
 
-        return false;
+        return response;
     }
 
     // Resolver-interface implementation --------------------------------------
@@ -1376,15 +1274,10 @@ public class ValidatingResolver implements Resolver {
      * @throws IOException An error occurred while sending or receiving.
      */
     public Message send(Message query) throws IOException {
-        DNSEvent event = new DNSEvent(query);
+        SMessage response = this.sendRequest(query);
+        SMessage validated = this.processValidate(query, response);
 
-        // This should synchronously process the request, based on the way the
-        // resolver tail is configured.
-        this.sendRequest(event);
-        // this.processInit(event, event.getModuleState());
-        this.processValidate(event, event.getModuleState());
-
-        return event.getResponse().getMessage();
+        return validated.getMessage();
     }
 
     /**

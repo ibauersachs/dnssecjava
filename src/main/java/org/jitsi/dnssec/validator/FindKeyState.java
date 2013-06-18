@@ -55,12 +55,9 @@ import org.jitsi.dnssec.SRRset;
 import org.xbill.DNS.Name;
 
 /**
- * This is the per-event state object for the ValidatingResolver module.
- * 
- * @author davidb
- * @version $Revision: 286 $
+ * State-object for the key-finding phase.
  */
-public class ValEventState {
+public class FindKeyState {
     protected SRRset dsRRset;
     protected Name emptyDSName; //--> passed from DSResponse to FindKey
     protected KeyEntry keyEntry;

@@ -335,7 +335,7 @@ public class ValidatingResolver implements Resolver {
             }
 
             // Verify the answer rrset.
-            KeyEntry ke = this.prepareFindKey(set, qname);
+            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -370,7 +370,7 @@ public class ValidatingResolver implements Resolver {
         // validate the AUTHORITY section as well - this will generally be the
         // NS rrset (which could be missing, no problem)
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, qname);
+            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -483,7 +483,7 @@ public class ValidatingResolver implements Resolver {
 
         // validate the ANSWER section.
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, qname);
+            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -508,7 +508,7 @@ public class ValidatingResolver implements Resolver {
         // validate the AUTHORITY section as well - this will be the NS rrset
         // (which could be missing, no problem)
         for (SRRset set : m.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, qname);
+            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -584,7 +584,7 @@ public class ValidatingResolver implements Resolver {
         Name nsec3Signer = null; // The RRSIG signer field for the NSEC3 RRs.
 
         for (SRRset set : m.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, qname);
+            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -704,7 +704,7 @@ public class ValidatingResolver implements Resolver {
         SRRset keyRrset = null;
 
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, qname);
+            KeyEntry ke = this.prepareFindKey(set, qname, response.getQuestion().getDClass());
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -817,11 +817,12 @@ public class ValidatingResolver implements Resolver {
         }
     }
 
-    private KeyEntry prepareFindKey(SRRset rrset, Name qname) {
+    private KeyEntry prepareFindKey(SRRset rrset, Name qname, int qclass) {
         DNSEvent event = new DNSEvent(new Message());
         event.setModuleState(new ValEventState());
         ValEventState state = event.getModuleState();
         state.signerName = rrset.getSignerName();
+        state.qclass = qclass;
 
         if (state.signerName == null) {
             state.signerName = qname;
@@ -865,15 +866,8 @@ public class ValidatingResolver implements Resolver {
         // We know that state.keyEntry is not a null or bad key -- if it were,
         // then previous processing should have directed this event to a
         // different state.
-        // Message req = event.getRequest();
-        // Name qname = req.getQuestion().getName();
-        int qclass = DClass.IN; // req.getQuestion().getDClass();
-
+        int qclass = state.qclass;
         Name targetKeyName = state.signerName;
-        // if (targetKeyName == null) {
-        // targetKeyName = qname;
-        // }
-
         Name currentKeyName = Name.empty;
         if (state.keyEntry != null) {
             currentKeyName = state.keyEntry.getName();

@@ -65,4 +65,5 @@ public class ValEventState {
     protected Name emptyDSName; //--> passed from DSResponse to FindKey
     protected KeyEntry keyEntry;
     protected Name signerName;
+    protected int qclass;
 }

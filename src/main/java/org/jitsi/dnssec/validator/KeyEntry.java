@@ -63,6 +63,7 @@ public final class KeyEntry {
     private int dclass;
     private long ttl;
     private boolean isBad = false;
+    private String badReason;
 
     /**
      * Create a new, positive key entry.
@@ -183,5 +184,23 @@ public final class KeyEntry {
      */
     public boolean isGood() {
         return !this.isBad && this.rrset != null;
+    }
+
+    /**
+     * Gets the reason why this key entry is bad.
+     * 
+     * @return The reason why this key entry is bad.
+     */
+    public String getBadReason() {
+        return this.badReason;
+    }
+
+    /**
+     * Sets the reason why this key entry is bad.
+     * 
+     * @param reason The reason why this key entry is bad.
+     */
+    public void setBadReason(String reason) {
+        this.badReason = reason;
     }
 }

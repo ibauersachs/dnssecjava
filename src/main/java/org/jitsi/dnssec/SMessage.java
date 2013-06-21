@@ -83,6 +83,7 @@ public class SMessage {
     private OPTRecord oPTRecord;
     private List<SRRset>[] sections;
     private SecurityStatus securityStatus;
+    private String bogusReason;
 
     /**
      * Creates a instance of this class.
@@ -237,6 +238,36 @@ public class SMessage {
      */
     public void setStatus(SecurityStatus status) {
         this.securityStatus = status;
+    }
+
+    /**
+     * Sets the security status for this message.
+     * 
+     * @param status the new security status for this message.
+     * @param reason Why this message's status is set as indicated.
+     */
+    public void setStatus(SecurityStatus status, String reason) {
+        this.securityStatus = status;
+        this.bogusReason = reason;
+    }
+
+    /**
+     * Gets the reason why this messages' status is bogus.
+     * 
+     * @return The reason why this messages' status is bogus.
+     */
+    public String getBogusReason() {
+        return this.bogusReason;
+    }
+
+    /**
+     * Sets the security status of this message to bogus and sets the reason.
+     * 
+     * @param reason Why this message's status is bogus.
+     */
+    public void setBogus(String reason) {
+        this.setStatus(SecurityStatus.BOGUS);
+        this.bogusReason = reason;
     }
 
     /**

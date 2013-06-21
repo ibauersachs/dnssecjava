@@ -21,6 +21,7 @@
 package org.jitsi.dnssec;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -37,6 +38,7 @@ public class TestPartiallyInvalid extends TestBase {
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals(localhost, firstA(response));
+        assertNull(getReason(response));
     }
 
     @Test
@@ -45,6 +47,7 @@ public class TestPartiallyInvalid extends TestBase {
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertTrue(isEmptyAnswer(response));
+        assertNull(getReason(response));
     }
 
     @Test
@@ -52,5 +55,6 @@ public class TestPartiallyInvalid extends TestBase {
         Message response = resolver.send(createMessage("www.gibtsnicht.partial.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
+        assertNull(getReason(response));
     }
 }

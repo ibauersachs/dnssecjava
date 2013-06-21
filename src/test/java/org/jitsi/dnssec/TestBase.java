@@ -52,6 +52,7 @@ import org.xbill.DNS.RRset;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.SimpleResolver;
+import org.xbill.DNS.TXTRecord;
 import org.xbill.DNS.Type;
 
 public abstract class TestBase {
@@ -185,6 +186,16 @@ public abstract class TestBase {
                 if (r.getType() == Type.A) {
                     return ((ARecord)r).getAddress().getHostAddress();
                 }
+            }
+        }
+
+        return null;
+    }
+
+    protected String getReason(Message m) {
+        for (RRset set : m.getSectionRRsets(Section.ADDITIONAL)) {
+            if (set.getName().equals(Name.root) && set.getType() == Type.TXT) {
+                return (String)((TXTRecord)set.first()).getStrings().get(0);
             }
         }
 

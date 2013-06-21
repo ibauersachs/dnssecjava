@@ -51,6 +51,7 @@
 
 package org.jitsi.dnssec.validator;
 
+import org.apache.log4j.Logger;
 import org.jitsi.dnssec.SRRset;
 import org.xbill.DNS.Name;
 
@@ -58,6 +59,8 @@ import org.xbill.DNS.Name;
  * DNSKEY cache entry for a given {@link Name}, with or without actual keys.
  */
 public final class KeyEntry {
+    private static final Logger logger = Logger.getLogger(KeyEntry.class);
+
     private SRRset rrset;
     private Name name;
     private int dclass;
@@ -202,5 +205,6 @@ public final class KeyEntry {
      */
     public void setBadReason(String reason) {
         this.badReason = reason;
+        logger.debug(this.badReason);
     }
 }

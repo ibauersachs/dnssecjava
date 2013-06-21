@@ -41,6 +41,7 @@ public class TestWildcard extends TestBase {
         Message response = resolver.send(createMessage("a.d.ingotronic.ch./A"));
         assertFalse(response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getHeader().getRcode());
+        assertEquals("failed.positive.wildcard_too_broad", getReason(response));
     }
 
     @Test
@@ -55,5 +56,6 @@ public class TestWildcard extends TestBase {
         Message response = resolver.send(createMessage("a.d.nsec3.ingotronic.ch./A"));
         assertFalse(response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getHeader().getRcode());
+        assertEquals("failed.positive.wildcard_too_broad", getReason(response));
     }
 }

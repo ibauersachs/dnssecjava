@@ -26,6 +26,13 @@ import mockit.MockUp;
 public class RTest extends MockUp<R> {
     @Mock
     public static String get(String key, Object... values){
-        return key;
+        StringBuilder sb = new StringBuilder();
+        sb.append(key);
+        for (Object o : values) {
+            sb.append(":");
+            sb.append(o);
+        }
+
+        return sb.toString();
     }
 }

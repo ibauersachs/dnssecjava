@@ -45,6 +45,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("unknownalgorithm.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.badkey:unknownalgorithm.dnssec.tjeb.nl.:failed.ds", getReason(response));
     }
 
     @Test
@@ -52,6 +53,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("signotincepted.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.badkey:signotincepted.dnssec.tjeb.nl.:failed.ds", getReason(response));
     }
 
     @Test
@@ -59,6 +61,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("sigexpired.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.badkey:sigexpired.dnssec.tjeb.nl.:failed.ds", getReason(response));
     }
 
     @Test
@@ -66,6 +69,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("bogussig.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.badkey:bogussig.dnssec.tjeb.nl.:failed.ds", getReason(response));
     }
 
     @Test
@@ -74,6 +78,7 @@ public class TestInvalid extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertFalse(isEmptyAnswer(response));
+        assertEquals("validate.insecure", getReason(response));
     }
 
     @Test
@@ -81,6 +86,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("unknownalgorithm.Nsec3.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.badkey:unknownalgorithm.nsec3.tjeb.nl.:failed.ds", getReason(response));
     }
 
 //    @Test  disabled, the signature is actually valid
@@ -95,6 +101,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("sigexpired.Nsec3.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.badkey:sigexpired.nsec3.tjeb.nl.:failed.ds", getReason(response));
     }
 
     @Test
@@ -102,6 +109,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("bogussig.Nsec3.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.badkey:bogussig.nsec3.tjeb.nl.:failed.ds", getReason(response));
     }
 
     @Test
@@ -110,6 +118,7 @@ public class TestInvalid extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertFalse(isEmptyAnswer(response));
+        assertEquals("validate.insecure", getReason(response));
     }
 
     @Test
@@ -126,6 +135,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.goodkey", getReason(response));
     }
 
     @Test
@@ -143,6 +153,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertTrue(getReason(response).startsWith("failed.answer.positive:{ www.ingotronic.ch."));
     }
 
     @Test
@@ -156,6 +167,7 @@ public class TestInvalid extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         // rfc4035#section-5.5
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.badkey:ch.:failed.ds.unknown", getReason(response));
     }
 
     @Test
@@ -169,5 +181,6 @@ public class TestInvalid extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         // rfc4035#section-5.5
         assertEquals(Rcode.REFUSED, response.getRcode());
+        assertEquals("failed.nodata", getReason(response));
     }
 }

@@ -56,6 +56,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.log4j.Logger;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Header;
 import org.xbill.DNS.Message;
@@ -73,6 +74,7 @@ import org.xbill.DNS.Type;
  * @author davidb
  */
 public class SMessage {
+    private static final Logger logger = Logger.getLogger(SMessage.class);
     private static final SRRset[] EMPTY_SRRSET_ARRAY = new SRRset[0];
     private static final int NUM_SECTIONS = 3;
     private static final int MAX_FLAGS = 16;
@@ -249,6 +251,7 @@ public class SMessage {
     public void setStatus(SecurityStatus status, String reason) {
         this.securityStatus = status;
         this.bogusReason = reason;
+        logger.debug(this.bogusReason);
     }
 
     /**
@@ -268,6 +271,7 @@ public class SMessage {
     public void setBogus(String reason) {
         this.setStatus(SecurityStatus.BOGUS);
         this.bogusReason = reason;
+        logger.debug(this.bogusReason);
     }
 
     /**

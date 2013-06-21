@@ -85,6 +85,7 @@ import org.xbill.DNS.Resolver;
 import org.xbill.DNS.ResolverListener;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.TSIG;
+import org.xbill.DNS.TXTRecord;
 import org.xbill.DNS.TextParseException;
 import org.xbill.DNS.Type;
 
@@ -842,7 +843,7 @@ public class ValidatingResolver implements Resolver {
                 SRRset dsRrset = response.findAnswerRRset(qname, Type.DS, qclass);
                 status = this.valUtils.verifySRRset(dsRrset, keyRrset);
                 if (status != SecurityStatus.SECURE) {
-                    logger.debug("DS rrset in DS response did not verify");
+                    bogusKE.setBadReason(R.get("failed.ds"));
                     return bogusKE;
                 }
 
@@ -856,7 +857,7 @@ public class ValidatingResolver implements Resolver {
                 SRRset cnameRrset = response.findAnswerRRset(qname, Type.CNAME, qclass);
                 status = this.valUtils.verifySRRset(cnameRrset, keyRrset);
                 if (status != SecurityStatus.SECURE) {
-                    logger.debug("CNAME rrset in DS response did not verify");
+                    bogusKE.setBadReason(R.get("failed.ds.cname"));
                     return bogusKE;
                 }
 
@@ -878,21 +879,22 @@ public class ValidatingResolver implements Resolver {
                     // The NSEC must verify, first of all.
                     status = this.valUtils.verifySRRset(nsecRrset, keyRrset);
                     if (status != SecurityStatus.SECURE) {
-                        logger.debug("NSEC RRset for the referral did not verify.");
+                        bogusKE.setBadReason(R.get("failed.ds.nsec"));
                         return bogusKE;
                     }
 
                     NSECRecord nsec = (NSECRecord)nsecRrset.first();
                     switch (ValUtils.nsecProvesNoDS(nsec, qname)) {
                         case BOGUS: // something was wrong.
-                            logger.debug("NSEC RRset for the referral did not prove no DS.");
+                            bogusKE.setBadReason(R.get("failed.ds.nsec.hasdata"));
                             return bogusKE;
                         case INSECURE: // this wasn't a delegation point.
                             logger.debug("NSEC RRset for the referral proved not a delegation point");
                             return null;
                         case SECURE: // this proved no DS.
-                            logger.debug("NSEC RRset for the referral proved no DS.");
-                            return KeyEntry.newNullKeyEntry(qname, qclass, nsecRrset.getTTL());
+                            KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, nsecRrset.getTTL());
+                            nullKey.setBadReason(R.get("insecure.ds.nsec"));
+                            return nullKey;
                         default:
                             throw new RuntimeException("unexpected security status");
                     }
@@ -903,13 +905,15 @@ public class ValidatingResolver implements Resolver {
                 for (SRRset set : response.getSectionRRsets(Section.AUTHORITY, Type.NSEC)) {
                     status = this.valUtils.verifySRRset(set, keyRrset);
                     if (status != SecurityStatus.SECURE) {
-                        logger.debug("NSEC for empty non-terminal did not verify.");
+                        bogusKE.setBadReason(R.get("failed.ds.nsec.ent"));
                         return bogusKE;
                     }
+
                     NSECRecord nsec = (NSECRecord)set.first();
                     if (ValUtils.nsecProvesNodata(nsec, qname, Type.DS)) {
-                        logger.debug("NSEC for empty non-terminal proved no DS.");
-                        return KeyEntry.newNullKeyEntry(qname, qclass, set.getTTL());
+                        KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, set.getTTL());
+                        nullKey.setBadReason(R.get("insecure.ds.nsec.ent"));
+                        return nullKey;
                     }
                 }
 
@@ -941,14 +945,15 @@ public class ValidatingResolver implements Resolver {
 
                     switch (NSEC3ValUtils.proveNoDS(nsec3s, qname, nsec3Signer)) {
                         case BOGUS:
-                            logger.debug("nsec3s proved bogus.");
+                            bogusKE.setBadReason(R.get("failed.ds.nsec3"));
                             return bogusKE;
                         case INSECURE:
                             logger.debug("nsec3s proved no delegation.");
                             return null;
                         case SECURE:
-                            logger.debug("nsec3 proved no ds.");
-                            return KeyEntry.newNullKeyEntry(qname, qclass, nsec3TTL);
+                            KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, nsec3TTL);
+                            nullKey.setBadReason(R.get("insecure.ds.nsec3"));
+                            return nullKey;
                         default:
                             throw new RuntimeException("unexpected security status");
                     }
@@ -956,17 +961,17 @@ public class ValidatingResolver implements Resolver {
 
                 // Apparently, no available NSEC/NSEC3 proved NODATA, so this is
                 // BOGUS.
-                logger.debug("ran out of options, so return bogus");
+                bogusKE.setBadReason(R.get("failed.ds.unknown"));
                 return bogusKE;
 
             case NAMEERROR:
                 // NAMEERRORs at this point pretty much break validation
-                logger.debug("DS response was NAMEERROR, thus bogus.");
+                bogusKE.setBadReason(R.get("failed.ds.nxdomain"));
                 return bogusKE;
             default:
                 // We've encountered an unhandled classification for this
                 // response.
-                logger.debug("Encountered an unhandled type of DS response, thus bogus (" + subtype + ").");
+                bogusKE.setBadReason(R.get("failed.ds.notype", subtype));
                 return bogusKE;
         }
     }
@@ -1048,6 +1053,11 @@ public class ValidatingResolver implements Resolver {
                 return false;
             }
 
+            if (keyEntry.isGood()) {
+                response.setStatus(SecurityStatus.BOGUS, R.get("validate.bogus.goodkey"));
+                return false;
+            }
+
             response.setStatus(SecurityStatus.BOGUS, R.get("validate.bogus", keyEntry.getBadReason()));
             return false;
         }
@@ -1125,6 +1135,7 @@ public class ValidatingResolver implements Resolver {
         if (!request.getHeader().getFlag(Flags.CD)) {
             // If the response message validated, set the AD bit.
             SecurityStatus status = response.getStatus();
+            String reason = response.getBogusReason();
             switch (status) {
                 case BOGUS:
                     // For now, in the absence of any other API information, we
@@ -1145,6 +1156,8 @@ public class ValidatingResolver implements Resolver {
                 default:
                     throw new RuntimeException("unexpected security status");
             }
+
+            response.setStatus(status, reason);
         }
 
         return response;
@@ -1249,9 +1262,18 @@ public class ValidatingResolver implements Resolver {
      */
     public Message send(Message query) throws IOException {
         SMessage response = this.sendRequest(query);
-        SMessage validated = this.processValidate(query, response);
+        final SMessage validated = this.processValidate(query, response);
 
-        return validated.getMessage();
+        Message m = validated.getMessage();
+        if (validated.getBogusReason() != null) {
+            m.addRecord(new TXTRecord(Name.root, query.getQuestion().getDClass(), 0, new ArrayList<String>(1) {
+                {
+                    add(validated.getBogusReason());
+                }
+            }), Section.ADDITIONAL);
+        }
+
+        return m;
     }
 
     /**

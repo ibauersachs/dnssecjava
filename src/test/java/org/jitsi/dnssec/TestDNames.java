@@ -22,6 +22,7 @@ package org.jitsi.dnssec;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -44,6 +45,7 @@ public class TestDNames extends TestBase {
         Message response = resolver.send(createMessage("www.alias.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
     }
 
     @Test
@@ -51,6 +53,7 @@ public class TestDNames extends TestBase {
         Message response = resolver.send(createMessage("www.alias.ingotronic.ch./MX"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
     }
 
     @Test
@@ -58,6 +61,7 @@ public class TestDNames extends TestBase {
         Message response = resolver.send(createMessage("x.alias.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
+        assertNull(getReason(response));
     }
 
     @Test
@@ -69,6 +73,7 @@ public class TestDNames extends TestBase {
         Message response = resolver.send(createMessage("www.alias.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.synthesize.nomatch:www.isc.org.:www.ingotronic.ch.", getReason(response));
     }
 
     @SuppressWarnings("unchecked")
@@ -100,6 +105,7 @@ public class TestDNames extends TestBase {
         Message response = resolver.send(createMessage("www.alias.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nxdomain.exists:www.alias.ingotronic.ch.", getReason(response));
     }
 
     @Test
@@ -107,6 +113,7 @@ public class TestDNames extends TestBase {
         Message response = resolver.send(createMessage("www.isc.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
     }
 
     @Test
@@ -114,5 +121,6 @@ public class TestDNames extends TestBase {
         Message response = resolver.send(createMessage("www.alias.nsec3.ingotronic.ch./A"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
     }
 }

@@ -152,10 +152,6 @@ public abstract class TestBase {
         System.err.println("--------------");
     }
 
-    protected void add(String query, String response) throws IOException {
-        queryResponsePairs.put(query, createMessageFromHex(response));
-    }
-
     protected void add(String query, Message response) throws IOException {
         queryResponsePairs.put(query, response);
 
@@ -171,16 +167,8 @@ public abstract class TestBase {
         }
     }
 
-    private Message createMessageFromHex(String hex) throws IOException {
-        return new Message(fromHex(hex));
-    }
-
     protected Message createMessage(String query) throws IOException {
         return Message.newQuery(Record.newRecord(Name.fromString(query.split("/")[0]), Type.value(query.split("/")[1]), DClass.IN));
-    }
-
-    protected Message messageFromRes(String fileName) throws IOException {
-        return messageReader.readMessage(new InputStreamReader(getClass().getResourceAsStream(fileName)));
     }
 
     protected Message messageFromString(String message) throws IOException {
@@ -218,25 +206,7 @@ public abstract class TestBase {
         return sectionRRsets.length == 0;
     }
 
-    private byte[] fromHex(String hex) {
-        byte[] data = new byte[hex.length() / 2];
-        for (int i = 0; i < hex.length() / 2; i++) {
-            data[i] = (byte)Short.parseShort(hex.substring(i * 2, i * 2 + 2), 16);
-        }
-
-        return data;
-    }
-
     private String key(Message m) {
         return m.getQuestion().getName() + "/" + Type.string(m.getQuestion().getType());
-    }
-
-    protected String toHex(byte[] data) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < data.length; i++) {
-            sb.append(String.format("%02X", data[i]));
-        }
-
-        return sb.toString();
     }
 }

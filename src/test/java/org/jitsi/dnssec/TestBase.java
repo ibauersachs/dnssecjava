@@ -158,6 +158,17 @@ public abstract class TestBase {
 
     protected void add(String query, Message response) throws IOException {
         queryResponsePairs.put(query, response);
+
+        // reset the resolver so any cached stuff is cleared
+        try {
+            setup();
+        }
+        catch (NumberFormatException e) {
+            throw new IOException(e);
+        }
+        catch (DNSSECException e) {
+            throw new IOException(e);
+        }
     }
 
     private Message createMessageFromHex(String hex) throws IOException {

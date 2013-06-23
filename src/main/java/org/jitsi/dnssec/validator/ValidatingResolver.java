@@ -1016,9 +1016,7 @@ public class ValidatingResolver implements Resolver {
         Name qname = request.getQuestion().getName();
         int qclass = request.getQuestion().getDClass();
 
-        SRRset dsRrset = state.dsRRset;
         SRRset dnskeyRrset = response.findAnswerRRset(qname, Type.DNSKEY, qclass);
-
         if (dnskeyRrset == null) {
             // If the DNSKEY rrset was missing, this is the end of the line.
             state.keyEntry = KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
@@ -1026,7 +1024,7 @@ public class ValidatingResolver implements Resolver {
             return;
         }
 
-        state.keyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, dsRrset, DEFAULT_TA_BAD_KEY_TTL);
+        state.keyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, state.dsRRset, DEFAULT_TA_BAD_KEY_TTL);
 
         // If the key entry isBad or isNull, then we can move on to the next
         // state.

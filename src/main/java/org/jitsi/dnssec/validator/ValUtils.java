@@ -54,6 +54,7 @@ package org.jitsi.dnssec.validator;
 import java.util.Iterator;
 
 import org.apache.log4j.Logger;
+import org.jitsi.dnssec.R;
 import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
@@ -227,8 +228,9 @@ public class ValUtils {
         }
 
         // If any were understandable, then it is bad.
-        logger.debug("Failed to match any usable DS to a DNSKEY.");
-        return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
+        KeyEntry badKey = KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
+        badKey.setBadReason(R.get("dnskey.no_ds_match"));
+        return badKey;
     }
 
     /**

@@ -1031,7 +1031,6 @@ public class ValidatingResolver implements Resolver {
         // If the key entry isBad or isNull, then we can move on to the next
         // state.
         if (!state.keyEntry.isGood()) {
-            state.keyEntry.setBadReason(R.get("dnskey.no_ds_match"));
             return;
         }
 

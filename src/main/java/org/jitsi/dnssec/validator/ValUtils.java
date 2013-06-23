@@ -171,16 +171,8 @@ public class ValUtils {
             return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
         }
 
-        // as long as this is false, we can consider this DS rrset to be
-        // equivalent to no DS rrset.
-        boolean hasUsefulDS = false;
-
         for (Iterator<?> i = dsRrset.rrs(); i.hasNext();) {
             DSRecord ds = (DSRecord)i.next();
-
-            // Once we see a single DS with a known digestID and algorithm, we
-            // cannot return INSECURE (with a "null" KeyEntry).
-            hasUsefulDS = true;
 
             DNSKEY: for (Iterator<?> j = dnskeyRrset.rrs(); j.hasNext();) {
                 DNSKEYRecord dnskey = (DNSKEYRecord)j.next();
@@ -218,13 +210,6 @@ public class ValUtils {
 
                 // If it didn't validate with the DNSKEY, try the next one!
             }
-        }
-
-        // None of the DS's worked out.
-        // If no DSs were understandable, then this is OK.
-        if (!hasUsefulDS) {
-            logger.debug("No usuable DS records were found -- treating as insecure.");
-            return KeyEntry.newNullKeyEntry(dsRrset.getName(), dsRrset.getDClass(), dsRrset.getTTL());
         }
 
         // If any were understandable, then it is bad.

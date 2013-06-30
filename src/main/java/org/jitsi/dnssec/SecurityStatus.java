@@ -60,49 +60,31 @@ public enum SecurityStatus {
     /**
      * UNCHECKED means that object has yet to be validated.
      */
-    UNCHECKED(0),
+    UNCHECKED,
 
     /**
      * BOGUS means that the object (RRset or message) failed to validate
      * (according to local policy), but should have validated.
      */
-    BOGUS(1),
+    BOGUS,
 
     /**
      * INDTERMINATE means that the object is insecure, but not authoritatively
      * so. Generally this means that the RRset is not below a configured trust
      * anchor.
      */
-    INDETERMINATE(2),
+    INDETERMINATE,
 
     /**
      * INSECURE means that the object is authoritatively known to be insecure.
      * Generally this means that this RRset is below a trust anchor, but also
      * below a verified, insecure delegation.
      */
-    INSECURE(3),
+    INSECURE,
 
     /**
      * SECURE means that the object (RRset or message) validated according to
      * local policy.
      */
-    SECURE(4);
-
-    private int status;
-
-    private SecurityStatus(int status) {
-        setStatus(status);
-    }
-
-    /**
-     * Gets the security status as an integer level.
-     * @return the assigned level of the value.
-     */
-    public int getStatus() {
-        return this.status;
-    }
-
-    private void setStatus(int status) {
-        this.status = status;
-    }
+    SECURE;
 }

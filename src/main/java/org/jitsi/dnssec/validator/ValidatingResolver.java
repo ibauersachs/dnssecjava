@@ -67,12 +67,12 @@ import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
 import org.jitsi.dnssec.R;
-import org.jitsi.dnssec.Util;
 import org.xbill.DNS.CNAMERecord;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNAMERecord;
 import org.xbill.DNS.ExtendedFlags;
 import org.xbill.DNS.Flags;
+import org.xbill.DNS.Header;
 import org.xbill.DNS.Master;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.NSEC3Record;
@@ -714,15 +714,15 @@ public class ValidatingResolver implements Resolver {
         }
         catch (SocketTimeoutException e) {
             logger.error("Query timed out, returning fail", e);
-            return Util.errorMessage(localRequest, Rcode.SERVFAIL);
+            return ValidatingResolver.errorMessage(localRequest, Rcode.SERVFAIL);
         }
         catch (UnknownHostException e) {
             logger.error("failed to send query", e);
-            return Util.errorMessage(localRequest, Rcode.SERVFAIL);
+            return ValidatingResolver.errorMessage(localRequest, Rcode.SERVFAIL);
         }
         catch (IOException e) {
             logger.error("failed to send query", e);
-            return Util.errorMessage(localRequest, Rcode.SERVFAIL);
+            return ValidatingResolver.errorMessage(localRequest, Rcode.SERVFAIL);
         }
     }
 
@@ -1142,7 +1142,7 @@ public class ValidatingResolver implements Resolver {
                         code = Rcode.SERVFAIL;
                     }
 
-                    response = Util.errorMessage(request, code);
+                    response = ValidatingResolver.errorMessage(request, code);
                     break;
                 case SECURE:
                     response.getHeader().setFlag(Flags.AD);
@@ -1283,5 +1283,20 @@ public class ValidatingResolver implements Resolver {
      */
     public Object sendAsync(Message query, ResolverListener listener) {
         throw new UnsupportedOperationException("Not implemented");
+    }
+
+    /**
+     * Creates a response message with the given return code.
+     * @param request The request for which the response belongs.
+     * @param rcode The response code, @see Rcode
+     * @return The response message for <code>request</code>.
+     */
+    private static SMessage errorMessage(Message request, int rcode) {
+        SMessage m = new SMessage(request.getHeader().getID(), request.getQuestion());
+        Header h = m.getHeader();
+        h.setRcode(rcode);
+        h.setFlag(Flags.QR);
+
+        return m;
     }
 }

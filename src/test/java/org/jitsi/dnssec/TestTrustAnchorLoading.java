@@ -27,6 +27,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.Properties;
 
 import org.junit.Test;
 import org.xbill.DNS.DClass;
@@ -40,6 +41,31 @@ public class TestTrustAnchorLoading extends TestBase {
     public void testLoadRootTrustAnchors() throws IOException {
         assertNotNull(resolver.getTrustAnchors().find(Name.root, DClass.IN));
         assertNull(resolver.getTrustAnchors().find(Name.root, DClass.CH));
+    }
+
+    @Test
+    public void testLoadRootTrustAnchorsFromFile() throws IOException {
+        resolver.getTrustAnchors().clear();
+        Properties config = new Properties();
+        config.put("org.jitsi.dnssec.trust_anchor_file", "./src/test/resources/trust_anchors");
+        resolver.init(config);
+        assertNotNull(resolver.getTrustAnchors().find(Name.root, DClass.IN));
+    }
+
+    @Test
+    public void testInitializingWithEmptyConfigDoesNotFail() throws IOException {
+        resolver.getTrustAnchors().clear();
+        Properties config = new Properties();
+        resolver.init(config);
+        assertNull(resolver.getTrustAnchors().find(Name.root, DClass.IN));
+    }
+
+    @Test(expected = IOException.class)
+    public void testInitializingWithNonExistingFileThrows() throws IOException {
+        resolver.getTrustAnchors().clear();
+        Properties config = new Properties();
+        config.put("org.jitsi.dnssec.trust_anchor_file", "xyz");
+        resolver.init(config);
     }
 
     @Test

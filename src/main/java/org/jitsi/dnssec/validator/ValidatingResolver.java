@@ -143,20 +143,17 @@ public class ValidatingResolver implements Resolver {
      * <tt>org.jitsi.dnssec.trust_anchor_file</tt>.
      * 
      * @param config The configuration data for this module.
+     * @throws IOException When the file specified in the config does not exist
+     *             or cannot be read.
      */
-    public void init(Properties config) {
+    public void init(Properties config) throws IOException {
         this.keyCache.init(config);
 
         // Load trust anchors
         String s = config.getProperty("org.jitsi.dnssec.trust_anchor_file");
         if (s != null) {
-            try {
-                logger.debug("reading trust anchor file file: " + s);
-                loadTrustAnchors(new FileInputStream(s));
-            }
-            catch (IOException e) {
-                logger.error("Problems loading trust anchors from file", e);
-            }
+            logger.debug("reading trust anchor file file: " + s);
+            loadTrustAnchors(new FileInputStream(s));
         }
     }
 
@@ -1287,6 +1284,7 @@ public class ValidatingResolver implements Resolver {
 
     /**
      * Creates a response message with the given return code.
+     * 
      * @param request The request for which the response belongs.
      * @param rcode The response code, @see Rcode
      * @return The response message for <code>request</code>.

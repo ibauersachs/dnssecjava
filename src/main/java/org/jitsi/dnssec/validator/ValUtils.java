@@ -134,12 +134,13 @@ public class ValUtils {
             }
         }
 
-        if (m.getRcode() == Rcode.NXDOMAIN && hadCname) {
-            return ResponseClassification.CNAME_NAMEERROR;
-        }
-
         if (hadCname) {
-            return ResponseClassification.CNAME_NODATA;
+            if (m.getRcode() == Rcode.NXDOMAIN) {
+                return ResponseClassification.CNAME_NAMEERROR;
+            }
+            else {
+                return ResponseClassification.CNAME_NODATA;
+            }
         }
 
         logger.warn("Failed to classify response message:\n" + m);

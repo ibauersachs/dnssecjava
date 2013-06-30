@@ -21,6 +21,7 @@
 package org.jitsi.dnssec;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -30,6 +31,8 @@ import org.junit.Test;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Rcode;
+import org.xbill.DNS.Record;
+import org.xbill.DNS.Section;
 
 public class TestPositive extends TestBase {
     @Test
@@ -47,5 +50,22 @@ public class TestPositive extends TestBase {
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertNull(getReason(response));
+    }
+
+    @Test
+    public void testValidAnswerToDifferentQueryTypeIsBogus() throws IOException {
+        Message m = resolver.send(createMessage("www.ingotronic.ch./A"));
+        Message message = createMessage("www.ingotronic.ch./MX");
+        for (int i = 1; i < Section.ADDITIONAL; i++) {
+            for (Record r: m.getSectionArray(i)) {
+                message.addRecord(r, i);
+            }
+        }
+
+        add("www.ingotronic.ch./A", message);
+        Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.response.unknown:UNKNOWN", getReason(response));
     }
 }

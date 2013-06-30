@@ -1116,7 +1116,7 @@ public class ValidatingResolver implements Resolver {
                 break;
 
             default:
-                logger.error("unhandled response subtype: " + subtype);
+                response.setStatus(SecurityStatus.BOGUS, R.get("validate.response.unknown", subtype));
         }
 
         return this.processFinishedState(request, response);

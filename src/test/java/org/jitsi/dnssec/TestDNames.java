@@ -77,6 +77,18 @@ public class TestDNames extends TestBase {
     }
 
     @Test
+    public void testDNameWithMultipleCnamesIsInvalid() throws IOException {
+        Message m = resolver.send(createMessage("www.alias.ingotronic.ch./A"));
+        Message message = messageFromString(m.toString().replaceAll("(.*CNAME.*)", "$1\n$1example.com."));
+        add("www.alias.ingotronic.ch./A", message);
+
+        Message response = resolver.send(createMessage("www.alias.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.synthesize.multiple", getReason(response));
+    }
+
+    @Test
     public void testDNameWithTooLongCnameIsInvalid() throws IOException {
         Message m = resolver.send(createMessage("www.n3.ingotronic.ch./A"));
         Message message = messageFromString(m.toString().replaceAll("(.*\\.)(.*CNAME)", "IamAVeryLongNameThatExeceedsTheMaximumOfTheAllowedDomainNameSys.temSpecificationLengthByAny.NumberThatAHumanOfTheSeventiesCouldHaveImagined.InThisSmallMindedWorldThatIs.NowAfterTheMillennium.InhabitedByOverSeven.BillionPeopleInFiveConts.n3.ingotronic.ch. $2"));

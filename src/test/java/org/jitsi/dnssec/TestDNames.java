@@ -30,6 +30,7 @@ import java.util.Iterator;
 
 import org.junit.Test;
 import org.xbill.DNS.DClass;
+import org.xbill.DNS.DNAMERecord;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Lookup;
 import org.xbill.DNS.Message;
@@ -63,6 +64,20 @@ public class TestDNames extends TestBase {
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
         assertNull(getReason(response));
+    }
+
+    @Test
+    public void testDNameDirectQueryIsValid() throws IOException {
+        Message response = resolver.send(createMessage("alias.ingotronic.ch./DNAME"));
+        assertTrue("AD flag must not set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
+        for (RRset set : response.getSectionRRsets(Section.ANSWER)) {
+            if (set.getType() == Type.DNAME) {
+                DNAMERecord r = (DNAMERecord)set.first();
+                assertEquals(Name.fromString("ingotronic.ch."), r.getTarget());
+            }
+        }
     }
 
     @Test
@@ -109,7 +124,11 @@ public class TestDNames extends TestBase {
     @Test
     public void testDNameWithTooLongCnameIsInvalid() throws IOException {
         Message m = resolver.send(createMessage("www.n3.ingotronic.ch./A"));
-        Message message = messageFromString(m.toString().replaceAll("(.*\\.)(.*CNAME)", "IamAVeryLongNameThatExeceedsTheMaximumOfTheAllowedDomainNameSys.temSpecificationLengthByAny.NumberThatAHumanOfTheSeventiesCouldHaveImagined.InThisSmallMindedWorldThatIs.NowAfterTheMillennium.InhabitedByOverSeven.BillionPeopleInFiveConts.n3.ingotronic.ch. $2"));
+        Message message = messageFromString(m
+                .toString()
+                .replaceAll(
+                        "(.*\\.)(.*CNAME)",
+                        "IamAVeryLongNameThatExeceedsTheMaximumOfTheAllowedDomainNameSys.temSpecificationLengthByAny.NumberThatAHumanOfTheSeventiesCouldHaveImagined.InThisSmallMindedWorldThatIs.NowAfterTheMillennium.InhabitedByOverSeven.BillionPeopleInFiveConts.n3.ingotronic.ch. $2"));
         add("www.n3.ingotronic.ch./A", message);
 
         Message response = resolver.send(createMessage("www.n3.ingotronic.ch./A"));

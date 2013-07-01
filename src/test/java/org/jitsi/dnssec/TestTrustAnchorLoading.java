@@ -26,15 +26,23 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.Iterator;
 import java.util.Properties;
 
 import org.junit.Test;
 import org.xbill.DNS.DClass;
+import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
+import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
+import org.xbill.DNS.Section;
+import org.xbill.DNS.Type;
 
 public class TestTrustAnchorLoading extends TestBase {
     @Test
@@ -70,8 +78,25 @@ public class TestTrustAnchorLoading extends TestBase {
 
     @Test
     public void testLoadRootTrustAnchorWithDNSKEY() throws IOException {
+        Message keys = resolver.send(createMessage("./DNSKEY"));
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        OutputStreamWriter osw = new OutputStreamWriter(bos);
+        for (RRset set : keys.getSectionRRsets(Section.ANSWER)) {
+            if (set.getType() == Type.DNSKEY) {
+                @SuppressWarnings("unchecked")
+                Iterator<DNSKEYRecord> it = set.rrs();
+                while (it.hasNext()) {
+                    DNSKEYRecord r = it.next();
+                    osw.write(r.toString());
+                    osw.write('\n');
+                }
+            }
+        }
+
+        osw.close();
+
         resolver.getTrustAnchors().clear();
-        resolver.loadTrustAnchors(getClass().getResourceAsStream("/trust_anchors_dnskey"));
+        resolver.loadTrustAnchors(new ByteArrayInputStream(bos.toByteArray()));
         assertNotNull(resolver.getTrustAnchors().find(Name.root, DClass.IN));
 
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));

@@ -31,6 +31,7 @@ import java.util.Iterator;
 import org.junit.Test;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.Flags;
+import org.xbill.DNS.Lookup;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.RRset;
@@ -74,6 +75,23 @@ public class TestDNames extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("failed.synthesize.nomatch:www.isc.org.:www.ingotronic.ch.", getReason(response));
+    }
+
+    @Test
+    public void testDNameWithNoCnameIsValid() throws IOException {
+        Message m = resolver.send(createMessage("www.isc.ingotronic.ch./A"));
+        Message message = messageFromString(m.toString().replaceAll("(.*CNAME.*)", "").replaceAll("\n\n", "\n"));
+        add("www.isc.ingotronic.ch./A", message);
+
+        Message response = resolver.send(createMessage("www.isc.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
+        Lookup l = new Lookup("www.isc.ingotronic.ch");
+        l.setResolver(resolver);
+        Record[] results = l.run();
+        assertTrue(results != null);
+        assertTrue(results.length >= 1);
     }
 
     @Test

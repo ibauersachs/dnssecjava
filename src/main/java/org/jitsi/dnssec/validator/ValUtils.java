@@ -126,7 +126,7 @@ public class ValUtils {
                 return ResponseClassification.POSITIVE;
             }
 
-            if (set.getType() == Type.CNAME) {
+            if (set.getType() == Type.CNAME || set.getType() == Type.DNAME) {
                 hadCname = true;
                 if (qtype == Type.DS) {
                     return ResponseClassification.CNAME;

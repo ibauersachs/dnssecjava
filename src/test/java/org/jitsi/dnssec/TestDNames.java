@@ -76,6 +76,18 @@ public class TestDNames extends TestBase {
         assertEquals("failed.synthesize.nomatch:www.isc.org.:www.ingotronic.ch.", getReason(response));
     }
 
+    @Test
+    public void testDNameWithTooLongCnameIsInvalid() throws IOException {
+        Message m = resolver.send(createMessage("www.n3.ingotronic.ch./A"));
+        Message message = messageFromString(m.toString().replaceAll("(.*\\.)(.*CNAME)", "IamAVeryLongNameThatExeceedsTheMaximumOfTheAllowedDomainNameSys.temSpecificationLengthByAny.NumberThatAHumanOfTheSeventiesCouldHaveImagined.InThisSmallMindedWorldThatIs.NowAfterTheMillennium.InhabitedByOverSeven.BillionPeopleInFiveConts.n3.ingotronic.ch. $2"));
+        add("www.n3.ingotronic.ch./A", message);
+
+        Message response = resolver.send(createMessage("www.n3.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.synthesize.toolong", getReason(response));
+    }
+
     @SuppressWarnings("unchecked")
     @Test
     public void testDNameInNsecIsUnderstood_Rfc6672_5_3_4_1() throws IOException {

@@ -280,11 +280,6 @@ public class ValidatingResolver implements Resolver {
             }
 
             keyRrset = ke.getRRset();
-            if (keyRrset == null) {
-                response.setBogus(R.get("failed.answer.positive", set));
-                return;
-            }
-
             SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
@@ -313,11 +308,6 @@ public class ValidatingResolver implements Resolver {
             }
 
             keyRrset = ke.getRRset();
-            if (keyRrset == null) {
-                response.setBogus(R.get("failed.authority.positive", set));
-                return;
-            }
-
             SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             // If anything in the authority section fails to be secure, we have
             // a bad message.
@@ -419,13 +409,7 @@ public class ValidatingResolver implements Resolver {
                 return;
             }
 
-            SRRset keyRrset = ke.getRRset();
-            if (keyRrset == null) {
-                response.setBogus(R.get("failed.answer.positive"));
-                return;
-            }
-
-            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset());
             // If the (answer) rrset failed to validate, then this message is
             // BAD.
             if (status != SecurityStatus.SECURE) {
@@ -442,13 +426,7 @@ public class ValidatingResolver implements Resolver {
                 return;
             }
 
-            SRRset keyRrset = ke.getRRset();
-            if (keyRrset == null) {
-                response.setBogus(R.get("failed.authority.positive"));
-                return;
-            }
-
-            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset());
             // If anything in the authority section fails to be secure, we have
             // a bad message.
             if (status != SecurityStatus.SECURE) {
@@ -517,13 +495,7 @@ public class ValidatingResolver implements Resolver {
                 return;
             }
 
-            SRRset keyRrset = ke.getRRset();
-            if (keyRrset == null) {
-                response.setBogus(R.get("failed.authority.nodata", set));
-                return;
-            }
-
-            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset());
             if (status != SecurityStatus.SECURE) {
                 response.setBogus(R.get("failed.authority.nodata", set));
                 return;
@@ -633,11 +605,6 @@ public class ValidatingResolver implements Resolver {
             }
 
             keyRrset = ke.getRRset();
-            if (keyRrset == null) {
-                response.setBogus(R.get("failed.nxdomain.authority", set));
-                return;
-            }
-
             SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
             if (status != SecurityStatus.SECURE) {
                 response.setBogus(R.get("failed.nxdomain.authority", set));

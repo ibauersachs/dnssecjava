@@ -369,7 +369,10 @@ public class ValUtils {
             return false;
         }
 
-        if (qname.compareTo(owner) > 0 && (qname.compareTo(next) < 0) || signerName.equals(next)) {
+        // the name must either be in between owner and next (exclusive) OR
+        // between owner and the end of the zone (which is (in canonical order)
+        // before the name not found, hence the or)
+        if (qname.compareTo(owner) > 0 && (qname.compareTo(next) < 0 || signerName.equals(next))) {
             return true;
         }
 

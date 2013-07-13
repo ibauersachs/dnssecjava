@@ -152,4 +152,11 @@ public class TestNonExistence extends TestBase {
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertTrue(getReason(response).startsWith("failed.authority.nodata"));
     }
+
+    @Test
+    public void testNoDataOnENT() throws IOException {
+        Message response = resolver.send(createMessage("b.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+    }
 }

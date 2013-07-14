@@ -435,6 +435,7 @@ public final class NSEC3ValUtils {
                 int keysize = 0;
                 switch (dnskey.getAlgorithm()) {
                     case Algorithm.RSAMD5:
+                        return false; // obsoleted by rfc6944
                     case Algorithm.RSASHA1:
                     case Algorithm.RSASHA256:
                     case Algorithm.RSASHA512:

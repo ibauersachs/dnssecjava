@@ -816,6 +816,12 @@ public class ValidatingResolver implements Resolver {
                     return bogusKE;
                 }
 
+                if (!ValUtils.atLeastOneSupportedAlgorithm(dsRrset)) {
+                    KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, dsRrset.getTTL());
+                    nullKey.setBadReason(R.get("insecure.ds.noalgorithms", qname));
+                    return nullKey;
+                }
+
                 // Otherwise, we return the positive response.
                 logger.trace("DS rrset was good.");
                 return KeyEntry.newKeyEntry(dsRrset);

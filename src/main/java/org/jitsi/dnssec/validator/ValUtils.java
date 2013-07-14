@@ -60,6 +60,7 @@ import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
+import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DSRecord;
 import org.xbill.DNS.NSECRecord;
 import org.xbill.DNS.Name;
@@ -67,6 +68,7 @@ import org.xbill.DNS.NameTooLongException;
 import org.xbill.DNS.RRSIGRecord;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
+import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
@@ -504,4 +506,35 @@ public class ValUtils {
         return SecurityStatus.SECURE;
     }
 
+    /**
+     * Determines if at least one of the DS records in the RRset has a supported
+     * algorithm.
+     * 
+     * @param dsRRset The RR set to search in.
+     * @return True when at least one DS record uses a supported algorithm,
+     *         false otherwise.
+     */
+    public static boolean atLeastOneSupportedAlgorithm(RRset dsRRset) {
+        Iterator<?> it = dsRRset.rrs();
+        while (it.hasNext()) {
+            Record r = (Record)it.next();
+            if (r.getType() == Type.DS) {
+                switch (((DSRecord)r).getAlgorithm()) {
+                    case Algorithm.RSAMD5:
+                        return false; // obsoleted by rfc6944
+                    case Algorithm.DSA:
+                    case Algorithm.DSA_NSEC3_SHA1:
+                    case Algorithm.RSASHA1:
+                    case Algorithm.RSA_NSEC3_SHA1:
+                    case Algorithm.RSASHA256:
+                    case Algorithm.RSASHA512:
+                    case Algorithm.ECDSAP256SHA256:
+                    case Algorithm.ECDSAP384SHA384:
+                        return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }

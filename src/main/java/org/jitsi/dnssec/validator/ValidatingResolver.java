@@ -712,7 +712,7 @@ public class ValidatingResolver implements Resolver {
                 state.dsRRset = trustAnchorRRset;
                 state.currentDSKeyName = new Name(trustAnchorRRset.getName(), 1);
             }
-            else if (state.keyEntry == null) {
+            else if (state.keyEntry == null || trustAnchorRRset.getName().subdomain(state.keyEntry.getName())) {
                 state.keyEntry = KeyEntry.newKeyEntry(trustAnchorRRset);
             }
 

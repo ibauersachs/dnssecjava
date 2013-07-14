@@ -63,4 +63,5 @@ public class FindKeyState {
     protected KeyEntry keyEntry;
     protected Name signerName;
     protected int qclass;
+    public Name currentDSKeyName;
 }

@@ -710,6 +710,7 @@ public class ValidatingResolver implements Resolver {
             // start the FINDKEY phase with the trust anchor
             if (trustAnchorRRset.getType() == Type.DS) {
                 state.dsRRset = trustAnchorRRset;
+                state.currentDSKeyName = new Name(trustAnchorRRset.getName(), 1);
             }
             else if (state.keyEntry == null) {
                 state.keyEntry = KeyEntry.newKeyEntry(trustAnchorRRset);
@@ -740,6 +741,10 @@ public class ValidatingResolver implements Resolver {
         Name currentKeyName = Name.empty;
         if (state.keyEntry != null) {
             currentKeyName = state.keyEntry.getName();
+        }
+        else if (state.currentDSKeyName != null) {
+            currentKeyName = state.currentDSKeyName;
+            state.currentDSKeyName = null;
         }
 
         // If our current key entry matches our target, then we are done.

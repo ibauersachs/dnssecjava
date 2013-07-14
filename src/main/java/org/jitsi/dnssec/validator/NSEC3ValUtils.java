@@ -66,6 +66,7 @@ import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.NSEC3Record;
+import org.xbill.DNS.NSEC3Record.Flags;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.NameTooLongException;
 import org.xbill.DNS.RRset;
@@ -131,6 +132,16 @@ public final class NSEC3ValUtils {
         private Name closestEncloser;
         private NSEC3Record ceNsec3;
         private NSEC3Record ncNsec3;
+
+        /**
+         * <ul>
+         * <li>bogus if no closest encloser could be proven.</li>
+         * <li>secure if a closest encloser could be proven, ce is set.</li>
+         * <li>insecure if the closest-encloser candidate turns out to prove
+         * that an insecure delegation exists above the qname.</li>
+         * </ul>
+         */
+        private SecurityStatus status = SecurityStatus.UNCHECKED;
 
         private CEResponse(Name ce, NSEC3Record nsec3) {
             this.closestEncloser = ce;
@@ -392,11 +403,13 @@ public final class NSEC3ValUtils {
         if (candidate.closestEncloser.equals(qname)) {
             if (proveDoesNotExist) {
                 logger.debug("proveClosestEncloser: proved that qname existed!");
-                return null;
+                candidate.status = SecurityStatus.BOGUS;
+                return candidate;
             }
 
             // otherwise, we need to nothing else to prove that qname is its own
             // closest encloser.
+            candidate.status = SecurityStatus.SECURE;
             return candidate;
         }
 
@@ -404,13 +417,20 @@ public final class NSEC3ValUtils {
         // should have been a referral. If it is a DNAME, then it should have
         // been a DNAME response.
         if (candidate.ceNsec3.hasType(Type.NS) && !candidate.ceNsec3.hasType(Type.SOA)) {
+            if (!candidate.ceNsec3.hasType(Type.DS)) {
+                candidate.status = SecurityStatus.INSECURE;
+                return candidate;
+            }
+
             logger.debug("proveClosestEncloser: closest encloser was a delegation!");
-            return null;
+            candidate.status = SecurityStatus.BOGUS;
+            return candidate;
         }
 
         if (candidate.ceNsec3.hasType(Type.DNAME)) {
             logger.debug("proveClosestEncloser: closest encloser was a DNAME!");
-            return null;
+            candidate.status = SecurityStatus.BOGUS;
+            return candidate;
         }
 
         // Otherwise, we need to show that the next closer name is covered.
@@ -419,9 +439,11 @@ public final class NSEC3ValUtils {
         candidate.ncNsec3 = findCoveringNSEC3(ncHash, zonename, nsec3s, params);
         if (candidate.ncNsec3 == null) {
             logger.debug("Could not find proof that the closest encloser was the closest encloser");
-            return null;
+            candidate.status = SecurityStatus.BOGUS;
+            return candidate;
         }
 
+        candidate.status = SecurityStatus.SECURE;
         return candidate;
     }
 
@@ -534,8 +556,9 @@ public final class NSEC3ValUtils {
         // variant that fails if the closest encloser turns out to be qname.
         CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, true);
 
-        if (ce == null) {
+        if (ce == null || ce.status != SecurityStatus.SECURE) {
             logger.debug("proveNameError: failed to prove a closest encloser.");
+            // FIXME: return insecure as such
             return false;
         }
 
@@ -603,6 +626,21 @@ public final class NSEC3ValUtils {
                 return false;
             }
 
+            if (qtype == Type.DS && qname.labels() != 1 && nsec3.hasType(Type.SOA) && !Name.root.equals(qname)) {
+                logger.debug("proveNodata: apex NSEC3 abused for no DS proof, bogus");
+                return false;
+            }
+            else if (qtype != Type.DS && nsec3.hasType(Type.NS) && !nsec3.hasType(Type.SOA)) {
+                if (!nsec3.hasType(Type.DS)) {
+                    logger.debug("proveNodata: matching NSEC3 is insecure delegation");
+                }
+                else {
+                    logger.debug("proveNodata: matching NSEC3 is a delegation, bogus");
+                }
+
+                return false;
+            }
+
             return true;
         }
 
@@ -613,8 +651,13 @@ public final class NSEC3ValUtils {
 
         // At this point, not finding a match or a proven closest encloser is a
         // problem.
-        if (ce == null) {
+        if (ce == null || ce.status == SecurityStatus.BOGUS) {
             logger.debug("proveNodata: did not match qname, nor found a proven closest encloser.");
+            return false;
+        }
+        else if (ce.status == SecurityStatus.INSECURE && qtype != Type.DS) {
+            // FIXME: actually, this is insecure
+            logger.debug("proveNodata: closest nsec3 is insecure delegation.");
             return false;
         }
 
@@ -628,23 +671,53 @@ public final class NSEC3ValUtils {
                 logger.debug("proveNodata: matching wildcard had qtype!");
                 return false;
             }
+            else if (nsec3.hasType(Type.CNAME)) {
+                logger.debug("nsec3 nodata proof: matching wildcard had a CNAME, bogus");
+                return false;
+            }
+
+            if (qtype == Type.DS && qname.labels() != 1 && nsec3.hasType(Type.SOA)) {
+                logger.debug("nsec3 nodata proof: matching wildcard for no DS proof has a SOA, bogus");
+                return false;
+            }
+            else if (qtype != Type.DS && nsec3.hasType(Type.NS) && !nsec3.hasType(Type.SOA)) {
+                logger.debug("nsec3 nodata proof: matching wilcard is a delegation, bogus");
+                return false;
+            }
+
+            if (ce.ncNsec3 != null && (ce.ncNsec3.getFlags() & Flags.OPT_OUT) == Flags.OPT_OUT) {
+                //FIXME: this is actually insecure, not bogus
+                logger.debug("nsec3 nodata proof: matching wildcard is in optout range, insecure");
+                return false;
+            }
 
             return true;
         }
 
         // Case 5.
-        if (qtype != Type.DS) {
-            logger.debug("proveNodata: could not find matching NSEC3, nor matching wildcard, and qtype is not DS -- no more options.");
+        // Due to forwarders, cnames, and other collating effects, we
+        // can see the ordinary unsigned data from a zone beneath an
+        // insecure delegation under an optout here */
+        if (ce.ncNsec3 == null) {
+            logger.debug("nsec3 nodata proof: no next closer nsec3");
             return false;
         }
 
-        // We need to make sure that the covering NSEC3 is opt-in.
-        if (ce.ncNsec3.getFlags() == 0) {
-            logger.debug("proveNodata: covering NSEC3 was not opt-in in an opt-in DS NOERROR/NODATA case.");
+        // We need to make sure that the covering NSEC3 is opt-out.
+        if ((ce.ncNsec3.getFlags() & Flags.OPT_OUT) == 0) {
+            if (qtype != Type.DS) {
+                logger.debug("proveNodata: covering NSEC3 was not opt-out in an opt-out DS NOERROR/NODATA case.");
+            }
+            else {
+                logger.debug("proveNodata: could not find matching NSEC3, nor matching wildcard, and qtype is not DS -- no more options.");
+            }
+
             return false;
         }
 
-        return true;
+        // RFC5155 section 9.2: if nc has optout then no AD flag set
+        // FIXME: this should be insecure
+        return false;
     }
 
     /**
@@ -737,7 +810,7 @@ public final class NSEC3ValUtils {
 
         // Otherwise, we are probably in the opt-in case.
         CEResponse ce = proveClosestEncloser(qname, zonename, nsec3s, nsec3params, true);
-        if (ce == null) {
+        if (ce == null || ce.status != SecurityStatus.SECURE) {
             return SecurityStatus.BOGUS;
         }
 

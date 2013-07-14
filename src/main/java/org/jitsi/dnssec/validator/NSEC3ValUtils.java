@@ -385,7 +385,7 @@ public final class NSEC3ValUtils {
         CEResponse candidate = findClosestEncloser(qname, zonename, nsec3s, params);
 
         if (candidate == null) {
-            logger.debug("proveClosestEncloser: could not find a " + "candidate for the closest encloser.");
+            logger.debug("proveClosestEncloser: could not find a candidate for the closest encloser.");
             return null;
         }
 
@@ -404,7 +404,7 @@ public final class NSEC3ValUtils {
         // should have been a referral. If it is a DNAME, then it should have
         // been a DNAME response.
         if (candidate.ceNsec3.hasType(Type.NS) && !candidate.ceNsec3.hasType(Type.SOA)) {
-            logger.debug("proveClosestEncloser: closest encloser " + "was a delegation!");
+            logger.debug("proveClosestEncloser: closest encloser was a delegation!");
             return null;
         }
 
@@ -418,7 +418,7 @@ public final class NSEC3ValUtils {
         byte[] ncHash = hash(nextClosest, params);
         candidate.ncNsec3 = findCoveringNSEC3(ncHash, zonename, nsec3s, params);
         if (candidate.ncNsec3 == null) {
-            logger.debug("Could not find proof that the " + "closest encloser was the closest encloser");
+            logger.debug("Could not find proof that the closest encloser was the closest encloser");
             return null;
         }
 
@@ -526,7 +526,7 @@ public final class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            logger.debug("Could not find a single set of " + "NSEC3 parameters (multiple parameters present).");
+            logger.debug("Could not find a single set of NSEC3 parameters (multiple parameters present).");
             return false;
         }
 
@@ -546,7 +546,7 @@ public final class NSEC3ValUtils {
         byte[] wcHash = hash(wc, nsec3params);
         NSEC3Record nsec3 = findCoveringNSEC3(wcHash, zonename, nsec3s, nsec3params);
         if (nsec3 == null) {
-            logger.debug("proveNameError: could not prove that the " + "applicable wildcard did not exist.");
+            logger.debug("proveNameError: could not prove that the applicable wildcard did not exist.");
             return false;
         }
 
@@ -586,7 +586,7 @@ public final class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            logger.debug("could not find a single set of " + "NSEC3 parameters (multiple parameters present)");
+            logger.debug("could not find a single set of NSEC3 parameters (multiple parameters present)");
             return false;
         }
 
@@ -599,9 +599,10 @@ public final class NSEC3ValUtils {
             }
 
             if (nsec3.hasType(Type.CNAME)) {
-                logger.debug("proveNodata: Matching NSEC3 proved " + "that a CNAME existed!");
+                logger.debug("proveNodata: Matching NSEC3 proved that a CNAME existed!");
                 return false;
             }
+
             return true;
         }
 
@@ -613,7 +614,7 @@ public final class NSEC3ValUtils {
         // At this point, not finding a match or a proven closest encloser is a
         // problem.
         if (ce == null) {
-            logger.debug("proveNodata: did not match qname, " + "nor found a proven closest encloser.");
+            logger.debug("proveNodata: did not match qname, nor found a proven closest encloser.");
             return false;
         }
 
@@ -633,13 +634,13 @@ public final class NSEC3ValUtils {
 
         // Case 5.
         if (qtype != Type.DS) {
-            logger.debug("proveNodata: could not find matching NSEC3, " + "nor matching wildcard, and qtype is not DS -- no more options.");
+            logger.debug("proveNodata: could not find matching NSEC3, nor matching wildcard, and qtype is not DS -- no more options.");
             return false;
         }
 
         // We need to make sure that the covering NSEC3 is opt-in.
         if (ce.ncNsec3.getFlags() == 0) {
-            logger.debug("proveNodata: covering NSEC3 was not " + "opt-in in an opt-in DS NOERROR/NODATA case.");
+            logger.debug("proveNodata: covering NSEC3 was not opt-in in an opt-in DS NOERROR/NODATA case.");
             return false;
         }
 
@@ -709,7 +710,7 @@ public final class NSEC3ValUtils {
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
-            logger.debug("couldn't find a single set of " + "NSEC3 parameters (multiple parameters present).");
+            logger.debug("couldn't find a single set of NSEC3 parameters (multiple parameters present).");
             return SecurityStatus.BOGUS;
         }
 

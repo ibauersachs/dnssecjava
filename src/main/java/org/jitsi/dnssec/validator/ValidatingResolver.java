@@ -1240,7 +1240,7 @@ public class ValidatingResolver implements Resolver {
         if (validated.getBogusReason() != null) {
             m.addRecord(new TXTRecord(Name.root, query.getQuestion().getDClass(), 0, new ArrayList<String>(1) {
                 {
-                    add(validated.getBogusReason());
+                    add(validated.getBogusReason().substring(0, validated.getBogusReason().length() > 250 ? 250 : validated.getBogusReason().length()));
                 }
             }), Section.ADDITIONAL);
         }

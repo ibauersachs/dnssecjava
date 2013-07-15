@@ -1026,7 +1026,7 @@ public class ValidatingResolver implements Resolver {
             }
 
             if (keyEntry.isGood()) {
-                response.setStatus(SecurityStatus.BOGUS, R.get("validate.bogus.goodkey"));
+                response.setStatus(SecurityStatus.BOGUS, R.get("validate.bogus.missingsig"));
                 return false;
             }
 

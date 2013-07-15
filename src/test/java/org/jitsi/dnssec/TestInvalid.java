@@ -135,7 +135,7 @@ public class TestInvalid extends TestBase {
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
-        assertEquals("validate.bogus.goodkey", getReason(response));
+        assertEquals("validate.bogus.missingsig", getReason(response));
     }
 
     @Test

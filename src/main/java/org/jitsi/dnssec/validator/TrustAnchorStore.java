@@ -52,10 +52,13 @@
 package org.jitsi.dnssec.validator;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
+import org.xbill.DNS.DNSKEYRecord;
+import org.xbill.DNS.DSRecord;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.Type;
 
@@ -83,6 +86,18 @@ public class TrustAnchorStore {
     public void store(SRRset rrset) {
         if (rrset.getType() != Type.DS && rrset.getType() != Type.DNSKEY) {
             throw new IllegalArgumentException("Trust anchors can only be DS or DNSKEY records");
+        }
+
+        if (rrset.getType() == Type.DNSKEY) {
+            SRRset temp = new SRRset();
+            Iterator<?> it = rrset.rrs();
+            while (it.hasNext()) {
+                DNSKEYRecord key = (DNSKEYRecord)it.next();
+                DSRecord r = new DSRecord(key.getName(), key.getDClass(), key.getTTL(), DSRecord.Digest.SHA384, key);
+                temp.addRR(r);
+            }
+
+            rrset = temp;
         }
 
         String k = this.key(rrset.getName(), rrset.getDClass());

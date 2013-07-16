@@ -728,6 +728,7 @@ public class ValidatingResolver implements Resolver {
             // start the FINDKEY phase with the trust anchor
             if (trustAnchorRRset.getType() == Type.DS) {
                 state.dsRRset = trustAnchorRRset;
+                state.keyEntry = null;
                 state.currentDSKeyName = new Name(trustAnchorRRset.getName(), 1);
             }
             else if (state.keyEntry == null || trustAnchorRRset.getName().subdomain(state.keyEntry.getName())) {

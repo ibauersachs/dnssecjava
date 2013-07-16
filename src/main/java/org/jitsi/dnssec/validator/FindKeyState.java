@@ -57,11 +57,11 @@ import org.xbill.DNS.Name;
 /**
  * State-object for the key-finding phase.
  */
-public class FindKeyState {
-    protected SRRset dsRRset;
-    protected Name emptyDSName; //--> passed from DSResponse to FindKey
-    protected KeyEntry keyEntry;
-    protected Name signerName;
-    protected int qclass;
-    public Name currentDSKeyName;
+class FindKeyState {
+    SRRset dsRRset;
+    Name emptyDSName; //--> passed from DSResponse to FindKey
+    KeyEntry keyEntry;
+    Name signerName;
+    int qclass;
+    Name currentDSKeyName;
 }

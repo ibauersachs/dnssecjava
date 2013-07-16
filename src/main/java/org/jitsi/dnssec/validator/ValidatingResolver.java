@@ -726,14 +726,9 @@ public class ValidatingResolver implements Resolver {
         state.keyEntry = this.keyCache.find(state.signerName, rrset.getDClass());
         if (state.keyEntry == null || (!state.keyEntry.getName().equals(state.signerName) && state.keyEntry.isGood())) {
             // start the FINDKEY phase with the trust anchor
-            if (trustAnchorRRset.getType() == Type.DS) {
-                state.dsRRset = trustAnchorRRset;
-                state.keyEntry = null;
-                state.currentDSKeyName = new Name(trustAnchorRRset.getName(), 1);
-            }
-            else if (state.keyEntry == null || trustAnchorRRset.getName().subdomain(state.keyEntry.getName())) {
-                state.keyEntry = KeyEntry.newKeyEntry(trustAnchorRRset);
-            }
+            state.dsRRset = trustAnchorRRset;
+            state.keyEntry = null;
+            state.currentDSKeyName = new Name(trustAnchorRRset.getName(), 1);
 
             // and otherwise, don't continue processing this event.
             // (it will be reactivated when the priming query returns).
@@ -761,7 +756,7 @@ public class ValidatingResolver implements Resolver {
         if (state.keyEntry != null) {
             currentKeyName = state.keyEntry.getName();
         }
-        else if (state.currentDSKeyName != null) {
+        else {
             currentKeyName = state.currentDSKeyName;
             state.currentDSKeyName = null;
         }

@@ -274,7 +274,7 @@ public class ValidatingResolver implements Resolver {
             }
 
             // Verify the answer rrset.
-            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
+            KeyEntry ke = this.prepareFindKey(set, request);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -302,7 +302,7 @@ public class ValidatingResolver implements Resolver {
         // validate the AUTHORITY section as well - this will generally be the
         // NS rrset (which could be missing, no problem)
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
+            KeyEntry ke = this.prepareFindKey(set, request);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -393,7 +393,6 @@ public class ValidatingResolver implements Resolver {
      * @param response The response to validate.
      */
     private void validateAnyResponse(Message request, SMessage response) {
-        Name qname = request.getQuestion().getName();
         int qtype = request.getQuestion().getType();
 
         if (qtype != Type.ANY) {
@@ -404,7 +403,7 @@ public class ValidatingResolver implements Resolver {
 
         // validate the ANSWER section.
         for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
-            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
+            KeyEntry ke = this.prepareFindKey(set, request);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -421,7 +420,7 @@ public class ValidatingResolver implements Resolver {
         // validate the AUTHORITY section as well - this will be the NS rrset
         // (which could be missing, no problem)
         for (SRRset set : m.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
+            KeyEntry ke = this.prepareFindKey(set, request);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -490,7 +489,7 @@ public class ValidatingResolver implements Resolver {
 
         // validate the AUTHORITY section
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, qname, request.getQuestion().getDClass());
+            KeyEntry ke = this.prepareFindKey(set, request);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -570,10 +569,12 @@ public class ValidatingResolver implements Resolver {
      * trusted DNSKEY rrset that signs this response must already have been
      * completed.
      * 
-     * @param qname The name to be proved to not exist.
+     * @param request The request to be proved to not exist.
      * @param response The response to validate.
      */
-    private void validateNameErrorResponse(Name qname, SMessage response) {
+    private void validateNameErrorResponse(Message request, SMessage response) {
+        Name qname = request.getQuestion().getName();
+
         // The ANSWER section is either empty OR it contains an xNAME chain that
         // ultimately lead to the NAMEERROR response. In this case the ANSWER
         // section has already been validated before and we can concentrate on
@@ -599,7 +600,7 @@ public class ValidatingResolver implements Resolver {
         SRRset keyRrset = null;
 
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, qname, response.getQuestion().getDClass());
+            KeyEntry ke = this.prepareFindKey(set, request);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -690,13 +691,19 @@ public class ValidatingResolver implements Resolver {
         }
     }
 
-    private KeyEntry prepareFindKey(SRRset rrset, Name qname, int qclass) {
+    private KeyEntry prepareFindKey(SRRset rrset, Message request) {
         FindKeyState state = new FindKeyState();
         state.signerName = rrset.getSignerName();
-        state.qclass = qclass;
+        state.qclass = request.getQuestion().getDClass();
 
         if (state.signerName == null) {
-            state.signerName = qname;
+            int qtype = request.getQuestion().getType();
+            if (qtype == Type.DS || qtype == Type.NS) {
+                state.signerName = new Name(request.getQuestion().getName(), 1);
+            }
+            else {
+                state.signerName = request.getQuestion().getName();
+            }
         }
 
         SRRset trustAnchorRRset = this.trustAnchors.find(state.signerName, rrset.getDClass());
@@ -1072,7 +1079,7 @@ public class ValidatingResolver implements Resolver {
 
             case NAMEERROR:
                 logger.trace("Validating a nxdomain response");
-                this.validateNameErrorResponse(request.getQuestion().getName(), response);
+                this.validateNameErrorResponse(request, response);
                 break;
 
             case CNAME_NAMEERROR:
@@ -1080,7 +1087,7 @@ public class ValidatingResolver implements Resolver {
                 this.validatePositiveResponse(request, response);
                 if (response.getStatus() != SecurityStatus.INSECURE) {
                     response.setStatus(SecurityStatus.UNCHECKED);
-                    this.validateNameErrorResponse(request.getQuestion().getName(), response);
+                    this.validateNameErrorResponse(request, response);
                 }
 
                 break;

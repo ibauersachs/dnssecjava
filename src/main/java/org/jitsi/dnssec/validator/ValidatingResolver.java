@@ -91,8 +91,6 @@ import org.xbill.DNS.Type;
 
 /**
  * This resolver validates responses with DNSSEC.
- * 
- * @author davidb
  */
 public class ValidatingResolver implements Resolver {
     private static final Logger logger = Logger.getLogger(ValidatingResolver.class);
@@ -240,10 +238,10 @@ public class ValidatingResolver implements Resolver {
         int qtype = request.getQuestion().getType();
 
         // validate the ANSWER section - this will be the answer itself
-        Name wc = null;
-        boolean wcNsecOk = false;
+        List<Name> wcs = new ArrayList<Name>(1);
         DNAMERecord dname = null;
         List<NSEC3Record> nsec3s = null;
+        List<NSECRecord> nsecs = null;
 
         SRRset keyRrset = null;
         for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
@@ -291,7 +289,10 @@ public class ValidatingResolver implements Resolver {
             // Check to see if the rrset is the result of a wildcard expansion.
             // If so, an additional check will need to be made in the authority
             // section.
-            wc = ValUtils.rrsetWildcard(set);
+            Name wc = ValUtils.rrsetWildcard(set);
+            if (wc != null) {
+                wcs.add(wc);
+            }
 
             // Notice a DNAME that should be followed by an unsigned CNAME.
             if (qtype != Type.DNAME && set.getType() == Type.DNAME) {
@@ -316,56 +317,66 @@ public class ValidatingResolver implements Resolver {
                 return;
             }
 
-            // If this is a positive wildcard response, and we have a (just
-            // verified) NSEC record, try to use it to
-            // 1) prove that qname doesn't exist and
-            // 2) that the correct wildcard was used.
-            if (wc != null && set.getType() == Type.NSEC) {
-                NSECRecord nsec = (NSECRecord)set.first();
+            if (wcs.size() > 0) {
+                if (set.getType() == Type.NSEC) {
+                    if (nsecs == null) {
+                        nsecs = new ArrayList<NSECRecord>();
+                    }
 
-                if (ValUtils.nsecProvesNameError(nsec, qname, keyRrset.getName())) {
-                    try {
-                        Name nsecWc = ValUtils.nsecWildcard(qname, nsec);
-                        if (!wc.equals(nsecWc)) {
-                            response.setBogus(R.get("failed.positive.wildcard"));
-                            return;
+                    nsecs.add((NSECRecord)set.first());
+                }
+                else if (set.getType() == Type.NSEC3) {
+                    if (nsec3s == null) {
+                        nsec3s = new ArrayList<NSEC3Record>();
+                    }
+
+                    nsec3s.add((NSEC3Record)set.first());
+                }
+            }
+        }
+
+        // If this is a positive wildcard response, and we have NSEC records,
+        // try to use them to
+        // 1) prove that qname doesn't exist and
+        // 2) that the correct wildcard was used.
+        if (wcs.size() > 0) {
+            for (Name wc : wcs) {
+                boolean wcNsecOk = false;
+                if (nsecs != null) {
+                    for (NSECRecord nsec : nsecs) {
+                        if (ValUtils.nsecProvesNameError(nsec, qname, keyRrset.getName())) {
+                            try {
+                                Name nsecWc = ValUtils.nsecWildcard(qname, nsec);
+                                if (wc.equals(nsecWc)) {
+                                    wcNsecOk = true;
+                                    break;
+                                }
+                            }
+                            catch (NameTooLongException e) {
+                                response.setBogus(R.get("failed.positive.wildcardgeneration"));
+                                logger.error("Could not generate NSEC wildcard", e);
+                                return;
+                            }
                         }
                     }
-                    catch (NameTooLongException e) {
-                        response.setBogus(R.get("failed.positive.wildcardgeneration"));
-                        logger.error("Could not generate NSEC wildcard", e);
-                        return;
+                }
+
+                // If this was a positive wildcard response that we haven't
+                // already proven, and we have NSEC3 records, try to prove it
+                // using the NSEC3 records.
+                if (!wcNsecOk && nsec3s != null) {
+                    if (NSEC3ValUtils.proveWildcard(nsec3s, qname, keyRrset.getName(), wc)) {
+                        wcNsecOk = true;
                     }
-
-                    wcNsecOk = true;
-                }
-            }
-
-            // Otherwise, if this is a positive wildcard response and we have
-            // NSEC3 records, collect them.
-            if (wc != null && set.getType() == Type.NSEC3) {
-                if (nsec3s == null) {
-                    nsec3s = new ArrayList<NSEC3Record>();
                 }
 
-                nsec3s.add((NSEC3Record)set.first());
+                // If after all this, we still haven't proven the positive wildcard
+                // response, fail.
+                if (!wcNsecOk) {
+                    response.setBogus(R.get("failed.positive.wildcard_too_broad"));
+                    return;
+                }
             }
-        }
-
-        // If this was a positive wildcard response that we haven't already
-        // proven, and we have NSEC3 records, try to prove it using the NSEC3
-        // records.
-        if (wc != null && !wcNsecOk && nsec3s != null) {
-            if (NSEC3ValUtils.proveWildcard(nsec3s, qname, keyRrset.getName(), wc)) {
-                wcNsecOk = true;
-            }
-        }
-
-        // If after all this, we still haven't proven the positive wildcard
-        // response, fail.
-        if (wc != null && !wcNsecOk) {
-            response.setBogus(R.get("failed.positive.wildcard_too_broad"));
-            return;
         }
 
         logger.trace("Successfully validated postive response");

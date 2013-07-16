@@ -69,7 +69,7 @@ public class TestWildcard extends TestBase {
         Message response = resolver.send(createMessage("\1.sub.wc.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
-        assertEquals("failed.positive.wildcard", getReason(response));
+        assertEquals("failed.positive.wildcard_too_broad", getReason(response));
     }
 
     @Test

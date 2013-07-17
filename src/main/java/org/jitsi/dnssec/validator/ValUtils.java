@@ -467,7 +467,7 @@ public class ValUtils {
         // If an NS set exists at this name, and NOT a SOA (so this is a zone
         // cut, not a zone apex), then we should have gotten a referral (or we
         // just got the wrong NSEC).
-        if (nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA)) {
+        if (nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA) && qtype != Type.DS) {
             return false;
         }
 

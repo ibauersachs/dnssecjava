@@ -474,7 +474,7 @@ public class ValidatingResolver implements Resolver {
         // classification
         for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
             if (set.getSecurityStatus() != SecurityStatus.SECURE) {
-                response.setBogus(R.get("failed.answer.cname_nodata", set));
+                response.setBogus(R.get("failed.answer.cname_nodata", set.getName()));
                 return;
             }
 

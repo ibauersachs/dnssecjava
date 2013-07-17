@@ -600,17 +600,19 @@ public final class NSEC3ValUtils {
      * @param qname The qname in question.
      * @param qtype The qtype in question.
      * @param zonename The name of the zone that the NSEC3s came from.
-     * @return true if the NSEC3s prove the proposition.
+     * @return {@link SecurityStatus#SECURE} if the NSEC3s prove the
+     *         proposition, {@link SecurityStatus#INSECURE} if qname is under
+     *         opt-out, {@link SecurityStatus#BOGUS} otherwise.
      */
-    public static boolean proveNodata(List<NSEC3Record> nsec3s, Name qname, int qtype, Name zonename) {
+    public static SecurityStatus proveNodata(List<NSEC3Record> nsec3s, Name qname, int qtype, Name zonename) {
         if (nsec3s == null || nsec3s.size() == 0) {
-            return false;
+            return SecurityStatus.BOGUS;
         }
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
             logger.debug("could not find a single set of NSEC3 parameters (multiple parameters present)");
-            return false;
+            return SecurityStatus.BOGUS;
         }
 
         NSEC3Record nsec3 = findMatchingNSEC3(hash(qname, nsec3params), zonename, nsec3s, nsec3params);
@@ -618,17 +620,17 @@ public final class NSEC3ValUtils {
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
                 logger.debug("proveNodata: Matching NSEC3 proved that type existed!");
-                return false;
+                return SecurityStatus.BOGUS;
             }
 
             if (nsec3.hasType(Type.CNAME)) {
                 logger.debug("proveNodata: Matching NSEC3 proved that a CNAME existed!");
-                return false;
+                return SecurityStatus.BOGUS;
             }
 
             if (qtype == Type.DS && qname.labels() != 1 && nsec3.hasType(Type.SOA) && !Name.root.equals(qname)) {
                 logger.debug("proveNodata: apex NSEC3 abused for no DS proof, bogus");
-                return false;
+                return SecurityStatus.BOGUS;
             }
             else if (qtype != Type.DS && nsec3.hasType(Type.NS) && !nsec3.hasType(Type.SOA)) {
                 if (!nsec3.hasType(Type.DS)) {
@@ -638,10 +640,10 @@ public final class NSEC3ValUtils {
                     logger.debug("proveNodata: matching NSEC3 is a delegation, bogus");
                 }
 
-                return false;
+                return SecurityStatus.BOGUS;
             }
 
-            return true;
+            return SecurityStatus.SECURE;
         }
 
         // For cases 3 - 5, we need the proven closest encloser, and it can't
@@ -653,12 +655,11 @@ public final class NSEC3ValUtils {
         // problem.
         if (ce == null || ce.status == SecurityStatus.BOGUS) {
             logger.debug("proveNodata: did not match qname, nor found a proven closest encloser.");
-            return false;
+            return SecurityStatus.BOGUS;
         }
         else if (ce.status == SecurityStatus.INSECURE && qtype != Type.DS) {
-            // FIXME: actually, this is insecure
             logger.debug("proveNodata: closest nsec3 is insecure delegation.");
-            return false;
+            return SecurityStatus.INSECURE;
         }
 
         // Case 3: REMOVED
@@ -669,29 +670,28 @@ public final class NSEC3ValUtils {
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
                 logger.debug("proveNodata: matching wildcard had qtype!");
-                return false;
+                return SecurityStatus.BOGUS;
             }
             else if (nsec3.hasType(Type.CNAME)) {
                 logger.debug("nsec3 nodata proof: matching wildcard had a CNAME, bogus");
-                return false;
+                return SecurityStatus.BOGUS;
             }
 
             if (qtype == Type.DS && qname.labels() != 1 && nsec3.hasType(Type.SOA)) {
                 logger.debug("nsec3 nodata proof: matching wildcard for no DS proof has a SOA, bogus");
-                return false;
+                return SecurityStatus.BOGUS;
             }
             else if (qtype != Type.DS && nsec3.hasType(Type.NS) && !nsec3.hasType(Type.SOA)) {
                 logger.debug("nsec3 nodata proof: matching wilcard is a delegation, bogus");
-                return false;
+                return SecurityStatus.BOGUS;
             }
 
             if (ce.ncNsec3 != null && (ce.ncNsec3.getFlags() & Flags.OPT_OUT) == Flags.OPT_OUT) {
-                //FIXME: this is actually insecure, not bogus
                 logger.debug("nsec3 nodata proof: matching wildcard is in optout range, insecure");
-                return false;
+                return SecurityStatus.INSECURE;
             }
 
-            return true;
+            return SecurityStatus.SECURE;
         }
 
         // Case 5.
@@ -700,7 +700,7 @@ public final class NSEC3ValUtils {
         // insecure delegation under an optout here */
         if (ce.ncNsec3 == null) {
             logger.debug("nsec3 nodata proof: no next closer nsec3");
-            return false;
+            return SecurityStatus.BOGUS;
         }
 
         // We need to make sure that the covering NSEC3 is opt-out.
@@ -712,12 +712,11 @@ public final class NSEC3ValUtils {
                 logger.debug("proveNodata: could not find matching NSEC3, nor matching wildcard, and qtype is not DS -- no more options.");
             }
 
-            return false;
+            return SecurityStatus.BOGUS;
         }
 
         // RFC5155 section 9.2: if nc has optout then no AD flag set
-        // FIXME: this should be insecure
-        return false;
+        return SecurityStatus.INSECURE;
     }
 
     /**

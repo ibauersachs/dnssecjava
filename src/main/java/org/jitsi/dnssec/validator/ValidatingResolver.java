@@ -558,12 +558,18 @@ public class ValidatingResolver implements Resolver {
         NSEC3ValUtils.stripUnknownAlgNSEC3s(nsec3s);
         if (!hasValidNSEC && nsec3s != null && nsec3s.size() > 0) {
             // try to prove NODATA with our NSEC3 record(s)
-            hasValidNSEC = NSEC3ValUtils.proveNodata(nsec3s, qname, qtype, nsec3Signer);
+            SecurityStatus status = NSEC3ValUtils.proveNodata(nsec3s, qname, qtype, nsec3Signer);
+            if (status == SecurityStatus.INSECURE) {
+                response.setStatus(SecurityStatus.INSECURE);
+                return;
+            }
+
+            hasValidNSEC = status == SecurityStatus.SECURE;
         }
 
         if (!hasValidNSEC) {
             response.setBogus(R.get("failed.nodata"));
-            logger.trace("Failed NODATA:\n" + response);
+            logger.trace("Failed NODATA for " + qname);
             return;
         }
 

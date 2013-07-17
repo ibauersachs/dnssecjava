@@ -370,7 +370,8 @@ public class ValidatingResolver implements Resolver {
                     }
                 }
 
-                // If after all this, we still haven't proven the positive wildcard
+                // If after all this, we still haven't proven the positive
+                // wildcard
                 // response, fail.
                 if (!wcNsecOk) {
                     response.setBogus(R.get("failed.positive.wildcard_too_broad"));
@@ -1248,6 +1249,16 @@ public class ValidatingResolver implements Resolver {
      */
     public Message send(Message query) throws IOException {
         SMessage response = this.sendRequest(query);
+
+        // Positive RRSIG responses cannot be validated as there are no
+        // signatures on signatures. Negative answers CAN be validated.
+        Message rrsigResponse = response.getMessage();
+        if (query.getQuestion().getType() == Type.RRSIG && query.getHeader().getRcode() == Rcode.NOERROR
+                && rrsigResponse.getSectionRRsets(Section.ANSWER).length > 0) {
+            rrsigResponse.getHeader().unsetFlag(Flags.AD);
+            return rrsigResponse;
+        }
+
         final SMessage validated = this.processValidate(query, response);
 
         Message m = validated.getMessage();

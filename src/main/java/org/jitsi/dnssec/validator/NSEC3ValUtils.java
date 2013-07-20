@@ -537,19 +537,20 @@ public final class NSEC3ValUtils {
      * @param zonename This is the name of the zone that the NSEC3s belong to.
      *            This may be discovered in any number of ways. A good one is to
      *            use the signerName from the NSEC3 record's RRSIG.
-     * @return SecurityStatus.SECURE of the Name Error is proven by the NSEC3
-     *         RRs, BOGUS if not, INSECURE if all of the NSEC3s could be validly
-     *         ignored.
+     * @return {@link SecurityStatus#SECURE} of the Name Error is proven by the
+     *         NSEC3 RRs, {@link SecurityStatus#BOGUS} if not,
+     *         {@link SecurityStatus#INSECURE} if all of the NSEC3s could be
+     *         validly ignored.
      */
-    public static boolean proveNameError(List<NSEC3Record> nsec3s, Name qname, Name zonename) {
+    public static SecurityStatus proveNameError(List<NSEC3Record> nsec3s, Name qname, Name zonename) {
         if (nsec3s == null || nsec3s.size() == 0) {
-            return false;
+            return SecurityStatus.BOGUS;
         }
 
         NSEC3Parameters nsec3params = nsec3Parameters(nsec3s);
         if (nsec3params == null) {
             logger.debug("Could not find a single set of NSEC3 parameters (multiple parameters present).");
-            return false;
+            return SecurityStatus.INSECURE;
         }
 
         // First locate and prove the closest encloser to qname. We will use the
@@ -558,8 +559,7 @@ public final class NSEC3ValUtils {
 
         if (ce == null || ce.status != SecurityStatus.SECURE) {
             logger.debug("proveNameError: failed to prove a closest encloser.");
-            // FIXME: return insecure as such
-            return false;
+            return ce == null ? SecurityStatus.INSECURE : ce.status;
         }
 
         // At this point, we know that qname does not exist. Now we need to
@@ -570,10 +570,15 @@ public final class NSEC3ValUtils {
         NSEC3Record nsec3 = findCoveringNSEC3(wcHash, zonename, nsec3s, nsec3params);
         if (nsec3 == null) {
             logger.debug("proveNameError: could not prove that the applicable wildcard did not exist.");
-            return false;
+            return SecurityStatus.BOGUS;
         }
 
-        return true;
+        if ((ce.ncNsec3.getFlags() & Flags.OPT_OUT) == 0) {
+            logger.debug("nsec3 nameerror proof: nc has optout");
+            return SecurityStatus.INSECURE;
+        }
+
+        return SecurityStatus.SECURE;
     }
 
     /**

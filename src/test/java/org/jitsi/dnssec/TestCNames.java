@@ -161,9 +161,9 @@ public class TestCNames extends TestBase {
     @Test
     public void testCNameToVoidExternalValidTld() throws IOException {
         Message response = resolver.send(createMessage("cvoidext2.ingotronic.ch./A"));
-        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
-        assertNull(getReason(response));
+        assertEquals("failed.nxdomain.nsec3_insecure", getReason(response));
     }
 
     @Test

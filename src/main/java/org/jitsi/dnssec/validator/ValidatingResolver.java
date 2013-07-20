@@ -652,20 +652,31 @@ public class ValidatingResolver implements Resolver {
         }
 
         NSEC3ValUtils.stripUnknownAlgNSEC3s(nsec3s);
-        if (nsec3s != null && nsec3s.size() > 0) {
+        if ((!hasValidNSEC || !hasValidWCNSEC) && nsec3s != null) {
             logger.debug("Validating nxdomain: using NSEC3 records");
 
             // Attempt to prove name error with nsec3 records.
             if (NSEC3ValUtils.allNSEC3sIgnoreable(nsec3s, keyRrset)) {
-                response.setStatus(SecurityStatus.INSECURE, R.get("failed.nxdomain.nsec3"));
+                response.setStatus(SecurityStatus.INSECURE, R.get("failed.nxdomain.nsec3_ignored"));
                 return;
             }
 
-            hasValidNSEC = NSEC3ValUtils.proveNameError(nsec3s, qname, nsec3Signer);
+            SecurityStatus status = NSEC3ValUtils.proveNameError(nsec3s, qname, nsec3Signer);
+            if (status != SecurityStatus.SECURE) {
+                if (status == SecurityStatus.BOGUS) {
+                    response.setStatus(status, R.get("failed.nxdomain.nsec3_bogus"));
+                }
+                else if (status == SecurityStatus.INSECURE) {
+                    response.setStatus(status, R.get("failed.nxdomain.nsec3_insecure"));
+                }
+
+                return;
+            }
 
             // Note that we assume that the NSEC3ValUtils proofs encompass the
             // wildcard part of the proof.
-            hasValidWCNSEC = hasValidNSEC;
+            hasValidNSEC = true;
+            hasValidWCNSEC = true;
         }
 
         // If the message fails to prove either condition, it is bogus.

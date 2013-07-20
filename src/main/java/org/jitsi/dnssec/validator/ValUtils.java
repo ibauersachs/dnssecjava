@@ -531,6 +531,8 @@ public class ValUtils {
                     case Algorithm.ECDSAP256SHA256:
                     case Algorithm.ECDSAP384SHA384:
                         return true;
+                    default:
+                        return false;
                 }
             }
         }

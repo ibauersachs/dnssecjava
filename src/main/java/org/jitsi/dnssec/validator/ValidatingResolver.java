@@ -117,6 +117,14 @@ public class ValidatingResolver implements Resolver {
      */
     private ValUtils valUtils;
 
+    /**
+     * The local NSEC3 validation utilities.
+     */
+    private NSEC3ValUtils n3valUtils;
+
+    /**
+     * The resolver that performs the actual DNS lookups.
+     */
     private Resolver headResolver;
 
     /**
@@ -132,6 +140,7 @@ public class ValidatingResolver implements Resolver {
 
         this.keyCache = new KeyCache();
         this.valUtils = new ValUtils();
+        this.n3valUtils = new NSEC3ValUtils();
         this.trustAnchors = new TrustAnchorStore();
     }
 
@@ -365,7 +374,7 @@ public class ValidatingResolver implements Resolver {
                 // already proven, and we have NSEC3 records, try to prove it
                 // using the NSEC3 records.
                 if (!wcNsecOk && nsec3s != null) {
-                    if (NSEC3ValUtils.proveWildcard(nsec3s, qname, keyRrset.getName(), wc)) {
+                    if (this.n3valUtils.proveWildcard(nsec3s, qname, keyRrset.getName(), wc)) {
                         wcNsecOk = true;
                     }
                 }
@@ -555,10 +564,10 @@ public class ValidatingResolver implements Resolver {
             }
         }
 
-        NSEC3ValUtils.stripUnknownAlgNSEC3s(nsec3s);
+        this.n3valUtils.stripUnknownAlgNSEC3s(nsec3s);
         if (!hasValidNSEC && nsec3s != null && nsec3s.size() > 0) {
             // try to prove NODATA with our NSEC3 record(s)
-            SecurityStatus status = NSEC3ValUtils.proveNodata(nsec3s, qname, qtype, nsec3Signer);
+            SecurityStatus status = this.n3valUtils.proveNodata(nsec3s, qname, qtype, nsec3Signer);
             if (status == SecurityStatus.INSECURE) {
                 response.setStatus(SecurityStatus.INSECURE);
                 return;
@@ -651,17 +660,17 @@ public class ValidatingResolver implements Resolver {
             }
         }
 
-        NSEC3ValUtils.stripUnknownAlgNSEC3s(nsec3s);
+        this.n3valUtils.stripUnknownAlgNSEC3s(nsec3s);
         if ((!hasValidNSEC || !hasValidWCNSEC) && nsec3s != null) {
             logger.debug("Validating nxdomain: using NSEC3 records");
 
             // Attempt to prove name error with nsec3 records.
-            if (NSEC3ValUtils.allNSEC3sIgnoreable(nsec3s, keyRrset)) {
+            if (this.n3valUtils.allNSEC3sIgnoreable(nsec3s, keyRrset)) {
                 response.setStatus(SecurityStatus.INSECURE, R.get("failed.nxdomain.nsec3_ignored"));
                 return;
             }
 
-            SecurityStatus status = NSEC3ValUtils.proveNameError(nsec3s, qname, nsec3Signer);
+            SecurityStatus status = this.n3valUtils.proveNameError(nsec3s, qname, nsec3Signer);
             if (status != SecurityStatus.SECURE) {
                 if (status == SecurityStatus.BOGUS) {
                     response.setStatus(status, R.get("failed.nxdomain.nsec3_bogus"));
@@ -950,7 +959,7 @@ public class ValidatingResolver implements Resolver {
                         nsec3s.add(nsec3);
                     }
 
-                    switch (NSEC3ValUtils.proveNoDS(nsec3s, qname, nsec3Signer)) {
+                    switch (this.n3valUtils.proveNoDS(nsec3s, qname, nsec3Signer)) {
                         case BOGUS:
                             bogusKE.setBadReason(R.get("failed.ds.nsec3"));
                             return bogusKE;

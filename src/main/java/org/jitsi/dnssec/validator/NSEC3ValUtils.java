@@ -59,6 +59,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Properties;
+import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
 import org.jitsi.dnssec.SecurityStatus;
@@ -89,10 +91,50 @@ final class NSEC3ValUtils {
 
     private static final Name ASTERISK_LABEL = Name.fromConstantString("*");
 
+    private static final int MAX_ITERATION_COUNT = 65536;
+
+    private TreeMap<Integer, Integer> maxIterations;
+
     /**
      * Creates a new instance of this class.
      */
     NSEC3ValUtils() {
+        // see RFC5155#10.3 for the max iteration count
+        // CHECKSTYLE:OFF
+        this.maxIterations = new TreeMap<Integer, Integer>();
+        this.maxIterations.put(1024, 150);
+        this.maxIterations.put(2048, 500);
+        this.maxIterations.put(4096, 2500);
+        // CHECKSTYLE:ON
+    }
+
+    /**
+     * Loads the configuration data. Supported properties are:
+     * <ul>
+     * <li>org.jitsi.dnssec.nsec3.iterations.M=N</li>
+     * </ul>
+     * 
+     * @param config The configuration data.
+     */
+    void init(Properties config) {
+        boolean first = true;
+        for (Object s : config.keySet()) {
+            String key = s.toString();
+            if (key.startsWith("org.jitsi.dnssec.nsec3.iterations")) {
+                int keySize = Integer.parseInt(key.substring(key.lastIndexOf(".") + 1));
+                int iters = Integer.parseInt(config.getProperty(key));
+                if (iters > MAX_ITERATION_COUNT) {
+                    throw new IllegalArgumentException("Iteration count too high.");
+                }
+
+                if (first) {
+                    first = false;
+                    this.maxIterations.clear();
+                }
+
+                this.maxIterations.put(keySize, iters);
+            }
+        }
     }
 
     /**
@@ -454,7 +496,6 @@ final class NSEC3ValUtils {
         // for now, we return the maximum iterations based simply on the key
         // algorithms that may have been used to sign the NSEC3 RRsets.
         try {
-            int maxIterations = 0;
             for (Iterator<?> i = dnskeyRrset.rrs(); i.hasNext();) {
                 DNSKEYRecord dnskey = (DNSKEYRecord)i.next();
                 int keysize = 0;
@@ -479,30 +520,13 @@ final class NSEC3ValUtils {
                         return false;
                 }
 
-                // assume ECDSA for keys less than 1024
-                int iters;
-                // see RFC5155#10.3 for the max iteration count
-                // CHECKSTYLE:OFF
-                if (keysize <= 256) {
-                    iters = 500;
+                int keyIters = this.maxIterations.floorEntry(keysize).getValue();
+                if (nsec3params.iterations > keyIters) {
+                    return false;
                 }
-                else if (keysize <= 384) {
-                    iters = 2500;
-                }
-                else if (keysize <= 1024) {
-                    iters = 150;
-                }
-                else if (keysize <= 2048) {
-                    iters = 500;
-                }
-                else {
-                    iters = 2500;
-                }
-                // CHECKSTYLE:ON
-                maxIterations = maxIterations < iters ? iters : maxIterations;
             }
 
-            return nsec3params.iterations < maxIterations;
+            return true;
         }
         catch (DNSSECException e) {
             logger.error("Could not get public key from NSEC3 record", e);

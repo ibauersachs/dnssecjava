@@ -356,11 +356,9 @@ final class NSEC3ValUtils {
         }
 
         // this is the end of zone case:
-        // next < owner && hash > owner || hash < next
-        if (bac.compare(next, owner) <= 0 && (bac.compare(hash, next) < 0 || bac.compare(owner, hash) < 0)) {
-            // FIXME: bogus code
-            throw new RuntimeException("FIXME: bogus code");
-            // return true;
+        // next <= owner && (hash > owner || hash < next)
+        if (bac.compare(next, owner) <= 0 && (bac.compare(hash, owner) > 0 || bac.compare(hash, next) < 0)) {
+             return true;
         }
 
         // Otherwise, the NSEC3 does not cover the hash.

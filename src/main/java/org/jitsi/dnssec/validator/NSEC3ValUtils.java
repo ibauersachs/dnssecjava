@@ -602,7 +602,7 @@ final class NSEC3ValUtils {
             return SecurityStatus.BOGUS;
         }
 
-        if ((ce.ncNsec3.getFlags() & Flags.OPT_OUT) == 0) {
+        if ((ce.ncNsec3.getFlags() & Flags.OPT_OUT) == Flags.OPT_OUT) {
             logger.debug("nsec3 nameerror proof: nc has optout");
             return SecurityStatus.INSECURE;
         }

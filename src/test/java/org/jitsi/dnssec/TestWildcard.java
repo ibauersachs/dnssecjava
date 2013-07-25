@@ -35,7 +35,7 @@ public class TestWildcard extends TestBase {
     public void testNameNotExpandedFromWildcardWhenNonWildcardExists() throws IOException {
         // create a faked response: the original query/response was for
         // b.d.ingotronic.ch. and is changed to a.d.ingotronic.ch.
-        Message m = resolver.send(createMessage("b.d.nsec3.ingotronic.ch./A"));
+        Message m = resolver.send(createMessage("b.d.ingotronic.ch./A"));
         add("a.d.ingotronic.ch./A", messageFromString(m.toString().replace("b.d.ingotronic.ch.", "a.d.ingotronic.ch.")));
 
         // a.d.ingotronic.ch./A exists, but the response is faked from *.d.ingotronic.ch. which must be detected by the NSEC proof

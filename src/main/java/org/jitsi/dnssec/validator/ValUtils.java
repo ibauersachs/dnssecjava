@@ -284,7 +284,9 @@ public class ValUtils {
      */
     public static Name longestCommonName(Name domain1, Name domain2) {
         int l = Math.min(domain1.labels(), domain2.labels());
-        for (int i = 1; i < l; i++) {
+        domain1 = new Name(domain1, domain1.labels() - l);
+        domain2 = new Name(domain2, domain2.labels() - l);
+        for (int i = 0; i < l; i++) {
             Name ns1 = new Name(domain1, i);
             if (ns1.equals(new Name(domain2, i))) {
                 return ns1;

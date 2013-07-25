@@ -1093,6 +1093,7 @@ public class ValidatingResolver implements Resolver {
         ResponseClassification subtype = ValUtils.classifyResponse(response);
         switch (subtype) {
             case POSITIVE:
+            case CNAME:
                 logger.trace("Validating a positive response");
                 this.validatePositiveResponse(request, response);
                 break;

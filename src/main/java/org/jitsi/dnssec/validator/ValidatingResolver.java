@@ -58,8 +58,10 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
@@ -248,7 +250,7 @@ public class ValidatingResolver implements Resolver {
         int qtype = request.getQuestion().getType();
 
         // validate the ANSWER section - this will be the answer itself
-        List<Name> wcs = new ArrayList<Name>(1);
+        Map<Name, Name> wcs = new HashMap<Name, Name>(1);
         DNAMERecord dname = null;
         List<NSEC3Record> nsec3s = null;
         List<NSECRecord> nsecs = null;
@@ -301,7 +303,7 @@ public class ValidatingResolver implements Resolver {
             // section.
             Name wc = ValUtils.rrsetWildcard(set);
             if (wc != null && !set.getName().equals(wc)) {
-                wcs.add(wc);
+                wcs.put(set.getName(), wc);
             }
 
             // Notice a DNAME that should be followed by an unsigned CNAME.
@@ -350,14 +352,14 @@ public class ValidatingResolver implements Resolver {
         // 1) prove that qname doesn't exist and
         // 2) that the correct wildcard was used.
         if (wcs.size() > 0) {
-            for (Name wc : wcs) {
+            for (Map.Entry<Name, Name> wc : wcs.entrySet()) {
                 boolean wcNsecOk = false;
                 if (nsecs != null) {
                     for (NSECRecord nsec : nsecs) {
                         if (ValUtils.nsecProvesNameError(nsec, qname, keyRrset.getName())) {
                             try {
                                 Name nsecWc = ValUtils.nsecWildcard(qname, nsec);
-                                if (wc.equals(nsecWc)) {
+                                if (wc.getValue().equals(nsecWc)) {
                                     wcNsecOk = true;
                                     break;
                                 }
@@ -375,7 +377,7 @@ public class ValidatingResolver implements Resolver {
                 // already proven, and we have NSEC3 records, try to prove it
                 // using the NSEC3 records.
                 if (!wcNsecOk && nsec3s != null) {
-                    if (this.n3valUtils.proveWildcard(nsec3s, qname, keyRrset.getName(), wc)) {
+                    if (this.n3valUtils.proveWildcard(nsec3s, wc.getKey(), keyRrset.getName(), wc.getValue())) {
                         wcNsecOk = true;
                     }
                 }

@@ -534,7 +534,8 @@ public class ValidatingResolver implements Resolver {
                         wc = nsec;
                     }
                 }
-                else if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
+
+                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
                     ce = ValUtils.closestEncloser(qname, nsec);
                 }
             }
@@ -555,7 +556,10 @@ public class ValidatingResolver implements Resolver {
         // The wildcard NODATA is 1 NSEC proving that qname does not exists (and
         // also proving what the closest encloser is), and 1 NSEC showing the
         // matching wildcard, which must be *.closest_encloser.
-        if (ce != null || wc != null) {
+        if (wc != null && ce == null) {
+            hasValidNSEC = false;
+        }
+        else if (wc != null && ce != null) {
             try {
                 Name wcName = new Name("*", ce);
                 if (!wcName.equals(wc.getName())) {
@@ -563,6 +567,7 @@ public class ValidatingResolver implements Resolver {
                 }
             }
             catch (TextParseException e) {
+                hasValidNSEC = false;
                 logger.error(e);
             }
         }

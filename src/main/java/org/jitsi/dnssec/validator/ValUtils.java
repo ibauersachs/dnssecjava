@@ -422,6 +422,17 @@ public class ValUtils {
      */
     public static boolean nsecProvesNodata(NSECRecord nsec, Name qname, int qtype) {
         if (!nsec.getName().equals(qname)) {
+            // empty-non-terminal checking.
+            // Done before wildcard, because this is an exact match,
+            // and would prevent a wildcard from matching.
+
+            // If the nsec is proving that qname is an ENT, the nsec owner will
+            // be less than qname, and the next name will be a child domain of
+            // the qname.
+            if (strictSubdomain(nsec.getNext(), qname) && qname.compareTo(nsec.getName()) > 0) {
+                return true;
+            }
+
             // Wildcard checking:
             // If this is a wildcard NSEC, make sure that a) it was possible to
             // have generated qname from the wildcard and b) the type map does
@@ -433,21 +444,25 @@ public class ValUtils {
 
                 // The qname must be a strict subdomain of the closest encloser,
                 // and the qtype must be absent from the type map.
-                if (!strictSubdomain(qname, ce) || nsec.hasType(qtype)) {
-                    return false;
+                if (strictSubdomain(qname, ce)) {
+                    if (nsec.hasType(Type.CNAME)) {
+                        // should have gotten the wildcard CNAME
+                        return false;
+                    }
+
+                    if (nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA)) {
+                        // wrong parentside (wildcard) NSEC used
+                        return false;
+                    }
+
+                    if (nsec.hasType(qtype)) {
+                        return false;
+                    }
                 }
 
                 return true;
             }
 
-            // empty-non-terminal checking.
-
-            // If the nsec is proving that qname is an ENT, the nsec owner will
-            // be less than qname, and the next name will be a child domain of
-            // the qname.
-            if (strictSubdomain(nsec.getNext(), qname) && qname.compareTo(nsec.getName()) > 0) {
-                return true;
-            }
 
             // Otherwise, this NSEC does not prove ENT, so it does not prove
             // NODATA.
@@ -467,7 +482,12 @@ public class ValUtils {
         // If an NS set exists at this name, and NOT a SOA (so this is a zone
         // cut, not a zone apex), then we should have gotten a referral (or we
         // just got the wrong NSEC).
-        if (nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA) && qtype != Type.DS) {
+        // The reverse of this check is used when qtype is DS, since that
+        // must use the NSEC from above the zone cut.
+        if (qtype != Type.DS && nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA)) {
+            return false;
+        }
+        else if (qtype == Type.DS && nsec.hasType(Type.SOA) && !Name.root.equals(qname)) {
             return false;
         }
 

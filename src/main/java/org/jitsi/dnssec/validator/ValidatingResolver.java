@@ -300,7 +300,7 @@ public class ValidatingResolver implements Resolver {
             // If so, an additional check will need to be made in the authority
             // section.
             Name wc = ValUtils.rrsetWildcard(set);
-            if (wc != null) {
+            if (wc != null && !set.getName().equals(wc)) {
                 wcs.add(wc);
             }
 

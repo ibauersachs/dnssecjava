@@ -885,8 +885,10 @@ public class ValidatingResolver implements Resolver {
                 return KeyEntry.newNullKeyEntry(cnameRrset.getName(), qclass, DEFAULT_TA_BAD_KEY_TTL);
 
             case NODATA:
+            case NAMEERROR:
                 // NODATA means that the qname exists, but that there was no DS.
-                // This is a pretty normal case.
+                // This is a pretty normal case. NAMEERROR shouldn't happen, but
+                // can be proven.
                 SRRset nsecRrset = response.findRRset(qname, Type.NSEC, qclass, Section.AUTHORITY);
 
                 // If we have a NSEC at the same name, it must prove one of two
@@ -983,10 +985,6 @@ public class ValidatingResolver implements Resolver {
                 bogusKE.setBadReason(R.get("failed.ds.unknown"));
                 return bogusKE;
 
-            case NAMEERROR:
-                // NAMEERRORs at this point pretty much break validation
-                bogusKE.setBadReason(R.get("failed.ds.nxdomain"));
-                return bogusKE;
             default:
                 // We've encountered an unhandled classification for this
                 // response.

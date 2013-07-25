@@ -520,7 +520,11 @@ final class NSEC3ValUtils {
                         return false;
                 }
 
-                int keyIters = this.maxIterations.floorEntry(keysize).getValue();
+                Integer keyIters = this.maxIterations.floorKey(keysize);
+                if (keyIters == null) {
+                    keyIters = this.maxIterations.firstKey();
+                }
+
                 if (nsec3params.iterations > keyIters) {
                     return false;
                 }

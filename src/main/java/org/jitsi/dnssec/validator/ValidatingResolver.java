@@ -356,9 +356,9 @@ public class ValidatingResolver implements Resolver {
                 boolean wcNsecOk = false;
                 if (nsecs != null) {
                     for (NSECRecord nsec : nsecs) {
-                        if (ValUtils.nsecProvesNameError(nsec, qname, keyRrset.getName())) {
+                        if (ValUtils.nsecProvesNameError(nsec, wc.getKey(), keyRrset.getName())) {
                             try {
-                                Name nsecWc = ValUtils.nsecWildcard(qname, nsec);
+                                Name nsecWc = ValUtils.nsecWildcard(wc.getKey(), nsec);
                                 if (wc.getValue().equals(nsecWc)) {
                                     wcNsecOk = true;
                                     break;

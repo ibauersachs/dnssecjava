@@ -88,7 +88,6 @@ import org.xbill.DNS.ResolverListener;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.TSIG;
 import org.xbill.DNS.TXTRecord;
-import org.xbill.DNS.TextParseException;
 import org.xbill.DNS.Type;
 
 /**
@@ -503,7 +502,7 @@ public class ValidatingResolver implements Resolver {
         Name ce = null;
 
         // for wildcard nodata responses. This is the wildcard NSEC.
-        NSECRecord wc = null;
+        Name wc = null;
 
         // A collection of NSEC3 RRs found in the authority section.
         List<NSEC3Record> nsec3s = null;
@@ -531,7 +530,7 @@ public class ValidatingResolver implements Resolver {
                 if (ValUtils.nsecProvesNodata(nsec, qname, qtype)) {
                     hasValidNSEC = true;
                     if (nsec.getName().isWild()) {
-                        wc = nsec;
+                        wc = new Name(nsec.getName(), 1);
                     }
                 }
 
@@ -560,15 +559,8 @@ public class ValidatingResolver implements Resolver {
             hasValidNSEC = false;
         }
         else if (wc != null && ce != null) {
-            try {
-                Name wcName = new Name("*", ce);
-                if (!wcName.equals(wc.getName())) {
-                    hasValidNSEC = false;
-                }
-            }
-            catch (TextParseException e) {
+            if (!ce.equals(wc)) {
                 hasValidNSEC = false;
-                logger.error(e);
             }
         }
 

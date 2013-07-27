@@ -107,6 +107,7 @@ public class MessageReader {
             }
         }
 
+        r.close();
         return m;
     }
 }

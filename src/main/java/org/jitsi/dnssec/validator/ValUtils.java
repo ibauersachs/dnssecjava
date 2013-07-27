@@ -373,11 +373,27 @@ public class ValUtils {
             return false;
         }
 
-        // the name must either be in between owner and next (exclusive) OR
-        // between owner and the end of the zone (which is (in canonical order)
-        // before the name not found, hence the or)
-        if (qname.compareTo(owner) > 0 && (qname.compareTo(next) < 0 || signerName.equals(next))) {
-            return true;
+        if (owner.equals(next)) {
+            // this nsec is the only nsec: zone.name NSEC zone.name
+            // it disproves everything else but only for subdomains of that zone
+            if (strictSubdomain(qname, next)) {
+                return true;
+            }
+        }
+        else if (owner.compareTo(next) > 0) {
+            // this is the last nsec, ....(bigger) NSEC zonename(smaller)
+            // the names after the last (owner) name do not exist
+            // there are no names before the zone name in the zone
+            // but the qname must be a subdomain of the zone name(next).
+            if (owner.compareTo(qname) < 0 && strictSubdomain(qname, next)) {
+                return true;
+            }
+        }
+        else {
+            // regular NSEC, (smaller) NSEC (larger)
+            if (owner.compareTo(qname) < 0 && qname.compareTo(next) < 0) {
+                return true;
+            }
         }
 
         return false;
@@ -464,7 +480,6 @@ public class ValUtils {
 
                 return true;
             }
-
 
             // Otherwise, this NSEC does not prove ENT, so it does not prove
             // NODATA.

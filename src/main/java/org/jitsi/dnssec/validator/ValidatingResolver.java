@@ -245,7 +245,6 @@ public class ValidatingResolver implements Resolver {
      * @param response The response to validate.
      */
     private void validatePositiveResponse(Message request, SMessage response) {
-        Name qname = request.getQuestion().getName();
         int qtype = request.getQuestion().getType();
 
         // validate the ANSWER section - this will be the answer itself
@@ -355,7 +354,7 @@ public class ValidatingResolver implements Resolver {
                 boolean wcNsecOk = false;
                 if (nsecs != null) {
                     for (NSECRecord nsec : nsecs) {
-                        if (ValUtils.nsecProvesNameError(nsec, wc.getKey(), keyRrset.getName())) {
+                        if (ValUtils.nsecProvesNameError(nsec, wc.getKey())) {
                             try {
                                 Name nsecWc = ValUtils.nsecWildcard(wc.getKey(), nsec);
                                 if (wc.getValue().equals(nsecWc)) {
@@ -534,7 +533,7 @@ public class ValidatingResolver implements Resolver {
                     }
                 }
 
-                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
+                if (ValUtils.nsecProvesNameError(nsec, qname)) {
                     ce = ValUtils.closestEncloser(qname, nsec);
                 }
             }
@@ -641,7 +640,7 @@ public class ValidatingResolver implements Resolver {
 
             if (set.getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)set.first();
-                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
+                if (ValUtils.nsecProvesNameError(nsec, qname)) {
                     hasValidNSEC = true;
                 }
 

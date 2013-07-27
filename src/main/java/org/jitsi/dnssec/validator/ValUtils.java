@@ -352,12 +352,9 @@ public class ValUtils {
      * 
      * @param nsec The NSEC to check.
      * @param qname The qname to check against.
-     * @param signerName The signer name of the NSEC record, which is used as
-     *            the zone name, for a more precise (but perhaps more brittle)
-     *            check for the last NSEC in a zone.
      * @return true if the NSEC proves the condition.
      */
-    public static boolean nsecProvesNameError(NSECRecord nsec, Name qname, Name signerName) {
+    public static boolean nsecProvesNameError(NSECRecord nsec, Name qname) {
         Name owner = nsec.getName();
         Name next = nsec.getNext();
 

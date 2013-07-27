@@ -558,7 +558,7 @@ public class ValidatingResolver implements Resolver {
             hasValidNSEC = false;
         }
         else if (wc != null && ce != null) {
-            if (!ce.equals(wc)) {
+            if (!ce.equals(wc) && !qname.equals(ce)) {
                 hasValidNSEC = false;
             }
         }

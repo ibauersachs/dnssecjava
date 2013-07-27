@@ -64,6 +64,7 @@ import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
 import org.jitsi.dnssec.SecurityStatus;
+import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DNSSEC.DNSSECException;
@@ -272,7 +273,8 @@ final class NSEC3ValUtils {
      */
     private byte[] hash(Name name, NSEC3Parameters params) {
         try {
-            return NSEC3Record.hashName(name, params.alg, params.iterations, params.salt);
+            NSEC3Record r = new NSEC3Record(name, DClass.IN, (long)0, params.alg, 0, params.iterations, params.salt, new byte[0], new int[] { Type.A });
+            return r.hashName(name);
         }
         catch (NoSuchAlgorithmException e) {
             logger.debug("Did not recognize hash algorithm: " + params.alg);
@@ -358,7 +360,7 @@ final class NSEC3ValUtils {
         // this is the end of zone case:
         // next <= owner && (hash > owner || hash < next)
         if (bac.compare(next, owner) <= 0 && (bac.compare(hash, owner) > 0 || bac.compare(hash, next) < 0)) {
-             return true;
+            return true;
         }
 
         // Otherwise, the NSEC3 does not cover the hash.

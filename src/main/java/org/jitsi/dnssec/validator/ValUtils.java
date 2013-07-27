@@ -447,7 +447,7 @@ public class ValUtils {
             // If the nsec is proving that qname is an ENT, the nsec owner will
             // be less than qname, and the next name will be a child domain of
             // the qname.
-            if (strictSubdomain(nsec.getNext(), qname) && qname.compareTo(nsec.getName()) > 0) {
+            if (strictSubdomain(nsec.getNext(), qname) && nsec.getName().compareTo(qname) < 0) {
                 return true;
             }
 

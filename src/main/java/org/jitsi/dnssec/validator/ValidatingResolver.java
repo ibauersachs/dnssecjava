@@ -57,6 +57,7 @@ import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -1310,11 +1311,8 @@ public class ValidatingResolver implements Resolver {
 
         Message m = validated.getMessage();
         if (validated.getBogusReason() != null) {
-            m.addRecord(new TXTRecord(Name.root, query.getQuestion().getDClass(), 0, new ArrayList<String>(1) {
-                {
-                    add(validated.getBogusReason().substring(0, validated.getBogusReason().length() > 250 ? 250 : validated.getBogusReason().length()));
-                }
-            }), Section.ADDITIONAL);
+            m.addRecord(new TXTRecord(Name.root, query.getQuestion().getDClass(), 0, Arrays.asList(validated.getBogusReason().split("(?<=\\G.{255})"))),
+                    Section.ADDITIONAL);
         }
 
         return m;

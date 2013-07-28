@@ -59,6 +59,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
 
@@ -119,11 +120,11 @@ final class NSEC3ValUtils {
      */
     void init(Properties config) {
         boolean first = true;
-        for (Object s : config.keySet()) {
-            String key = s.toString();
+        for (Map.Entry<?, ?> s : config.entrySet()) {
+            String key = s.getKey().toString();
             if (key.startsWith("org.jitsi.dnssec.nsec3.iterations")) {
                 int keySize = Integer.parseInt(key.substring(key.lastIndexOf(".") + 1));
-                int iters = Integer.parseInt(config.getProperty(key));
+                int iters = Integer.parseInt(s.getValue().toString());
                 if (iters > MAX_ITERATION_COUNT) {
                     throw new IllegalArgumentException("Iteration count too high.");
                 }

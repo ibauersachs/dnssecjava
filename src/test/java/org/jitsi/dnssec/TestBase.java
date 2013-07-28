@@ -119,7 +119,7 @@ public abstract class TestBase {
         @Override
         protected void finished(Description description) {
             try {
-                if (record) {
+                if (record && w != null) {
                     w.flush();
                     w.close();
                     w = null;

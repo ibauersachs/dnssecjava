@@ -882,104 +882,7 @@ public class ValidatingResolver implements Resolver {
 
             case NODATA:
             case NAMEERROR:
-                // NODATA means that the qname exists, but that there was no DS.
-                // This is a pretty normal case. NAMEERROR shouldn't happen, but
-                // can be proven.
-                SRRset nsecRrset = response.findRRset(qname, Type.NSEC, qclass, Section.AUTHORITY);
-
-                // If we have a NSEC at the same name, it must prove one of two
-                // things
-                // --
-                // 1) this is a delegation point and there is no DS
-                // 2) this is not a delegation point
-                if (nsecRrset != null) {
-                    // The NSEC must verify, first of all.
-                    status = this.valUtils.verifySRRset(nsecRrset, keyRrset);
-                    if (status != SecurityStatus.SECURE) {
-                        bogusKE.setBadReason(R.get("failed.ds.nsec"));
-                        return bogusKE;
-                    }
-
-                    NSECRecord nsec = (NSECRecord)nsecRrset.first();
-                    switch (ValUtils.nsecProvesNoDS(nsec, qname)) {
-                        case BOGUS: // something was wrong.
-                            bogusKE.setBadReason(R.get("failed.ds.nsec.hasdata"));
-                            return bogusKE;
-                        case INSECURE: // this wasn't a delegation point.
-                            logger.debug("NSEC RRset for the referral proved not a delegation point");
-                            return null;
-                        case SECURE: // this proved no DS.
-                            KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, nsecRrset.getTTL());
-                            nullKey.setBadReason(R.get("insecure.ds.nsec"));
-                            return nullKey;
-                        default:
-                            throw new RuntimeException("unexpected security status");
-                    }
-                }
-
-                // Otherwise, there is no NSEC at qname. This could be an ENT.
-                // If not, this is broken.
-                for (SRRset set : response.getSectionRRsets(Section.AUTHORITY, Type.NSEC)) {
-                    status = this.valUtils.verifySRRset(set, keyRrset);
-                    if (status != SecurityStatus.SECURE) {
-                        bogusKE.setBadReason(R.get("failed.ds.nsec.ent"));
-                        return bogusKE;
-                    }
-
-                    NSECRecord nsec = (NSECRecord)set.first();
-                    if (ValUtils.nsecProvesNodata(nsec, qname, Type.DS)) {
-                        KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, set.getTTL());
-                        nullKey.setBadReason(R.get("insecure.ds.nsec.ent"));
-                        return nullKey;
-                    }
-                }
-
-                // Or it could be using NSEC3.
-                SRRset[] nsec3Rrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC3);
-                List<NSEC3Record> nsec3s = new ArrayList<NSEC3Record>();
-                Name nsec3Signer = null;
-                long nsec3TTL = -1;
-                if (nsec3Rrsets != null && nsec3Rrsets.length > 0) {
-                    // Attempt to prove no DS with NSEC3s.
-                    for (SRRset nsec3set : nsec3Rrsets) {
-                        status = this.valUtils.verifySRRset(nsec3set, keyRrset);
-                        if (status != SecurityStatus.SECURE) {
-                            // FIXME: we could just fail here -- there is an
-                            // invalid rrset -- but is more robust to skip like
-                            // we are.
-                            logger.debug("skipping bad nsec3");
-                            continue;
-                        }
-
-                        NSEC3Record nsec3 = (NSEC3Record)nsec3set.first();
-                        nsec3Signer = nsec3set.getSignerName();
-                        if (nsec3TTL < 0 || nsec3set.getTTL() < nsec3TTL) {
-                            nsec3TTL = nsec3set.getTTL();
-                        }
-
-                        nsec3s.add(nsec3);
-                    }
-
-                    switch (this.n3valUtils.proveNoDS(nsec3s, qname, nsec3Signer)) {
-                        case BOGUS:
-                            bogusKE.setBadReason(R.get("failed.ds.nsec3"));
-                            return bogusKE;
-                        case INSECURE:
-                            logger.debug("nsec3s proved no delegation.");
-                            return null;
-                        case SECURE:
-                            KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, nsec3TTL);
-                            nullKey.setBadReason(R.get("insecure.ds.nsec3"));
-                            return nullKey;
-                        default:
-                            throw new RuntimeException("unexpected security status");
-                    }
-                }
-
-                // Apparently, no available NSEC/NSEC3 proved NODATA, so this is
-                // BOGUS.
-                bogusKE.setBadReason(R.get("failed.ds.unknown"));
-                return bogusKE;
+                return this.dsReponseToKeForNodata(response, request, keyRrset);
 
             default:
                 // We've encountered an unhandled classification for this
@@ -987,6 +890,125 @@ public class ValidatingResolver implements Resolver {
                 bogusKE.setBadReason(R.get("failed.ds.notype", subtype));
                 return bogusKE;
         }
+    }
+
+    /**
+     * Given a DS response, the DS request, and the current key rrset, validate
+     * the DS response for the NODATA case, returning a KeyEntry.
+     * 
+     * @param response The DS response.
+     * @param request The DS request.
+     * @param keyRrset The current DNSKEY rrset from the forEvent state.
+     * 
+     * @return A KeyEntry, bad if the DS response fails to validate, null if the
+     *         DS response indicated an end to secure space, good if the DS
+     *         validated. It returns null if the DS response indicated that the
+     *         request wasn't a delegation point.
+     */
+    private KeyEntry dsReponseToKeForNodata(SMessage response, Message request, SRRset keyRrset) {
+        Name qname = request.getQuestion().getName();
+        int qclass = request.getQuestion().getDClass();
+        KeyEntry bogusKE = KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
+
+        SecurityStatus status;
+        // NODATA means that the qname exists, but that there was no DS.
+        // This is a pretty normal case. NAMEERROR shouldn't happen, but
+        // can be proven.
+        SRRset nsecRrset = response.findRRset(qname, Type.NSEC, qclass, Section.AUTHORITY);
+
+        // If we have a NSEC at the same name, it must prove one of two
+        // things
+        // --
+        // 1) this is a delegation point and there is no DS
+        // 2) this is not a delegation point
+        if (nsecRrset != null) {
+            // The NSEC must verify, first of all.
+            status = this.valUtils.verifySRRset(nsecRrset, keyRrset);
+            if (status != SecurityStatus.SECURE) {
+                bogusKE.setBadReason(R.get("failed.ds.nsec"));
+                return bogusKE;
+            }
+
+            NSECRecord nsec = (NSECRecord)nsecRrset.first();
+            switch (ValUtils.nsecProvesNoDS(nsec, qname)) {
+                case BOGUS: // something was wrong.
+                    bogusKE.setBadReason(R.get("failed.ds.nsec.hasdata"));
+                    return bogusKE;
+                case INSECURE: // this wasn't a delegation point.
+                    logger.debug("NSEC RRset for the referral proved not a delegation point");
+                    return null;
+                case SECURE: // this proved no DS.
+                    KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, nsecRrset.getTTL());
+                    nullKey.setBadReason(R.get("insecure.ds.nsec"));
+                    return nullKey;
+                default:
+                    throw new RuntimeException("unexpected security status");
+            }
+        }
+
+        // Otherwise, there is no NSEC at qname. This could be an ENT.
+        // If not, this is broken.
+        for (SRRset set : response.getSectionRRsets(Section.AUTHORITY, Type.NSEC)) {
+            status = this.valUtils.verifySRRset(set, keyRrset);
+            if (status != SecurityStatus.SECURE) {
+                bogusKE.setBadReason(R.get("failed.ds.nsec.ent"));
+                return bogusKE;
+            }
+
+            NSECRecord nsec = (NSECRecord)set.first();
+            if (ValUtils.nsecProvesNodata(nsec, qname, Type.DS)) {
+                KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, set.getTTL());
+                nullKey.setBadReason(R.get("insecure.ds.nsec.ent"));
+                return nullKey;
+            }
+        }
+
+        // Or it could be using NSEC3.
+        SRRset[] nsec3Rrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC3);
+        List<NSEC3Record> nsec3s = new ArrayList<NSEC3Record>();
+        Name nsec3Signer = null;
+        long nsec3TTL = -1;
+        if (nsec3Rrsets != null && nsec3Rrsets.length > 0) {
+            // Attempt to prove no DS with NSEC3s.
+            for (SRRset nsec3set : nsec3Rrsets) {
+                status = this.valUtils.verifySRRset(nsec3set, keyRrset);
+                if (status != SecurityStatus.SECURE) {
+                    // FIXME: we could just fail here -- there is an
+                    // invalid rrset -- but is more robust to skip like
+                    // we are.
+                    logger.debug("skipping bad nsec3");
+                    continue;
+                }
+
+                NSEC3Record nsec3 = (NSEC3Record)nsec3set.first();
+                nsec3Signer = nsec3set.getSignerName();
+                if (nsec3TTL < 0 || nsec3set.getTTL() < nsec3TTL) {
+                    nsec3TTL = nsec3set.getTTL();
+                }
+
+                nsec3s.add(nsec3);
+            }
+
+            switch (this.n3valUtils.proveNoDS(nsec3s, qname, nsec3Signer)) {
+                case BOGUS:
+                    bogusKE.setBadReason(R.get("failed.ds.nsec3"));
+                    return bogusKE;
+                case INSECURE:
+                    logger.debug("nsec3s proved no delegation.");
+                    return null;
+                case SECURE:
+                    KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, nsec3TTL);
+                    nullKey.setBadReason(R.get("insecure.ds.nsec3"));
+                    return nullKey;
+                default:
+                    throw new RuntimeException("unexpected security status");
+            }
+        }
+
+        // Apparently, no available NSEC/NSEC3 proved NODATA, so this is
+        // BOGUS.
+        bogusKE.setBadReason(R.get("failed.ds.unknown"));
+        return bogusKE;
     }
 
     /**

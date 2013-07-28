@@ -407,20 +407,16 @@ public class ValUtils {
      * 
      * @param nsec The nsec to check.
      * @param qname The qname to check against.
-     * @param signerName The signer name for the NSEC rrset, used as the zone
-     *            name.
      * @return true if the NSEC proves the condition.
      */
-    public static boolean nsecProvesNoWC(NSECRecord nsec, Name qname, Name signerName) {
-        Name owner = nsec.getName();
-        Name next = nsec.getNext();
-
+    public static boolean nsecProvesNoWC(NSECRecord nsec, Name qname) {
         int qnameLabels = qname.labels();
-        int signerLabels = signerName.labels();
+        Name ce = closestEncloser(qname, nsec);
+        int ceLabels = ce.labels();
 
-        for (int i = qnameLabels - signerLabels; i > 0; i--) {
+        for (int i = qnameLabels - ceLabels; i > 0; i--) {
             Name wcName = qname.wild(i);
-            if (wcName.compareTo(owner) > 0 && (wcName.compareTo(next) < 0 || signerName.equals(next))) {
+            if (nsecProvesNameError(nsec, wcName)) {
                 return true;
             }
         }

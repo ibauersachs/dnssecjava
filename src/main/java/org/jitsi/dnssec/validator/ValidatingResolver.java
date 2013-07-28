@@ -651,7 +651,7 @@ public class ValidatingResolver implements Resolver {
                     hasValidNSEC = true;
                 }
 
-                if (ValUtils.nsecProvesNoWC(nsec, qname, set.getSignerName())) {
+                if (ValUtils.nsecProvesNoWC(nsec, qname)) {
                     hasValidWCNSEC = true;
                 }
             }

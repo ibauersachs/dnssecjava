@@ -62,6 +62,7 @@ import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DSRecord;
+import org.xbill.DNS.DSRecord.Digest;
 import org.xbill.DNS.NSECRecord;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.NameTooLongException;
@@ -160,10 +161,10 @@ public class ValUtils {
      * @param badKeyTTL The TTL [s] for keys determined to be bad.
      * 
      * @return a KeyEntry. This will either contain the now trusted
-     *         dnskey_rrset, a "null" key entry indicating that this DS
+     *         dnskey RRset, a "null" key entry indicating that this DS
      *         rrset/DNSKEY pair indicate an secure end to the island of trust
      *         (i.e., unknown algorithms), or a "bad" KeyEntry if the dnskey
-     *         rrset fails to verify. Note that the "null" response should
+     *         RRset fails to verify. Note that the "null" response should
      *         generally only occur in a private algorithm scenario: normally
      *         this sort of thing is checked before fetching the matching DNSKEY
      *         rrset.
@@ -172,6 +173,10 @@ public class ValUtils {
         if (!dnskeyRrset.getName().equals(dsRrset.getName())) {
             logger.debug("DNSKEY RRset did not match DS RRset by name!");
             return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
+        }
+
+        if (!atLeastOneDigestSupported(dsRrset) || !atLeastOneSupportedAlgorithm(dsRrset)) {
+            return KeyEntry.newNullKeyEntry(dsRrset.getName(), dsRrset.getDClass(), dsRrset.getTTL());
         }
 
         for (Iterator<?> i = dsRrset.rrs(); i.hasNext();) {
@@ -564,6 +569,33 @@ public class ValUtils {
                     case Algorithm.RSASHA512:
                     case Algorithm.ECDSAP256SHA256:
                     case Algorithm.ECDSAP384SHA384:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determines if at least one of the DS records in the RRset has a supported
+     * digest algorithm.
+     * 
+     * @param dsRRset The RR set to search in.
+     * @return True when at least one DS record uses a supported digest
+     *         algorithm, false otherwise.
+     */
+    private static boolean atLeastOneDigestSupported(RRset dsRRset) {
+        Iterator<?> it = dsRRset.rrs();
+        while (it.hasNext()) {
+            Record r = (Record)it.next();
+            if (r.getType() == Type.DS) {
+                switch (((DSRecord)r).getDigestID()) {
+                    case Digest.SHA1:
+                    case Digest.SHA256:
+                    case Digest.SHA384:
                         return true;
                     default:
                         return false;

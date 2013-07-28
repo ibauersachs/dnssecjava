@@ -38,6 +38,7 @@ import org.apache.log4j.PatternLayout;
 import org.jitsi.dnssec.validator.ValidatingResolver;
 import org.joda.time.DateTime;
 import org.joda.time.format.ISODateTimeFormat;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.TestRule;
@@ -58,6 +59,7 @@ import org.xbill.DNS.Type;
 public abstract class TestBase {
     private final static boolean offline = Boolean.getBoolean("org.jitsi.dnssecjava.offline");
     private final static boolean record = Boolean.getBoolean("org.jitsi.dnssecjava.record");
+    private static boolean unboundTest = false;
 
     private Map<String, Message> queryResponsePairs = new HashMap<String, Message>();
     private MessageReader messageReader = new MessageReader();
@@ -81,7 +83,14 @@ public abstract class TestBase {
     public TestRule watcher = new TestWatcher() {
         @Override
         protected void starting(Description description) {
+            unboundTest = false;
             try {
+                // do not record or process unbound unit tests offline
+                if (description.getClassName().contains("unbound")) {
+                    unboundTest = true;
+                    return;
+                }
+
                 String filename = "/recordings/" + description.getClassName().replace(".", "_") + "/" + description.getMethodName();
                 if (record) {
                     File f = new File("./src/test/resources" + filename);
@@ -134,8 +143,8 @@ public abstract class TestBase {
                 if (response != null) {
                     return response;
                 }
-                else if (offline) {
-                    throw new RuntimeException("Response for " + key(query) + " not found.");
+                else if (offline || unboundTest) {
+                    Assert.fail("Response for " + key(query) + " not found.");
                 }
 
                 Message networkResult = super.send(query);
@@ -150,6 +159,10 @@ public abstract class TestBase {
 
         resolver.loadTrustAnchors(getClass().getResourceAsStream("/trust_anchors"));
         System.err.println("--------------");
+    }
+
+    protected void add(Message m) throws IOException {
+        this.add(key(m), m);
     }
 
     protected void add(String query, Message response) throws IOException {

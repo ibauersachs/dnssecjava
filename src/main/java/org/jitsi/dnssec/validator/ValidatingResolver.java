@@ -1142,35 +1142,31 @@ public class ValidatingResolver implements Resolver {
      * DNSSEC data.
      */
     private SMessage processFinishedState(Message request, SMessage response) {
-        // If the CD bit is set, do not process the (cached) validation status.
-        if (!request.getHeader().getFlag(Flags.CD)) {
-            // If the response message validated, set the AD bit.
-            SecurityStatus status = response.getStatus();
-            String reason = response.getBogusReason();
-            switch (status) {
-                case BOGUS:
-                    // For now, in the absence of any other API information, we
-                    // return SERVFAIL.
-                    int code = response.getHeader().getRcode();
-                    if (code == Rcode.NOERROR || code == Rcode.NXDOMAIN) {
-                        code = Rcode.SERVFAIL;
-                    }
+        // If the response message validated, set the AD bit.
+        SecurityStatus status = response.getStatus();
+        String reason = response.getBogusReason();
+        switch (status) {
+            case BOGUS:
+                // For now, in the absence of any other API information, we
+                // return SERVFAIL.
+                int code = response.getHeader().getRcode();
+                if (code == Rcode.NOERROR || code == Rcode.NXDOMAIN) {
+                    code = Rcode.SERVFAIL;
+                }
 
-                    response = ValidatingResolver.errorMessage(request, code);
-                    break;
-                case SECURE:
-                    response.getHeader().setFlag(Flags.AD);
-                    break;
-                case UNCHECKED:
-                case INSECURE:
-                    break;
-                default:
-                    throw new RuntimeException("unexpected security status");
-            }
-
-            response.setStatus(status, reason);
+                response = ValidatingResolver.errorMessage(request, code);
+                break;
+            case SECURE:
+                response.getHeader().setFlag(Flags.AD);
+                break;
+            case UNCHECKED:
+            case INSECURE:
+                break;
+            default:
+                throw new RuntimeException("unexpected security status");
         }
 
+        response.setStatus(status, reason);
         return response;
     }
 
@@ -1273,6 +1269,11 @@ public class ValidatingResolver implements Resolver {
      */
     public Message send(Message query) throws IOException {
         SMessage response = this.sendRequest(query);
+
+        // If the CD bit is set, do not process the (cached) validation status.
+        if (query.getHeader().getFlag(Flags.CD)) {
+            return response.getMessage();
+        }
 
         // Positive RRSIG responses cannot be validated as there are no
         // signatures on signatures. Negative answers CAN be validated.

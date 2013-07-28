@@ -14,17 +14,36 @@ NSEC(3)s are to be included...?
 <del>DNAME Handling
 --------------
 <del>A DNAME causes validation failures during priming because the synthesized
-CNAME is not considered valid. Some unit-tests are failing due to this.~~
+CNAME is not considered valid. Some unit-tests are failing due to this.
 
 API
 ---
-- Provide the final failure reason as a (localizable) string
+- <del>Provide the final failure reason as a (localizable) string
 
-Code Coverage
--------------
-- The code still has a lot of untested parts, especially NSEC3 with opt-out
-  enabled.
-- JaCoCo/EclEmma doesn't work with jmockit enabled at the same time.
+Code Coverage / Bugs
+--------------------
+- The code still has some untested parts:
+  - ANY responses
+  - Insecure NSEC3 NODATA responses
+  - Wildcard NODATA responses might pass too broad cases
+  - Behavior if all NSEC3s are not understandable
+  - NXDOMAIN when a NSEC would prove that a wildcard exists
+  - Exceptions thrown by the head resolver
+  - Bogus/Insecure handling of CNAME answer to DS query
+  - Async calling of the validator
+  - Passthrough without validation if the CD flag is set
+  - Various cases in dsReponseToKeForNodata
+  - longestCommonName
+  - Various NSEC NODATA cases
+  - Unsupported algorithm or digest ID cases
+  - NSEC3 iteration count configuration
+  - NSEC3 with unsupported hash algorithm
+  - Multiple NSEC3s for a zone
+  - NSEC3: proveClosestEncloser
+  - NSEC3: proveNodata
+  - NSEC3: proveNoDS
+- JaCoCo/EclEmma doesn't work with jmockit enabled at the same time without
+  specifying -javaagent:jmockit-1.2.jar as a VM argument.
 
 Unit Tests
 ----------

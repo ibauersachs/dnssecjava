@@ -273,7 +273,8 @@ final class NSEC3ValUtils {
      */
     private byte[] hash(Name name, NSEC3Parameters params) {
         try {
-            NSEC3Record r = new NSEC3Record(name, DClass.IN, (long)0, params.alg, 0, params.iterations, params.salt, new byte[0], new int[] { Type.A });
+            int[] types = new int[] { Type.A };
+            NSEC3Record r = new NSEC3Record(name, DClass.IN, (long)0, params.alg, 0, params.iterations, params.salt, new byte[0], types);
             return r.hashName(name);
         }
         catch (NoSuchAlgorithmException e) {

@@ -206,7 +206,7 @@ public abstract class TestBase {
 
     protected String getReason(Message m) {
         for (RRset set : m.getSectionRRsets(Section.ADDITIONAL)) {
-            if (set.getName().equals(Name.root) && set.getType() == Type.TXT) {
+            if (set.getName().equals(Name.root) && set.getType() == Type.TXT && set.getDClass() == ValidatingResolver.VALIDATION_REASON_QCLASS) {
                 return (String)((TXTRecord)set.first()).getStrings().get(0);
             }
         }

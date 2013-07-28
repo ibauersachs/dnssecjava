@@ -95,6 +95,12 @@ import org.xbill.DNS.Type;
  * This resolver validates responses with DNSSEC.
  */
 public class ValidatingResolver implements Resolver {
+    /**
+     * The QCLASS being used for the injection of the reason why the validator
+     * came to the returned result.
+     */
+    public static final int VALIDATION_REASON_QCLASS = 65280;
+
     private static final Logger logger = Logger.getLogger(ValidatingResolver.class);
 
     /**
@@ -1311,7 +1317,7 @@ public class ValidatingResolver implements Resolver {
 
         Message m = validated.getMessage();
         if (validated.getBogusReason() != null) {
-            m.addRecord(new TXTRecord(Name.root, query.getQuestion().getDClass(), 0, Arrays.asList(validated.getBogusReason().split("(?<=\\G.{255})"))),
+            m.addRecord(new TXTRecord(Name.root, VALIDATION_REASON_QCLASS, 0, Arrays.asList(validated.getBogusReason().split("(?<=\\G.{255})"))),
                     Section.ADDITIONAL);
         }
 

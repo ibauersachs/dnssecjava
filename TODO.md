@@ -42,6 +42,11 @@ Code Coverage / Bugs
   - NSEC3: proveClosestEncloser
   - NSEC3: proveNodata
   - NSEC3: proveNoDS
+  - Implement http://tools.ietf.org/html/rfc4509#section-3 to prevent downgrade attacks
+  - http://tools.ietf.org/html/rfc6840#section-4.3 (CNAME bit check)
+  - http://tools.ietf.org/html/rfc6840#section-4.4 (Insecure Delegation Proofs)
+  - http://tools.ietf.org/html/rfc6840#section-5.4 (Caution about Local Policy and Multiple RRSIGs)
+
 - JaCoCo/EclEmma doesn't work with jmockit enabled at the same time without
   specifying -javaagent:jmockit-1.2.jar as a VM argument.
 
@@ -58,5 +63,5 @@ DNSJAVA
 -------
 - Fix the Maven project definition to build correctly with a local lib folder
   as it is not officially distributed on Maven central
-- Version 2.1.5 contains a bug in the Name constructor and needs the patch
-  from the users mailing-list: http://goo.gl/JPKYrs
+- Version 2.1.5 contains a bug in the Name constructor and needs at least
+  SVN rev. 1686

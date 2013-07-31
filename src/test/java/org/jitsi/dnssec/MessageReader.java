@@ -56,9 +56,6 @@ public class MessageReader {
             else if (line.startsWith(";; QUESTIONS:")) {
                 section = 102;
             }
-            else if ("".equals(line)) {
-                section = 100;
-            }
             else if (line.startsWith(";; ANSWERS:")) {
                 section = Section.ANSWER;
                 line = r.readLine();

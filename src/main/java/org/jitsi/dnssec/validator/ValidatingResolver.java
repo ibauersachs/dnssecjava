@@ -561,13 +561,8 @@ public class ValidatingResolver implements Resolver {
         // The wildcard NODATA is 1 NSEC proving that qname does not exists (and
         // also proving what the closest encloser is), and 1 NSEC showing the
         // matching wildcard, which must be *.closest_encloser.
-        if (wc != null && ce == null) {
+        if (wc != null && (ce == null || (!ce.equals(wc) && !qname.equals(ce)))) {
             hasValidNSEC = false;
-        }
-        else if (wc != null && ce != null) {
-            if (!ce.equals(wc) && !qname.equals(ce)) {
-                hasValidNSEC = false;
-            }
         }
 
         this.n3valUtils.stripUnknownAlgNSEC3s(nsec3s);

@@ -83,4 +83,29 @@ public class TestWildcard extends TestBase {
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertTrue(getReason(response).startsWith("failed.authority.positive"));
     }
+
+    @Test
+    public void testNodataWilcardWithoutCe() throws IOException {
+        // strip the closest encloser NSEC
+        Message m = resolver.send(createMessage("\1.c.ingotronic.ch./MX"));
+        Message message = messageFromString(m.toString().replaceAll("a\\.b\\.ingotronic\\.ch.*", ""));
+        add(Name.fromString("\1.c.ingotronic.ch./MX").toString(), message);
+
+        Message response = resolver.send(createMessage("\1.c.ingotronic.ch./MX"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertTrue(getReason(response).equals("failed.nodata"));
+    }
+
+    @Test
+    public void testSynthesisUsesCorrectWildcardNodata() throws IOException {
+        Message m = resolver.send(createMessage("a.wc.ingotronic.ch./MX"));
+        Message message = messageFromString(m.toString().replaceAll("a\\.wc\\.ingotronic.ch\\.", "\1.sub.wc.ingotronic.ch."));
+        add(Name.fromString("\1.sub.wc.ingotronic.ch.").toString() + "/MX", message);
+
+        Message response = resolver.send(createMessage("\1.sub.wc.ingotronic.ch./MX"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nodata", getReason(response));
+    }
 }

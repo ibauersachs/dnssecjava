@@ -25,7 +25,7 @@ Code Coverage / Bugs
 - The code still has some untested parts:
   - ANY responses
   - Insecure NSEC3 NODATA responses
-  - Wildcard NODATA responses might pass too broad cases
+  <del>- Wildcard NODATA responses might pass too broad cases
   - Behavior if all NSEC3s are not understandable
   - NXDOMAIN when a NSEC would prove that a wildcard exists
   - Exceptions thrown by the head resolver

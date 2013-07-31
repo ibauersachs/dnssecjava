@@ -24,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.util.HashMap;
@@ -58,6 +59,7 @@ import org.xbill.DNS.Type;
 
 public abstract class TestBase {
     private final static boolean offline = Boolean.getBoolean("org.jitsi.dnssecjava.offline");
+    private final static boolean partialOffline = "partial".equals(System.getProperty("org.jitsi.dnssecjava.offline"));
     private final static boolean record = Boolean.getBoolean("org.jitsi.dnssecjava.record");
     private static boolean unboundTest = false;
 
@@ -100,15 +102,19 @@ public abstract class TestBase {
                     w.write("#Date: " + new DateTime().toString(ISODateTimeFormat.dateTimeNoMillis()));
                     w.write("\n");
                 }
-                else if (offline) {
-                    r = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(filename)));
-                    SystemMock.overriddenMillis = DateTime.parse(r.readLine().substring("#Date: ".length()), ISODateTimeFormat.dateTimeNoMillis()).getMillis();
-                    Message m;
-                    while ((m = messageReader.readMessage(r)) != null) {
-                        queryResponsePairs.put(key(m), m);
-                    }
+                else if (offline || partialOffline) {
+                    InputStream stream = getClass().getResourceAsStream(filename);
+                    if (stream != null) {
+                        r = new BufferedReader(new InputStreamReader(stream));
+                        SystemMock.overriddenMillis = DateTime.parse(r.readLine().substring("#Date: ".length()), ISODateTimeFormat.dateTimeNoMillis())
+                                .getMillis();
+                        Message m;
+                        while ((m = messageReader.readMessage(r)) != null) {
+                            queryResponsePairs.put(key(m), m);
+                        }
 
-                    r.close();
+                        r.close();
+                    }
                 }
             }
             catch (IOException e) {
@@ -143,7 +149,7 @@ public abstract class TestBase {
                 if (response != null) {
                     return response;
                 }
-                else if (offline || unboundTest) {
+                else if ((offline && !partialOffline) || unboundTest) {
                     Assert.fail("Response for " + key(query) + " not found.");
                 }
 

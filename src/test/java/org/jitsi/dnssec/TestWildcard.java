@@ -108,4 +108,16 @@ public class TestWildcard extends TestBase {
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("failed.nodata", getReason(response));
     }
+
+    @Test
+    public void testSynthesisUsesCorrectWildcardNodataNsec3() throws IOException {
+        Message m = resolver.send(createMessage("a.wc.nsec3.ingotronic.ch./MX"));
+        Message message = messageFromString(m.toString().replaceAll("a\\.wc\\.nsec3.ingotronic.ch\\.", "\1.sub.wc.nsec3.ingotronic.ch."));
+        add(Name.fromString("\1.sub.wc.nsec3.ingotronic.ch.").toString() + "/MX", message);
+
+        Message response = resolver.send(createMessage("\1.sub.wc.nsec3.ingotronic.ch./MX"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nodata", getReason(response));
+    }
 }

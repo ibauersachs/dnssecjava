@@ -433,13 +433,11 @@ final class NSEC3ValUtils {
      * @param nsec3s The list of NSEC3s found the this response (already
      *            verified).
      * @param params The NSEC3 parameters found in the response.
-     * @param proveDoesNotExist If true, then if the closest encloser turns out
-     *            to be qname, then null is returned.
      * @return null if the proof isn't completed. Otherwise, return a CEResponse
      *         object which contains the closest encloser name and the NSEC3
      *         that matches it.
      */
-    private CEResponse proveClosestEncloser(Name qname, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params, boolean proveDoesNotExist) {
+    private CEResponse proveClosestEncloser(Name qname, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params) {
         CEResponse candidate = this.findClosestEncloser(qname, zonename, nsec3s, params);
 
         if (candidate == null) {
@@ -448,15 +446,8 @@ final class NSEC3ValUtils {
         }
 
         if (candidate.closestEncloser.equals(qname)) {
-            if (proveDoesNotExist) {
-                logger.debug("proveClosestEncloser: proved that qname existed!");
-                candidate.status = SecurityStatus.BOGUS;
-                return candidate;
-            }
-
-            // otherwise, we need to nothing else to prove that qname is its own
-            // closest encloser.
-            candidate.status = SecurityStatus.SECURE;
+            logger.debug("proveClosestEncloser: proved that qname existed!");
+            candidate.status = SecurityStatus.BOGUS;
             return candidate;
         }
 
@@ -588,7 +579,7 @@ final class NSEC3ValUtils {
 
         // First locate and prove the closest encloser to qname. We will use the
         // variant that fails if the closest encloser turns out to be qname.
-        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params, true);
+        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params);
 
         if (ce == null || ce.status != SecurityStatus.SECURE) {
             logger.debug("proveNameError: failed to prove a closest encloser.");
@@ -687,7 +678,7 @@ final class NSEC3ValUtils {
         // For cases 3 - 5, we need the proven closest encloser, and it can't
         // match qname. Although, at this point, we know that it won't since we
         // just checked that.
-        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params, true);
+        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params);
 
         // At this point, not finding a match or a proven closest encloser is a
         // problem.
@@ -846,7 +837,7 @@ final class NSEC3ValUtils {
         }
 
         // Otherwise, we are probably in the opt-in case.
-        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params, true);
+        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params);
         if (ce == null || ce.status != SecurityStatus.SECURE) {
             return SecurityStatus.BOGUS;
         }

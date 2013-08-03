@@ -442,7 +442,9 @@ final class NSEC3ValUtils {
 
         if (candidate == null) {
             logger.debug("proveClosestEncloser: could not find a candidate for the closest encloser.");
-            return null;
+            candidate = new CEResponse(Name.empty, null);
+            candidate.status = SecurityStatus.BOGUS;
+            return candidate;
         }
 
         if (candidate.closestEncloser.equals(qname)) {

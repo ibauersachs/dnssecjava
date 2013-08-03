@@ -72,6 +72,16 @@ public class TestNonExistence extends TestBase {
     }
 
     @Test
+    public void testDoubleLabelABelowSignedBeforeZoneNsec3() throws IOException {
+        // the query name here must hash to a name BEFORE the first existing
+        // NSEC3 owner name
+        Message response = resolver.send(createMessage("alias.1gibtsnicht.nsec3.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+        assertNull(getReason(response));
+    }
+
+    @Test
     public void testSingleLabelMXBelowSignedForExistingA() throws IOException {
         Message response = resolver.send(createMessage("www.ingotronic.ch./MX"));
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));

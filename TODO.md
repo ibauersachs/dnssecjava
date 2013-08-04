@@ -25,7 +25,7 @@ Code Coverage / Bugs
 - The code still has some untested parts:
   - ANY responses
   - Insecure NSEC3 NODATA responses
-  <del>- Wildcard NODATA responses might pass too broad cases
+  - <del>Wildcard NODATA responses might pass too broad cases
   - Behavior if all NSEC3s are not understandable
   - NXDOMAIN when a NSEC would prove that a wildcard exists
   - Exceptions thrown by the head resolver
@@ -33,10 +33,10 @@ Code Coverage / Bugs
   - Async calling of the validator
   - Passthrough without validation if the CD flag is set
   - Various cases in dsReponseToKeForNodata
-  - longestCommonName
+  - <del>longestCommonName
   - Various NSEC NODATA cases
   - Unsupported algorithm or digest ID cases
-  - NSEC3 iteration count configuration
+  - <del>NSEC3 iteration count configuration
   - NSEC3 with unsupported hash algorithm
   - Multiple NSEC3s for a zone
   - NSEC3: proveClosestEncloser

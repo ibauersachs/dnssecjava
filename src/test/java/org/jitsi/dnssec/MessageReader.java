@@ -70,6 +70,9 @@ public class MessageReader {
             else if (line.startsWith("####")) {
                 return m;
             }
+            else if (line.startsWith("#")) {
+                continue;
+            }
 
             switch (section) {
                 case 100: // ignore
@@ -86,7 +89,7 @@ public class MessageReader {
                     line = r.readLine();
                     data = line.split(",");
                     Record q = Record.newRecord(
-                            Name.fromString(data[0].substring(";; *".length() - 1)),
+                            Name.fromString(data[0].replaceAll(";;\\s*", "")),
                             Type.value(data[1].split("\\s*=\\s*")[1]),
                             DClass.value(data[2].split("\\s*=\\s*")[1]));
                     m.addRecord(q, Section.QUESTION);

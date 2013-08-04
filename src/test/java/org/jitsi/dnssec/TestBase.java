@@ -61,7 +61,8 @@ public abstract class TestBase {
     private final static boolean offline = Boolean.getBoolean("org.jitsi.dnssecjava.offline");
     private final static boolean partialOffline = "partial".equals(System.getProperty("org.jitsi.dnssecjava.offline"));
     private final static boolean record = Boolean.getBoolean("org.jitsi.dnssecjava.record");
-    private static boolean unboundTest = false;
+    private boolean unboundTest = false;
+    private boolean alwaysOffline = false;
 
     private Map<String, Message> queryResponsePairs = new HashMap<String, Message>();
     private MessageReader messageReader = new MessageReader();
@@ -88,13 +89,14 @@ public abstract class TestBase {
             unboundTest = false;
             try {
                 // do not record or process unbound unit tests offline
+                alwaysOffline = description.getAnnotation(AlwaysOffline.class) != null;
                 if (description.getClassName().contains("unbound")) {
                     unboundTest = true;
                     return;
                 }
 
                 String filename = "/recordings/" + description.getClassName().replace(".", "_") + "/" + description.getMethodName();
-                if (record) {
+                if (record && !alwaysOffline) {
                     File f = new File("./src/test/resources" + filename);
                     f.getParentFile().getParentFile().mkdir();
                     f.getParentFile().mkdir();
@@ -102,7 +104,7 @@ public abstract class TestBase {
                     w.write("#Date: " + new DateTime().toString(ISODateTimeFormat.dateTimeNoMillis()));
                     w.write("\n");
                 }
-                else if (offline || partialOffline) {
+                else if (offline || partialOffline || alwaysOffline) {
                     InputStream stream = getClass().getResourceAsStream(filename);
                     if (stream != null) {
                         r = new BufferedReader(new InputStreamReader(stream));
@@ -149,7 +151,7 @@ public abstract class TestBase {
                 if (response != null) {
                     return response;
                 }
-                else if ((offline && !partialOffline) || unboundTest) {
+                else if ((offline && !partialOffline) || unboundTest || alwaysOffline) {
                     Assert.fail("Response for " + key(query) + " not found.");
                 }
 

@@ -583,9 +583,9 @@ final class NSEC3ValUtils {
         // variant that fails if the closest encloser turns out to be qname.
         CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params);
 
-        if (ce == null || ce.status != SecurityStatus.SECURE) {
+        if (ce.status != SecurityStatus.SECURE) {
             logger.debug("proveNameError: failed to prove a closest encloser.");
-            return ce == null ? SecurityStatus.INSECURE : ce.status;
+            return ce.status;
         }
 
         // At this point, we know that qname does not exist. Now we need to
@@ -684,7 +684,7 @@ final class NSEC3ValUtils {
 
         // At this point, not finding a match or a proven closest encloser is a
         // problem.
-        if (ce == null || ce.status == SecurityStatus.BOGUS) {
+        if (ce.status == SecurityStatus.BOGUS) {
             logger.debug("proveNodata: did not match qname, nor found a proven closest encloser.");
             return SecurityStatus.BOGUS;
         }
@@ -840,7 +840,7 @@ final class NSEC3ValUtils {
 
         // Otherwise, we are probably in the opt-in case.
         CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params);
-        if (ce == null || ce.status != SecurityStatus.SECURE) {
+        if (ce.status != SecurityStatus.SECURE) {
             return SecurityStatus.BOGUS;
         }
 

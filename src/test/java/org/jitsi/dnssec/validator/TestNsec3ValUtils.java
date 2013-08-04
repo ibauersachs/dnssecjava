@@ -52,4 +52,16 @@ public class TestNsec3ValUtils extends TestBase {
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("failed.nxdomain.nsec3_bogus", getReason(response));
     }
+
+    @Test
+    public void testNsec3NodataChangedToNxdomainIsBogus() throws IOException {
+        Message m = resolver.send(createMessage("a.b.nsec3.ingotronic.ch./MX"));
+        Message message = messageFromString(m.toString().replaceAll("status: NOERROR", "status: NXDOMAIN"));
+        add("a.b.nsec3.ingotronic.ch./A", message);
+
+        Message response = resolver.send(createMessage("a.b.nsec3.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nxdomain.nsec3_bogus", getReason(response));
+    }
 }

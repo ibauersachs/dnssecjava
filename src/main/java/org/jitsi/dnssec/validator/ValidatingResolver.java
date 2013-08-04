@@ -673,11 +673,11 @@ public class ValidatingResolver implements Resolver {
 
             SecurityStatus status = this.n3valUtils.proveNameError(nsec3s, qname, nsec3Signer);
             if (status != SecurityStatus.SECURE) {
-                if (status == SecurityStatus.BOGUS) {
-                    response.setStatus(status, R.get("failed.nxdomain.nsec3_bogus"));
-                }
-                else if (status == SecurityStatus.INSECURE) {
+                if (status == SecurityStatus.INSECURE) {
                     response.setStatus(status, R.get("failed.nxdomain.nsec3_insecure"));
+                }
+                else {
+                    response.setStatus(status, R.get("failed.nxdomain.nsec3_bogus"));
                 }
 
                 return;

@@ -291,7 +291,7 @@ public class ValUtils {
         int l = Math.min(domain1.labels(), domain2.labels());
         domain1 = new Name(domain1, domain1.labels() - l);
         domain2 = new Name(domain2, domain2.labels() - l);
-        for (int i = 0; i < l; i++) {
+        for (int i = 0; i < l - 1; i++) {
             Name ns1 = new Name(domain1, i);
             if (ns1.equals(new Name(domain2, i))) {
                 return ns1;

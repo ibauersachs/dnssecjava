@@ -65,4 +65,16 @@ public class TestValUtils extends TestBase {
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("failed.nodata", getReason(response));
     }
+
+    @Test
+    public void testNoDataWhenDSResultIsFromChild() throws IOException {
+        Message m = resolver.send(createMessage("samekey.ingotronic.ch./MX"));
+        // this test needs to have the key in the cache
+        add("samekey.ingotronic.ch./DS", m, false);
+
+        Message response = resolver.send(createMessage("samekey.ingotronic.ch./DS"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nodata", getReason(response));
+    }
 }

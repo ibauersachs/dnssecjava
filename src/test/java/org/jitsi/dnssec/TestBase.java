@@ -170,13 +170,21 @@ public abstract class TestBase {
     }
 
     protected void add(Message m) throws IOException {
-        this.add(key(m), m);
+        this.add(key(m), m, true);
     }
 
     protected void add(String query, Message response) throws IOException {
+        this.add(query, response, true);
+    }
+
+    protected void add(String query, Message response, boolean clear) throws IOException {
         queryResponsePairs.put(query, response);
 
         // reset the resolver so any cached stuff is cleared
+        if (!clear) {
+            return;
+        }
+
         try {
             setup();
         }

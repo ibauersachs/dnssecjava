@@ -22,6 +22,8 @@ package org.jitsi.dnssec.validator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 
@@ -76,5 +78,13 @@ public class TestValUtils extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("failed.nodata", getReason(response));
+    }
+
+    @Test
+    public void testNoDataOfDSForRoot() throws IOException {
+        Message response = resolver.send(createMessage("./DS"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
     }
 }

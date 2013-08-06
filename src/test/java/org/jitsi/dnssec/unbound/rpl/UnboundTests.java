@@ -47,7 +47,6 @@ import org.xbill.DNS.Type;
 
 public class UnboundTests extends TestBase {
     public void runUnboundTest() throws ParseException, IOException {
-        String testName = Thread.currentThread().getStackTrace()[2].getMethodName();
         InputStream data = getClass().getResourceAsStream("/unbound/" + testName + ".rpl");
         RplParser p = new RplParser(data);
         Rpl rpl = p.parse();

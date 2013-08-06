@@ -71,6 +71,7 @@ public abstract class TestBase {
 
     protected final static String localhost = "127.0.0.1";
     protected ValidatingResolver resolver;
+    protected String testName;
 
     {
         Logger root = Logger.getRootLogger();
@@ -87,6 +88,8 @@ public abstract class TestBase {
         @Override
         protected void starting(Description description) {
             unboundTest = false;
+            testName = description.getMethodName();
+
             try {
                 // do not record or process unbound unit tests offline
                 alwaysOffline = description.getAnnotation(AlwaysOffline.class) != null;
@@ -95,7 +98,7 @@ public abstract class TestBase {
                     return;
                 }
 
-                String filename = "/recordings/" + description.getClassName().replace(".", "_") + "/" + description.getMethodName();
+                String filename = "/recordings/" + description.getClassName().replace(".", "_") + "/" + testName;
                 if (record && !alwaysOffline) {
                     File f = new File("./src/test/resources" + filename);
                     f.getParentFile().getParentFile().mkdir();

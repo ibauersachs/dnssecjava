@@ -69,6 +69,114 @@ public class TestValUtils extends TestBase {
     }
 
     @Test
+    public void testNameErrorWhenResultIsFromDelegationPoint() throws IOException {
+        Message nsec = resolver.send(createMessage("sub1.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
+            if (set.getName().toString().startsWith("sub.ingotronic.ch")) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("s.sub.ingotronic.ch./A");
+        m.getHeader().setRcode(Rcode.NXDOMAIN);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+        add("s.sub.ingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("s.sub.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nxdomain.exists:s.sub.ingotronic.ch.", getReason(response));
+    }
+
+    @Test
+    public void testNameErrorWhenNsecIsNotFromApex() throws IOException {
+        Message response = resolver.send(createMessage("1.www.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NXDOMAIN, response.getRcode());
+        assertNull(getReason(response));
+    }
+
+    @Test
+    public void testNameErrorWhenNsecIsLastAndQnameBefore() throws IOException {
+        Message nsec = resolver.send(createMessage("zz.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
+            if (set.getName().toString().startsWith("z.ingotronic.ch")) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("y.ingotronic.ch./A");
+        m.getHeader().setRcode(Rcode.NXDOMAIN);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+        add("y.ingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("y.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nxdomain.exists:y.ingotronic.ch.", getReason(response));
+    }
+
+    @Test
+    public void testNameErrorWhenNsecIsLastAndQnameDifferentDomain() throws IOException {
+        Message nsec = resolver.send(createMessage("zz.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
+            if (set.getName().toString().startsWith("z.ingotronic.ch")) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("zingotronic.ch./A");
+        m.getHeader().setRcode(Rcode.NXDOMAIN);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+        add("zingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("zingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nxdomain.exists:zingotronic.ch.", getReason(response));
+    }
+
+    @Test
+    public void testNameErrorWhenNsecIsLastAndQnameIsZoneApex() throws IOException {
+        Message nsec = resolver.send(createMessage("zz.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
+            if (set.getName().toString().startsWith("z.ingotronic.ch")) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("ingotronic.ch./A");
+        m.getHeader().setRcode(Rcode.NXDOMAIN);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+        add("ingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nxdomain.exists:ingotronic.ch.", getReason(response));
+    }
+
+    @Test
     public void testNoDataWhenDSResultIsFromChild() throws IOException {
         Message m = resolver.send(createMessage("samekey.ingotronic.ch./MX"));
         // this test needs to have the key in the cache

@@ -371,8 +371,14 @@ public class ValUtils {
         // If NSEC is a parent of qname, we need to check the type map
         // If the parent name has a DNAME or is a delegation point, then this
         // NSEC is being misused.
-        if (qname.subdomain(owner) && (nsec.hasType(Type.DNAME) || (nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA)))) {
-            return false;
+        if (qname.subdomain(owner)) {
+            if (nsec.hasType(Type.DNAME)) {
+                return false;
+            }
+
+            if (nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA)) {
+                return false;
+            }
         }
 
         if (owner.equals(next)) {

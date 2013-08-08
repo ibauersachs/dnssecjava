@@ -245,4 +245,29 @@ public class TestValUtils extends TestBase {
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("failed.nodata", getReason(response));
     }
+
+    @Test
+    public void testNoDataWhenNsecHasCname() throws IOException {
+        Message nsec = resolver.send(createMessage("csigned.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
+            if (set.getName().toString().startsWith("csigned.ingotronic.ch")) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("csigned.ingotronic.ch./A");
+        m.getHeader().setRcode(Rcode.NOERROR);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+        add("csigned.ingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("csigned.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nodata", getReason(response));
+    }
 }

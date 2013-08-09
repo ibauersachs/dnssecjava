@@ -34,7 +34,7 @@ Code Coverage / Bugs
   - Passthrough without validation if the CD flag is set
   - Various cases in dsReponseToKeForNodata
   - <del>longestCommonName
-  - Various NSEC NODATA cases
+  - <del>Various NSEC NODATA cases
   - Unsupported algorithm or digest ID cases
   - <del>NSEC3 iteration count configuration
   - NSEC3 with unsupported hash algorithm

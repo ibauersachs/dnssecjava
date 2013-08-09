@@ -270,4 +270,79 @@ public class TestValUtils extends TestBase {
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("failed.nodata", getReason(response));
     }
+
+    @Test
+    public void testNoDataWhenWcNsecProvesType() throws IOException {
+        Message nsec = resolver.send(createMessage("*.c.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
+            if (set.getName().toString().startsWith("*.c.ingotronic.ch")) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("a.c.ingotronic.ch./A");
+        m.getHeader().setRcode(Rcode.NOERROR);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+        add("a.c.ingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("a.c.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nodata", getReason(response));
+    }
+
+    @Test
+    public void testNoDataWhenWcNsecProvesCname() throws IOException {
+        Message nsec = resolver.send(createMessage("*.cwv.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
+            if (set.getName().toString().startsWith("*.cwv.ingotronic.ch")) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("a.cwv.ingotronic.ch./A");
+        m.getHeader().setRcode(Rcode.NOERROR);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+        add("a.cwv.ingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("a.cwv.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nodata", getReason(response));
+    }
+
+    @Test
+    public void testNoDataWhenWcNsecIsForDifferentName() throws IOException {
+        Message nsec = resolver.send(createMessage("*.c.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
+            if (set.getName().toString().startsWith("*.c.ingotronic.ch")) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("b.d.ingotronic.ch./A");
+        m.getHeader().setRcode(Rcode.NOERROR);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+        add("b.d.ingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("b.d.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nodata", getReason(response));
+    }
 }

@@ -473,7 +473,9 @@ public class ValUtils {
                     }
 
                     if (nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA)) {
-                        // wrong parentside (wildcard) NSEC used
+                        // wrong parentside (wildcard) NSEC used, and it really
+                        // should not exist anyway:
+                        // http://tools.ietf.org/html/rfc4592#section-4.2
                         return false;
                     }
 

@@ -38,6 +38,7 @@ import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
+import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
@@ -155,5 +156,32 @@ public class TestPriming extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("validate.bogus.badkey:ch.:failed.ds.unknown", getReason(response));
+    }
+
+    @Test
+    public void testDsNoDataWhenNsecIsFromChildApex() throws IOException {
+        Message nsec = resolver.send(createMessage("1.sub.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
+            if (set.getName().toString().startsWith("sub.ingotronic.ch") && set.getType() == Type.NSEC) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("sub.ingotronic.ch./DS");
+        m.getHeader().setRcode(Rcode.NOERROR);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+
+        // add with cache-clear
+        add("sub.ingotronic.ch./DS", m);
+
+        Message response = resolver.send(createMessage("sub.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus.badkey:sub.ingotronic.ch.:failed.ds.nsec", getReason(response));
     }
 }

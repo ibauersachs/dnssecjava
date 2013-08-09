@@ -533,7 +533,9 @@ public class ValUtils {
         // Could check to make sure the qname is a subdomain of nsec
         if (nsec.hasType(Type.SOA) || nsec.hasType(Type.DS)) {
             // SOA present means that this is the NSEC from the child, not the
-            // parent (so it is the wrong one)
+            // parent (so it is the wrong one) -> cannot happen because the 
+            // keyset is always from the parent zone and doesn't validate the
+            // NSEC
             // DS present means that there should have been a positive response
             // to the DS query, so there is something wrong.
             return SecurityStatus.BOGUS;

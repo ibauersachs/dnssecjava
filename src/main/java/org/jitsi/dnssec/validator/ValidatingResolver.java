@@ -933,9 +933,6 @@ public class ValidatingResolver implements Resolver {
 
             NSECRecord nsec = (NSECRecord)nsecRrset.first();
             switch (ValUtils.nsecProvesNoDS(nsec, qname)) {
-                case BOGUS: // something was wrong.
-                    bogusKE.setBadReason(R.get("failed.ds.nsec.hasdata"));
-                    return bogusKE;
                 case INSECURE: // this wasn't a delegation point.
                     logger.debug("NSEC RRset for the referral proved not a delegation point");
                     return null;
@@ -943,8 +940,9 @@ public class ValidatingResolver implements Resolver {
                     KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, nsecRrset.getTTL());
                     nullKey.setBadReason(R.get("insecure.ds.nsec"));
                     return nullKey;
-                default:
-                    throw new RuntimeException("unexpected security status");
+                default: // something was wrong.
+                    bogusKE.setBadReason(R.get("failed.ds.nsec.hasdata"));
+                    return bogusKE;
             }
         }
 
@@ -992,9 +990,6 @@ public class ValidatingResolver implements Resolver {
             }
 
             switch (this.n3valUtils.proveNoDS(nsec3s, qname, nsec3Signer)) {
-                case BOGUS:
-                    bogusKE.setBadReason(R.get("failed.ds.nsec3"));
-                    return bogusKE;
                 case INSECURE:
                     logger.debug("nsec3s proved no delegation.");
                     return null;
@@ -1003,7 +998,8 @@ public class ValidatingResolver implements Resolver {
                     nullKey.setBadReason(R.get("insecure.ds.nsec3"));
                     return nullKey;
                 default:
-                    throw new RuntimeException("unexpected security status");
+                    bogusKE.setBadReason(R.get("failed.ds.nsec3"));
+                    return bogusKE;
             }
         }
 

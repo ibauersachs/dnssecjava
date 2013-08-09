@@ -175,13 +175,48 @@ public class TestPriming extends TestBase {
         m.getHeader().setRcode(Rcode.NOERROR);
         m.addRecord(delegationNsec, Section.AUTHORITY);
         m.addRecord(delegationNsecSig, Section.AUTHORITY);
-
-        // add with cache-clear
         add("sub.ingotronic.ch./DS", m);
 
         Message response = resolver.send(createMessage("sub.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("validate.bogus.badkey:sub.ingotronic.ch.:failed.ds.nsec", getReason(response));
+    }
+
+    @Test
+    public void testDsNoDataWhenNsecOnEntIsBad() throws IOException {
+        Message m = resolver.send(createMessage("e.ingotronic.ch./DS"));
+        Message message = messageFromString(m.toString().replaceAll("(.*\\sRRSIG\\sNSEC\\s(\\d+\\s+){6}.*\\.)(.*)", "$1 YXNkZg=="));
+        add("e.ingotronic.ch./DS", message);
+
+        Message response = resolver.send(createMessage("a.e.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus:failed.ds.nsec.ent", getReason(response));
+    }
+
+    @Test
+    public void testDsNoDataWhenOnInsecureDelegationWithWrongNsec() throws IOException {
+        Message nsec = resolver.send(createMessage("alias.ingotronic.ch./NSEC"));
+        Record delegationNsec = null;
+        Record delegationNsecSig = null;
+        for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
+            if (set.getName().toString().startsWith("alias.ingotronic.ch") && set.getType() == Type.NSEC) {
+                delegationNsec = set.first();
+                delegationNsecSig = (Record)set.sigs().next();
+                break;
+            }
+        }
+
+        Message m = createMessage("unsigned.ingotronic.ch./DS");
+        m.getHeader().setRcode(Rcode.NOERROR);
+        m.addRecord(delegationNsec, Section.AUTHORITY);
+        m.addRecord(delegationNsecSig, Section.AUTHORITY);
+        add("unsigned.ingotronic.ch./DS", m);
+
+        Message response = resolver.send(createMessage("www.unsigned.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("validate.bogus:failed.ds.unknown", getReason(response));
     }
 }

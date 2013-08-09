@@ -181,7 +181,7 @@ public abstract class TestBase {
     }
 
     protected void add(String query, Message response, boolean clear) throws IOException {
-        queryResponsePairs.put(query, response);
+        queryResponsePairs.put(query, messageFromString(response.toString()));
 
         // reset the resolver so any cached stuff is cleared
         if (!clear) {

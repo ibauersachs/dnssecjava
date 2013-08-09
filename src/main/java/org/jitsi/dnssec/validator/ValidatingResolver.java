@@ -1289,6 +1289,7 @@ public class ValidatingResolver implements Resolver {
      */
     public Message send(Message query) throws IOException {
         SMessage response = this.sendRequest(query);
+        response.getHeader().unsetFlag(Flags.AD);
 
         // If the CD bit is set, do not process the (cached) validation status.
         if (query.getHeader().getFlag(Flags.CD)) {

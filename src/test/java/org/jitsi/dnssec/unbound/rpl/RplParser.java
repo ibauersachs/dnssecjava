@@ -136,7 +136,7 @@ public class RplParser {
                             rpl.nsec3iterations.put(Integer.parseInt(data[i]), Integer.parseInt(data[i + 1]));
                         }
                     }
-                    else {
+                    else if (line.startsWith("CONFIG_END")) {
                         state = ParseState.Zero;
                     }
 

@@ -1274,7 +1274,7 @@ public class ValidatingResolver implements Resolver {
         // Positive RRSIG responses cannot be validated as there are no
         // signatures on signatures. Negative answers CAN be validated.
         Message rrsigResponse = response.getMessage();
-        if (query.getQuestion().getType() == Type.RRSIG && query.getHeader().getRcode() == Rcode.NOERROR
+        if (query.getQuestion().getType() == Type.RRSIG && rrsigResponse.getHeader().getRcode() == Rcode.NOERROR
                 && rrsigResponse.getSectionRRsets(Section.ANSWER).length > 0) {
             rrsigResponse.getHeader().unsetFlag(Flags.AD);
             return rrsigResponse;

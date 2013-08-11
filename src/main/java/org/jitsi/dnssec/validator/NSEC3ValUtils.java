@@ -760,20 +760,19 @@ final class NSEC3ValUtils {
      * @param wildcard The purported wildcard that matched.
      * @return true if the NSEC3 records prove this case.
      */
-    public boolean proveWildcard(List<NSEC3Record> nsec3s, Name qname, Name zonename, Name wildcard) {
+    public SecurityStatus proveWildcard(List<NSEC3Record> nsec3s, Name qname, Name zonename, Name wildcard) {
         if (nsec3s == null || nsec3s.size() == 0 || qname == null || wildcard == null) {
-            return false;
+            return SecurityStatus.BOGUS;
         }
 
         NSEC3Parameters nsec3params = this.nsec3Parameters(nsec3s);
         if (nsec3params == null) {
             logger.debug("couldn't find a single set of NSEC3 parameters (multiple parameters present).");
-            return false;
+            return SecurityStatus.BOGUS;
         }
 
         // We know what the (purported) closest encloser is by just looking at
-        // the
-        // supposed generating wildcard.
+        // the supposed generating wildcard.
         CEResponse candidate = new CEResponse(new Name(wildcard, 1), null);
 
         // Now we still need to prove that the original data did not exist.
@@ -784,10 +783,14 @@ final class NSEC3ValUtils {
         if (candidate.ncNsec3 == null) {
             logger.debug("proveWildcard: did not find a covering NSEC3 that covered the next closer name to " + qname + " from " + candidate.closestEncloser
                     + " (derived from wildcard " + wildcard + ")");
-            return false;
+            return SecurityStatus.BOGUS;
         }
 
-        return true;
+        if ((candidate.ncNsec3.getFlags() & Flags.OPT_OUT) == Flags.OPT_OUT) {
+            return SecurityStatus.INSECURE;
+        }
+
+        return SecurityStatus.SECURE;
     }
 
     /**

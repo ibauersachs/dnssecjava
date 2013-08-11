@@ -63,6 +63,7 @@ import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DSRecord;
 import org.xbill.DNS.DSRecord.Digest;
+import org.xbill.DNS.Message;
 import org.xbill.DNS.NSECRecord;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.NameTooLongException;
@@ -160,14 +161,13 @@ public class ValUtils {
      *            trusted.
      * @param badKeyTTL The TTL [s] for keys determined to be bad.
      * 
-     * @return a KeyEntry. This will either contain the now trusted
-     *         dnskey RRset, a "null" key entry indicating that this DS
-     *         rrset/DNSKEY pair indicate an secure end to the island of trust
-     *         (i.e., unknown algorithms), or a "bad" KeyEntry if the dnskey
-     *         RRset fails to verify. Note that the "null" response should
-     *         generally only occur in a private algorithm scenario: normally
-     *         this sort of thing is checked before fetching the matching DNSKEY
-     *         rrset.
+     * @return a KeyEntry. This will either contain the now trusted dnskey
+     *         RRset, a "null" key entry indicating that this DS rrset/DNSKEY
+     *         pair indicate an secure end to the island of trust (i.e., unknown
+     *         algorithms), or a "bad" KeyEntry if the dnskey RRset fails to
+     *         verify. Note that the "null" response should generally only occur
+     *         in a private algorithm scenario: normally this sort of thing is
+     *         checked before fetching the matching DNSKEY rrset.
      */
     public KeyEntry verifyNewDNSKEYs(SRRset dnskeyRrset, SRRset dsRrset, long badKeyTTL) {
         if (!dnskeyRrset.getName().equals(dsRrset.getName())) {
@@ -518,6 +518,108 @@ public class ValUtils {
     }
 
     /**
+     * Check DS absence. There is a NODATA reply to a DS that needs checking.
+     * NSECs can prove this is not a delegation point, or sucessfully prove that
+     * there is no DS. Or this fails.
+     * 
+     * @param request The request that generated this response.
+     * @param response The response to validate.
+     * @param keyRrset The key that validate the NSECs.
+     * @return The NODATA proof along with the reason the result.
+     */
+    public JustifiedSecStatus nsecProvesNodataDsReply(Message request, SMessage response, SRRset keyRrset) {
+        Name qname = request.getQuestion().getName();
+        int qclass = request.getQuestion().getDClass();
+
+        // If we have a NSEC at the same name, it must prove one of two
+        // things
+        // --
+        // 1) this is a delegation point and there is no DS
+        // 2) this is not a delegation point
+        SRRset nsecRrset = response.findRRset(qname, Type.NSEC, qclass, Section.AUTHORITY);
+        if (nsecRrset != null) {
+            // The NSEC must verify, first of all.
+            SecurityStatus status = this.verifySRRset(nsecRrset, keyRrset);
+            if (status != SecurityStatus.SECURE) {
+                return new JustifiedSecStatus(SecurityStatus.BOGUS, R.get("failed.ds.nsec"));
+            }
+
+            NSECRecord nsec = (NSECRecord)nsecRrset.first();
+            status = ValUtils.nsecProvesNoDS(nsec, qname);
+            switch (status) {
+                case INSECURE: // this wasn't a delegation point.
+                    return new JustifiedSecStatus(status, R.get("failed.ds.nodelegation"));
+                case SECURE: // this proved no DS.
+                    return new JustifiedSecStatus(status, R.get("insecure.ds.nsec"));
+                default: // something was wrong.
+                    return new JustifiedSecStatus(status, R.get("failed.ds.nsec.hasdata"));
+            }
+        }
+
+        // Otherwise, there is no NSEC at qname. This could be an ENT.
+        // If not, this is broken.
+        Name wc = null, ce = null;
+        boolean hasValidNSEC = false;
+        NSECRecord wcNsec = null;
+        for (SRRset set : response.getSectionRRsets(Section.AUTHORITY, Type.NSEC)) {
+            SecurityStatus status = this.verifySRRset(set, keyRrset);
+            if (status != SecurityStatus.SECURE) {
+                return new JustifiedSecStatus(status, R.get("failed.ds.nsec.ent"));
+            }
+
+            NSECRecord nsec = (NSECRecord)set.first();
+            if (ValUtils.nsecProvesNodata(nsec, qname, Type.DS)) {
+                hasValidNSEC = true;
+                if (nsec.getName().isWild()) {
+                    wc = new Name(nsec.getName(), 1);
+                    wcNsec = nsec;
+                }
+            }
+
+            if (ValUtils.nsecProvesNameError(nsec, qname)) {
+                ce = closestEncloser(qname, nsec);
+            }
+        }
+
+        // The wildcard NODATA is 1 NSEC proving that qname does not exists (and
+        // also proving what the closest encloser is), and 1 NSEC showing the
+        // matching wildcard, which must be *.closest_encloser.
+        if (wc != null && (ce == null || !ce.equals(wc))) {
+            hasValidNSEC = false;
+        }
+
+        if (hasValidNSEC) {
+            if (wc != null) {
+                SecurityStatus status = nsecProvesNoDS(wcNsec, qname);
+                return new JustifiedSecStatus(status, R.get("failed.ds.nowildcardproof"));
+            }
+
+            return new JustifiedSecStatus(SecurityStatus.INSECURE, R.get("insecure.ds.nsec.ent"));
+        }
+
+        return new JustifiedSecStatus(SecurityStatus.UNCHECKED, R.get("failed.ds.nonconclusive"));
+    }
+
+    /**
+     * Checks if the authority section of a message contains at least one signed
+     * NSEC or NSEC3 record.
+     * 
+     * @param message The message to inspect.
+     * @return True if at least one record is found, false otherwise.
+     */
+    public boolean hasSignedNsecs(SMessage message) {
+        for (SRRset set : message.getSectionRRsets(Section.AUTHORITY)) {
+            if (set.getType() == Type.NSEC || set.getType() == Type.NSEC3) {
+                if (set.sigs().hasNext()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Determines whether the given {@link NSECRecord} proves that there is no
      * {@link DSRecord} for <code>qname</code>.
      * 
@@ -533,7 +635,7 @@ public class ValUtils {
         // Could check to make sure the qname is a subdomain of nsec
         if (nsec.hasType(Type.SOA) || nsec.hasType(Type.DS)) {
             // SOA present means that this is the NSEC from the child, not the
-            // parent (so it is the wrong one) -> cannot happen because the 
+            // parent (so it is the wrong one) -> cannot happen because the
             // keyset is always from the parent zone and doesn't validate the
             // NSEC
             // DS present means that there should have been a positive response

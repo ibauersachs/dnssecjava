@@ -169,7 +169,7 @@ public class TestInvalid extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         // rfc4035#section-5.5
         assertEquals(Rcode.SERVFAIL, response.getRcode());
-        assertEquals("validate.bogus.badkey:ch.:failed.ds.unknown", getReason(response));
+        assertEquals("validate.bogus.badkey:ch.:failed.ds.nonsec:ch.", getReason(response));
     }
 
     @Test

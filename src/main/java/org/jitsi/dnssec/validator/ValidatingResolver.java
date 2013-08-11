@@ -260,7 +260,6 @@ public class ValidatingResolver implements Resolver {
         List<NSEC3Record> nsec3s = null;
         List<NSECRecord> nsecs = null;
 
-        SRRset keyRrset = null;
         for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
             // Validate the CNAME following a (validated) DNAME is correctly
             // synthesized.
@@ -294,10 +293,8 @@ public class ValidatingResolver implements Resolver {
                 return;
             }
 
-            keyRrset = ke.getRRset();
-            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
-            // If the (answer) rrset failed to validate, then this message is
-            // BAD.
+            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset());
+            // If the answer rrset failed to validate, then this message is BAD
             if (status != SecurityStatus.SECURE) {
                 response.setBogus(R.get("failed.answer.positive", set));
                 return;
@@ -319,6 +316,7 @@ public class ValidatingResolver implements Resolver {
 
         // validate the AUTHORITY section as well - this will generally be the
         // NS rrset (which could be missing, no problem)
+        SRRset keyRrset = null;
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
             KeyEntry ke = this.prepareFindKey(set, request);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
@@ -382,14 +380,18 @@ public class ValidatingResolver implements Resolver {
                 // already proven, and we have NSEC3 records, try to prove it
                 // using the NSEC3 records.
                 if (!wcNsecOk && nsec3s != null) {
-                    if (this.n3valUtils.proveWildcard(nsec3s, wc.getKey(), keyRrset.getName(), wc.getValue())) {
+                    SecurityStatus status = this.n3valUtils.proveWildcard(nsec3s, wc.getKey(), keyRrset.getName(), wc.getValue());
+                    if (status == SecurityStatus.INSECURE) {
+                        response.setStatus(status);
+                        return;
+                    }
+                    else if (status == SecurityStatus.SECURE) {
                         wcNsecOk = true;
                     }
                 }
 
                 // If after all this, we still haven't proven the positive
-                // wildcard
-                // response, fail.
+                // wildcard response, fail.
                 if (!wcNsecOk) {
                     response.setBogus(R.get("failed.positive.wildcard_too_broad"));
                     return;
@@ -397,7 +399,6 @@ public class ValidatingResolver implements Resolver {
             }
         }
 
-        logger.trace("Successfully validated postive response");
         response.setStatus(SecurityStatus.SECURE);
     }
 
@@ -784,7 +785,8 @@ public class ValidatingResolver implements Resolver {
         if (state.keyEntry != null) {
             currentKeyName = state.keyEntry.getName();
         }
-        else {
+
+        if (state.currentDSKeyName != null) {
             currentKeyName = state.currentDSKeyName;
             state.currentDSKeyName = null;
         }
@@ -912,56 +914,28 @@ public class ValidatingResolver implements Resolver {
         int qclass = request.getQuestion().getDClass();
         KeyEntry bogusKE = KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
 
-        SecurityStatus status;
-        // NODATA means that the qname exists, but that there was no DS.
-        // This is a pretty normal case. NAMEERROR shouldn't happen, but
-        // can be proven.
-        SRRset nsecRrset = response.findRRset(qname, Type.NSEC, qclass, Section.AUTHORITY);
-
-        // If we have a NSEC at the same name, it must prove one of two
-        // things
-        // --
-        // 1) this is a delegation point and there is no DS
-        // 2) this is not a delegation point
-        if (nsecRrset != null) {
-            // The NSEC must verify, first of all.
-            status = this.valUtils.verifySRRset(nsecRrset, keyRrset);
-            if (status != SecurityStatus.SECURE) {
-                bogusKE.setBadReason(R.get("failed.ds.nsec"));
-                return bogusKE;
-            }
-
-            NSECRecord nsec = (NSECRecord)nsecRrset.first();
-            switch (ValUtils.nsecProvesNoDS(nsec, qname)) {
-                case INSECURE: // this wasn't a delegation point.
-                    logger.debug("NSEC RRset for the referral proved not a delegation point");
-                    return null;
-                case SECURE: // this proved no DS.
-                    KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, nsecRrset.getTTL());
-                    nullKey.setBadReason(R.get("insecure.ds.nsec"));
-                    return nullKey;
-                default: // something was wrong.
-                    bogusKE.setBadReason(R.get("failed.ds.nsec.hasdata"));
-                    return bogusKE;
-            }
+        if (!this.valUtils.hasSignedNsecs(response)) {
+            bogusKE.setBadReason(R.get("failed.ds.nonsec", qname));
+            return bogusKE;
         }
 
-        // Otherwise, there is no NSEC at qname. This could be an ENT.
-        // If not, this is broken.
-        for (SRRset set : response.getSectionRRsets(Section.AUTHORITY, Type.NSEC)) {
-            status = this.valUtils.verifySRRset(set, keyRrset);
-            if (status != SecurityStatus.SECURE) {
-                bogusKE.setBadReason(R.get("failed.ds.nsec.ent"));
-                return bogusKE;
-            }
-
-            NSECRecord nsec = (NSECRecord)set.first();
-            if (ValUtils.nsecProvesNodata(nsec, qname, Type.DS)) {
-                KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, set.getTTL());
-                nullKey.setBadReason(R.get("insecure.ds.nsec.ent"));
+        // Try to prove absence of the DS with NSEC
+        JustifiedSecStatus status = this.valUtils.nsecProvesNodataDsReply(request, response, keyRrset);
+        switch (status.status) {
+            case SECURE:
+                KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
+                nullKey.setBadReason(R.get("insecure.ds.nsec"));
                 return nullKey;
-            }
+            case INSECURE:
+                return null;
+            case BOGUS:
+                bogusKE.setBadReason(status.reason);
+                return bogusKE;
+            default:
+                // NSEC proof did not work, try NSEC3
+                break;
         }
+
 
         // Or it could be using NSEC3.
         SRRset[] nsec3Rrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC3);
@@ -971,8 +945,8 @@ public class ValidatingResolver implements Resolver {
         if (nsec3Rrsets != null && nsec3Rrsets.length > 0) {
             // Attempt to prove no DS with NSEC3s.
             for (SRRset nsec3set : nsec3Rrsets) {
-                status = this.valUtils.verifySRRset(nsec3set, keyRrset);
-                if (status != SecurityStatus.SECURE) {
+                SecurityStatus sstatus = this.valUtils.verifySRRset(nsec3set, keyRrset);
+                if (sstatus != SecurityStatus.SECURE) {
                     // FIXME: we could just fail here -- there is an
                     // invalid rrset -- but is more robust to skip like
                     // we are.
@@ -1029,6 +1003,7 @@ public class ValidatingResolver implements Resolver {
         }
         else if (dsKE.isGood()) {
             state.dsRRset = dsKE.getRRset();
+            state.currentDSKeyName = new Name(dsKE.getRRset().getName(), 1);
         }
         else {
             // The reason for the DS to be not good (that is, either bad

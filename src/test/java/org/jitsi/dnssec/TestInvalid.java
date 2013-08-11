@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Date;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DClass;
@@ -50,7 +49,6 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
-    @Ignore // signature is incepted
     public void testSigNotIncepted() throws IOException {
         Message response = resolver.send(createMessage("signotincepted.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -91,12 +89,12 @@ public class TestInvalid extends TestBase {
         assertEquals("validate.bogus.badkey:unknownalgorithm.nsec3.tjeb.nl.:failed.ds", getReason(response));
     }
 
-//    @Test  disabled, the signature is actually valid
-//    public void testSigNotInceptedNsec3() throws IOException {
-//        Message response = resolver.send(createMessage("signotincepted.Nsec3.tjeb.nl./A"));
-//        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-//        assertEquals(Rcode.SERVFAIL, response.getRcode());
-//    }
+    @Test
+    public void testSigNotInceptedNsec3() throws IOException {
+        Message response = resolver.send(createMessage("signotincepted.Nsec3.tjeb.nl./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+    }
 
     @Test
     public void testSigExpiredNsec3() throws IOException {

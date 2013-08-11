@@ -68,4 +68,18 @@ public class TestPositive extends TestBase {
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("validate.response.unknown:UNKNOWN", getReason(response));
     }
+
+    @Test
+    public void testCDonQueryDoesntDoAnything() throws IOException {
+        Message m = resolver.send(createMessage("www.ingotronic.ch./A"));
+        Message message = messageFromString(m.toString().replaceAll("(.*\\sRRSIG\\s+A\\s(\\d+\\s+){6}.*\\.)(.*)", "$1 YXNkZg=="));
+        add("www.ingotronic.ch./A", message);
+
+        Message query = createMessage("www.ingotronic.ch./A");
+        query.getHeader().setFlag(Flags.CD);
+        Message response = resolver.send(query);
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
+    }
 }

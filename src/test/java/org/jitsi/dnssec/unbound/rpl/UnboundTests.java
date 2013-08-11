@@ -123,6 +123,7 @@ public class UnboundTests extends TestBase {
                 "val_cnametooptin.rpl", // incomplete CNAME answer
                 "val_cnametoinsecure.rpl", // incomplete CNAME answer
                 "val_nsec3_optout_cache.rpl", // more cache stuff
+                "val_ds_gost.rpl", //we don't support GOST (RFC5933)
         };
         List<String> ignoredList = Arrays.asList(ignored);
 
@@ -330,11 +331,6 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_ds_cnamesub() throws ParseException, IOException {
-        runUnboundTest();
-    }
-
-    @Test
-    public void val_ds_gost() throws ParseException, IOException {
         runUnboundTest();
     }
 

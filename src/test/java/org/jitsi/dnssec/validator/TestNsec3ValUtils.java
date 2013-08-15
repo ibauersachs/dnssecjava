@@ -86,7 +86,8 @@ public class TestNsec3ValUtils extends TestBase {
 
         Message m = resolver.send(createMessage("a.sub.nsec3.ingotronic.ch./A"));
         String temp = m.toString().replaceAll("^sub\\.nsec3.*", "");
-        temp = temp.replaceAll("5RFQOLI81S6LKQTUG5HLI19UVJNKUL3H.*", "");
+        // hash(n=sub.nsec3.ingotronic.ch.,it=11,s=4321)=8N8QLBCUIH7R2BG7DMCJ5AEE63K4KVUA
+        temp = temp.replaceAll("8N8QLBCUIH7R2BG7DMCJ5AEE63K4KVUA.*", "");
         Message message = messageFromString(temp);
         message.addRecord(delegationNsec, Section.AUTHORITY);
         message.addRecord(delegationNsecSig, Section.AUTHORITY);

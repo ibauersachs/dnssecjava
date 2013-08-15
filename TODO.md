@@ -32,7 +32,7 @@ Code Coverage / Bugs
   - Exceptions thrown by the head resolver
   - Bogus/Insecure handling of CNAME answer to DS query
   - Async calling of the validator
-  - Passthrough without validation if the CD flag is set
+  - <del>Passthrough without validation if the CD flag is set
   - Various cases in dsReponseToKeForNodata
   - <del>longestCommonName
   - <del>Various NSEC NODATA cases

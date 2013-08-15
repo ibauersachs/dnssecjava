@@ -55,7 +55,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.DSAPublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
@@ -64,8 +64,8 @@ import java.util.Properties;
 import java.util.TreeMap;
 
 import org.apache.log4j.Logger;
+import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
-import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DNSSEC.DNSSECException;
@@ -73,7 +73,6 @@ import org.xbill.DNS.NSEC3Record;
 import org.xbill.DNS.NSEC3Record.Flags;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.NameTooLongException;
-import org.xbill.DNS.RRset;
 import org.xbill.DNS.TextParseException;
 import org.xbill.DNS.Type;
 import org.xbill.DNS.utils.base32;
@@ -82,12 +81,6 @@ import org.xbill.DNS.utils.base32;
  * NSEC3 non-existence proof utilities.
  */
 final class NSEC3ValUtils {
-    // FIXME: should probably refactor to handle different NSEC3 parameters more
-    // efficiently.
-    // Given a list of NSEC3 RRs, they should be grouped according to
-    // parameters. The idea is to hash and compare for each group independently,
-    // instead of having to skip NSEC3 RRs with the wrong parameters.
-
     // The logger to use in static methods.
     private static final Logger logger = Logger.getLogger(NSEC3ValUtils.class);
 
@@ -140,38 +133,6 @@ final class NSEC3ValUtils {
     }
 
     /**
-     * This is a class to encapsulate a unique set of NSEC3 parameters:
-     * algorithm, iterations, and salt.
-     */
-    private static class NSEC3Parameters {
-        private int alg;
-        private byte[] salt;
-        private int iterations;
-
-        public NSEC3Parameters(NSEC3Record r) {
-            this.alg = r.getHashAlgorithm();
-            this.salt = r.getSalt();
-            this.iterations = r.getIterations();
-        }
-
-        public boolean match(NSEC3Record r) {
-            if (r.getHashAlgorithm() != this.alg) {
-                return false;
-            }
-
-            if (r.getIterations() != this.iterations) {
-                return false;
-            }
-
-            if (this.salt == null && r.getSalt() != null) {
-                return false;
-            }
-
-            return Arrays.equals(r.getSalt(), this.salt);
-        }
-    }
-
-    /**
      * This is just a simple class to encapsulate the response to a closest
      * encloser proof.
      */
@@ -210,77 +171,12 @@ final class NSEC3ValUtils {
      * @param nsec3s List of NSEC3 records to check. The list is modified by
      *            this method.
      */
-    public void stripUnknownAlgNSEC3s(List<NSEC3Record> nsec3s) {
-        if (nsec3s == null) {
-            return;
-        }
-
-        for (ListIterator<NSEC3Record> i = nsec3s.listIterator(); i.hasNext();) {
-            NSEC3Record nsec3 = i.next();
+    public void stripUnknownAlgNSEC3s(List<SRRset> nsec3s) {
+        for (ListIterator<SRRset> i = nsec3s.listIterator(); i.hasNext();) {
+            NSEC3Record nsec3 = (NSEC3Record)i.next().first();
             if (!this.supportsHashAlgorithm(nsec3.getHashAlgorithm())) {
                 i.remove();
             }
-        }
-    }
-
-    /**
-     * Given a list of NSEC3Records that are part of a message, determine the
-     * NSEC3 parameters (hash algorithm, iterations, and salt) present. If there
-     * is more than one distinct grouping, return null;
-     * 
-     * @param nsec3s A list of NSEC3Record object.
-     * @return A set containing a number of objects (NSEC3Parameter objects)
-     *         that correspond to each distinct set of parameters, or null if
-     *         the nsec3s list was empty.
-     */
-    public NSEC3Parameters nsec3Parameters(List<NSEC3Record> nsec3s) {
-        if (nsec3s == null || nsec3s.size() == 0) {
-            return null;
-        }
-
-        NSEC3Parameters params = new NSEC3Parameters((NSEC3Record)nsec3s.get(0));
-        for (NSEC3Record nsec3 : nsec3s) {
-            if (!params.match(nsec3)) {
-                return null;
-            }
-        }
-
-        return params;
-    }
-
-    /**
-     * Given a hash and an a zone name, construct an NSEC3 ownername.
-     * 
-     * @param hash The hash of an original name.
-     * @param zonename The zone to use in constructing the NSEC3 name.
-     * @return The NSEC3 name.
-     */
-    private Name hashName(byte[] hash, Name zonename) {
-        try {
-            return new Name(new base32(base32.Alphabet.BASE32HEX, false, false).toString(hash), zonename);
-        }
-        catch (TextParseException e) {
-            // Note, this should never happen.
-            return null;
-        }
-    }
-
-    /**
-     * Given a set of NSEC3 parameters, hash a name.
-     * 
-     * @param name The name to hash.
-     * @param params The parameters to hash with.
-     * @return The hash.
-     */
-    private byte[] hash(Name name, NSEC3Parameters params) {
-        try {
-            int[] types = new int[] { Type.A };
-            NSEC3Record r = new NSEC3Record(name, DClass.IN, (long)0, params.alg, 0, params.iterations, params.salt, new byte[0], types);
-            return r.hashName(name);
-        }
-        catch (NoSuchAlgorithmException e) {
-            logger.debug("Did not recognize hash algorithm: " + params.alg);
-            return null;
         }
     }
 
@@ -316,24 +212,27 @@ final class NSEC3ValUtils {
     /**
      * Find the NSEC3Record that matches a hash of a name.
      * 
-     * @param hash The pre-calculated hash of a name.
+     * @param name The name to find.
      * @param zonename The name of the zone that the NSEC3s are from.
      * @param nsec3s A list of NSEC3Records from a given message.
-     * @param params The parameters used for calculating the hash.
      * 
-     * @return The matching NSEC3Record, if one is present.
+     * @return The matching NSEC3Record if one is present, null otherwise.
      */
-    private NSEC3Record findMatchingNSEC3(byte[] hash, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params) {
-        Name n = this.hashName(hash, zonename);
-
-        for (NSEC3Record nsec3 : nsec3s) {
-            // Skip nsec3 records that are using different parameters.
-            if (!params.match(nsec3)) {
+    private NSEC3Record findMatchingNSEC3(Name name, Name zonename, List<SRRset> nsec3s) {
+        for (SRRset set : nsec3s) {
+            try {
+                NSEC3Record nsec3 = (NSEC3Record)set.first();
+                byte[] hash = nsec3.hashName(name);
+                Name complete = new Name(new base32(base32.Alphabet.BASE32HEX, false, false).toString(hash), zonename);
+                if (complete.equals(nsec3.getName())) {
+                    return nsec3;
+                }
+            }
+            catch (NoSuchAlgorithmException e) {
                 continue;
             }
-
-            if (n.equals(nsec3.getName())) {
-                return nsec3;
+            catch (TextParseException e) {
+                continue;
             }
         }
 
@@ -373,22 +272,22 @@ final class NSEC3ValUtils {
      * Given a pre-hashed name, find a covering NSEC3 from among a list of
      * NSEC3s.
      * 
-     * @param hash The hash to consider.
+     * @param name The name to consider.
      * @param zonename The name of the zone.
      * @param nsec3s The list of NSEC3s present in a message.
-     * @param params The NSEC3 parameters used to generate the hash -- NSEC3s
-     *            that do not use those parameters will be skipped.
-     * 
      * @return A covering NSEC3 if one is present, null otherwise.
      */
-    private NSEC3Record findCoveringNSEC3(byte[] hash, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params) {
-        for (NSEC3Record nsec3 : nsec3s) {
-            if (!params.match(nsec3)) {
-                continue;
+    private NSEC3Record findCoveringNSEC3(Name name, Name zonename, List<SRRset> nsec3s) {
+        for (SRRset set : nsec3s) {
+            try {
+                NSEC3Record nsec3 = (NSEC3Record)set.first();
+                byte[] hash = nsec3.hashName(name);
+                if (this.nsec3Covers(nsec3, hash)) {
+                    return nsec3;
+                }
             }
-
-            if (this.nsec3Covers(nsec3, hash)) {
-                return nsec3;
+            catch (NoSuchAlgorithmException e) {
+                continue;
             }
         }
 
@@ -403,18 +302,17 @@ final class NSEC3ValUtils {
      * @param name The name the start with.
      * @param zonename The name of the zone that the NSEC3s came from.
      * @param nsec3s The list of NSEC3s.
-     * @param params The NSEC3 parameters.
      * 
      * @return A CEResponse containing the closest encloser name and the NSEC3
      *         RR that matched it, or null if there wasn't one.
      */
-    private CEResponse findClosestEncloser(Name name, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params) {
+    private CEResponse findClosestEncloser(Name name, Name zonename, List<SRRset> nsec3s) {
         // This scans from longest name to shortest, so the first match we find
         // is the only viable candidate.
         // FIXME: modify so that the NSEC3 matching the zone apex need not be
         // present.
         while (name.labels() >= zonename.labels()) {
-            NSEC3Record nsec3 = this.findMatchingNSEC3(this.hash(name, params), zonename, nsec3s, params);
+            NSEC3Record nsec3 = this.findMatchingNSEC3(name, zonename, nsec3s);
             if (nsec3 != null) {
                 return new CEResponse(name, nsec3);
             }
@@ -432,14 +330,11 @@ final class NSEC3ValUtils {
      * @param zonename The name of the zone that the NSEC3 RRs come from.
      * @param nsec3s The list of NSEC3s found the this response (already
      *            verified).
-     * @param params The NSEC3 parameters found in the response.
-     * @return null if the proof isn't completed. Otherwise, return a CEResponse
-     *         object which contains the closest encloser name and the NSEC3
-     *         that matches it.
+     * @return A CEResponse object which contains the closest encloser name and
+     *         the NSEC3 that matches it.
      */
-    private CEResponse proveClosestEncloser(Name qname, Name zonename, List<NSEC3Record> nsec3s, NSEC3Parameters params) {
-        CEResponse candidate = this.findClosestEncloser(qname, zonename, nsec3s, params);
-
+    private CEResponse proveClosestEncloser(Name qname, Name zonename, List<SRRset> nsec3s) {
+        CEResponse candidate = this.findClosestEncloser(qname, zonename, nsec3s);
         if (candidate == null) {
             logger.debug("proveClosestEncloser: could not find a candidate for the closest encloser.");
             candidate = new CEResponse(Name.empty, null);
@@ -475,8 +370,7 @@ final class NSEC3ValUtils {
 
         // Otherwise, we need to show that the next closer name is covered.
         Name nextClosest = nextClosest(qname, candidate.closestEncloser);
-        byte[] ncHash = this.hash(nextClosest, params);
-        candidate.ncNsec3 = this.findCoveringNSEC3(ncHash, zonename, nsec3s, params);
+        candidate.ncNsec3 = this.findCoveringNSEC3(nextClosest, zonename, nsec3s);
         if (candidate.ncNsec3 == null) {
             logger.debug("Could not find proof that the closest encloser was the closest encloser");
             candidate.status = SecurityStatus.BOGUS;
@@ -487,7 +381,8 @@ final class NSEC3ValUtils {
         return candidate;
     }
 
-    private boolean validIterations(NSEC3Parameters nsec3params, RRset dnskeyRrset) {
+    private boolean validIterations(SRRset nsec, KeyCache keyCache) {
+        SRRset dnskeyRrset = keyCache.find(nsec.getSignerName(), nsec.getDClass()).getRRset();
         // for now, we return the maximum iterations based simply on the key
         // algorithms that may have been used to sign the NSEC3 RRsets.
         try {
@@ -520,7 +415,7 @@ final class NSEC3ValUtils {
                     keyIters = this.maxIterations.firstKey();
                 }
 
-                if (nsec3params.iterations > keyIters) {
+                if (((NSEC3Record)nsec.first()).getIterations() > keyIters) {
                     return false;
                 }
             }
@@ -543,13 +438,46 @@ final class NSEC3ValUtils {
      * @param dnskeyRrset The set of validating DNSKEYs.
      * @return true if all of the NSEC3s can be legally ignored, false if not.
      */
-    public boolean allNSEC3sIgnoreable(List<NSEC3Record> nsec3s, RRset dnskeyRrset) {
-        NSEC3Parameters params = this.nsec3Parameters(nsec3s);
-        if (params == null) {
-            return false;
+    public boolean allNSEC3sIgnoreable(List<SRRset> nsec3s, KeyCache dnskeyRrset) {
+        Map<Name, NSEC3Record> foundNsecs = new HashMap<Name, NSEC3Record>();
+        ByteArrayComparator comp = new ByteArrayComparator();
+        for (SRRset set : nsec3s) {
+            @SuppressWarnings("unchecked")
+            Iterator<NSEC3Record> it = (Iterator<NSEC3Record>)set.rrs();
+            while (it.hasNext()) {
+                NSEC3Record current = it.next();
+                Name key = new Name(current.getName(), 1);
+                NSEC3Record previous = foundNsecs.get(key);
+                if (previous != null) {
+                    if (current.getHashAlgorithm() != previous.getHashAlgorithm()) {
+                        return true;
+                    }
+
+                    if (current.getIterations() != previous.getIterations()) {
+                        return true;
+                    }
+
+                    if (current.getSalt() == null ^ previous.getSalt() == null) {
+                        return true;
+                    }
+
+                    if (current.getSalt() != null && comp.compare(current.getSalt(), previous.getSalt()) != 0) {
+                        return true;
+                    }
+                }
+                else {
+                    foundNsecs.put(key, current);
+                }
+            }
         }
 
-        return !this.validIterations(params, dnskeyRrset);
+        for (SRRset set : nsec3s) {
+            if (this.validIterations(set, dnskeyRrset)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -568,20 +496,14 @@ final class NSEC3ValUtils {
      *         {@link SecurityStatus#INSECURE} if all of the NSEC3s could be
      *         validly ignored.
      */
-    public SecurityStatus proveNameError(List<NSEC3Record> nsec3s, Name qname, Name zonename) {
+    public SecurityStatus proveNameError(List<SRRset> nsec3s, Name qname, Name zonename) {
         if (nsec3s == null || nsec3s.size() == 0) {
             return SecurityStatus.BOGUS;
         }
 
-        NSEC3Parameters nsec3params = this.nsec3Parameters(nsec3s);
-        if (nsec3params == null) {
-            logger.debug("Could not find a single set of NSEC3 parameters (multiple parameters present).");
-            return SecurityStatus.INSECURE;
-        }
-
         // First locate and prove the closest encloser to qname. We will use the
         // variant that fails if the closest encloser turns out to be qname.
-        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params);
+        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s);
 
         if (ce.status != SecurityStatus.SECURE) {
             logger.debug("proveNameError: failed to prove a closest encloser.");
@@ -592,8 +514,7 @@ final class NSEC3ValUtils {
         // prove
         // that the wildcard does not exist.
         Name wc = this.ceWildcard(ce.closestEncloser);
-        byte[] wcHash = this.hash(wc, nsec3params);
-        NSEC3Record nsec3 = this.findCoveringNSEC3(wcHash, zonename, nsec3s, nsec3params);
+        NSEC3Record nsec3 = this.findCoveringNSEC3(wc, zonename, nsec3s);
         if (nsec3 == null) {
             logger.debug("proveNameError: could not prove that the applicable wildcard did not exist.");
             return SecurityStatus.BOGUS;
@@ -635,18 +556,12 @@ final class NSEC3ValUtils {
      *         proposition, {@link SecurityStatus#INSECURE} if qname is under
      *         opt-out, {@link SecurityStatus#BOGUS} otherwise.
      */
-    public SecurityStatus proveNodata(List<NSEC3Record> nsec3s, Name qname, int qtype, Name zonename) {
+    public SecurityStatus proveNodata(List<SRRset> nsec3s, Name qname, int qtype, Name zonename) {
         if (nsec3s == null || nsec3s.size() == 0) {
             return SecurityStatus.BOGUS;
         }
 
-        NSEC3Parameters nsec3params = this.nsec3Parameters(nsec3s);
-        if (nsec3params == null) {
-            logger.debug("could not find a single set of NSEC3 parameters (multiple parameters present)");
-            return SecurityStatus.BOGUS;
-        }
-
-        NSEC3Record nsec3 = this.findMatchingNSEC3(this.hash(qname, nsec3params), zonename, nsec3s, nsec3params);
+        NSEC3Record nsec3 = this.findMatchingNSEC3(qname, zonename, nsec3s);
         // Cases 1 & 2.
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
@@ -680,7 +595,7 @@ final class NSEC3ValUtils {
         // For cases 3 - 5, we need the proven closest encloser, and it can't
         // match qname. Although, at this point, we know that it won't since we
         // just checked that.
-        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params);
+        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s);
 
         // At this point, not finding a match or a proven closest encloser is a
         // problem.
@@ -697,7 +612,7 @@ final class NSEC3ValUtils {
 
         // Case 4:
         Name wc = this.ceWildcard(ce.closestEncloser);
-        nsec3 = this.findMatchingNSEC3(this.hash(wc, nsec3params), zonename, nsec3s, nsec3params);
+        nsec3 = this.findMatchingNSEC3(wc, zonename, nsec3s);
         if (nsec3 != null) {
             if (nsec3.hasType(qtype)) {
                 logger.debug("proveNodata: matching wildcard had qtype!");
@@ -760,14 +675,8 @@ final class NSEC3ValUtils {
      * @param wildcard The purported wildcard that matched.
      * @return true if the NSEC3 records prove this case.
      */
-    public SecurityStatus proveWildcard(List<NSEC3Record> nsec3s, Name qname, Name zonename, Name wildcard) {
+    public SecurityStatus proveWildcard(List<SRRset> nsec3s, Name qname, Name zonename, Name wildcard) {
         if (nsec3s == null || nsec3s.size() == 0 || qname == null || wildcard == null) {
-            return SecurityStatus.BOGUS;
-        }
-
-        NSEC3Parameters nsec3params = this.nsec3Parameters(nsec3s);
-        if (nsec3params == null) {
-            logger.debug("couldn't find a single set of NSEC3 parameters (multiple parameters present).");
             return SecurityStatus.BOGUS;
         }
 
@@ -778,7 +687,7 @@ final class NSEC3ValUtils {
         // Now we still need to prove that the original data did not exist.
         // Otherwise, we need to show that the next closer name is covered.
         Name nextClosest = nextClosest(qname, candidate.closestEncloser);
-        candidate.ncNsec3 = this.findCoveringNSEC3(this.hash(nextClosest, nsec3params), zonename, nsec3s, nsec3params);
+        candidate.ncNsec3 = this.findCoveringNSEC3(nextClosest, zonename, nsec3s);
 
         if (candidate.ncNsec3 == null) {
             logger.debug("proveWildcard: did not find a covering NSEC3 that covered the next closer name to " + qname + " from " + candidate.closestEncloser
@@ -809,19 +718,13 @@ final class NSEC3ValUtils {
      *         delegation point, and SecurityStatus.BOGUS if the proofs don't
      *         work out.
      */
-    public SecurityStatus proveNoDS(List<NSEC3Record> nsec3s, Name qname, Name zonename) {
+    public SecurityStatus proveNoDS(List<SRRset> nsec3s, Name qname, Name zonename) {
         if (nsec3s == null || nsec3s.size() == 0) {
             return SecurityStatus.BOGUS;
         }
 
-        NSEC3Parameters nsec3params = this.nsec3Parameters(nsec3s);
-        if (nsec3params == null) {
-            logger.debug("couldn't find a single set of NSEC3 parameters (multiple parameters present).");
-            return SecurityStatus.BOGUS;
-        }
-
         // Look for a matching NSEC3 to qname -- this is the normal NODATA case.
-        NSEC3Record nsec3 = this.findMatchingNSEC3(this.hash(qname, nsec3params), zonename, nsec3s, nsec3params);
+        NSEC3Record nsec3 = this.findMatchingNSEC3(qname, zonename, nsec3s);
 
         if (nsec3 != null) {
             // If the matching NSEC3 has the SOA bit set, it is from the wrong
@@ -842,7 +745,7 @@ final class NSEC3ValUtils {
         }
 
         // Otherwise, we are probably in the opt-in case.
-        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s, nsec3params);
+        CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s);
         if (ce.status != SecurityStatus.SECURE) {
             return SecurityStatus.BOGUS;
         }

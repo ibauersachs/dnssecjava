@@ -78,7 +78,6 @@ import org.xbill.DNS.Flags;
 import org.xbill.DNS.Header;
 import org.xbill.DNS.Master;
 import org.xbill.DNS.Message;
-import org.xbill.DNS.NSEC3Record;
 import org.xbill.DNS.NSECRecord;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.NameTooLongException;
@@ -257,8 +256,8 @@ public class ValidatingResolver implements Resolver {
         // validate the ANSWER section - this will be the answer itself
         Map<Name, Name> wcs = new HashMap<Name, Name>(1);
         DNAMERecord dname = null;
-        List<NSEC3Record> nsec3s = null;
-        List<NSECRecord> nsecs = null;
+        List<SRRset> nsec3s = new ArrayList<SRRset>(0);
+        List<NSECRecord> nsecs = new ArrayList<NSECRecord>(0);
 
         for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
             // Validate the CNAME following a (validated) DNAME is correctly
@@ -334,18 +333,10 @@ public class ValidatingResolver implements Resolver {
 
             if (wcs.size() > 0) {
                 if (set.getType() == Type.NSEC) {
-                    if (nsecs == null) {
-                        nsecs = new ArrayList<NSECRecord>();
-                    }
-
                     nsecs.add((NSECRecord)set.first());
                 }
                 else if (set.getType() == Type.NSEC3) {
-                    if (nsec3s == null) {
-                        nsec3s = new ArrayList<NSEC3Record>();
-                    }
-
-                    nsec3s.add((NSEC3Record)set.first());
+                    nsec3s.add(set);
                 }
             }
         }
@@ -512,7 +503,7 @@ public class ValidatingResolver implements Resolver {
         Name wc = null;
 
         // A collection of NSEC3 RRs found in the authority section.
-        List<NSEC3Record> nsec3s = null;
+        List<SRRset> nsec3s = new ArrayList<SRRset>(0);
 
         // The RRSIG signer field for the NSEC3 RRs.
         Name nsec3Signer = null;
@@ -548,11 +539,7 @@ public class ValidatingResolver implements Resolver {
 
             // Collect any NSEC3 records present.
             if (set.getType() == Type.NSEC3) {
-                if (nsec3s == null) {
-                    nsec3s = new ArrayList<NSEC3Record>();
-                }
-
-                nsec3s.add((NSEC3Record)set.first());
+                nsec3s.add(set);
                 nsec3Signer = set.getSignerName();
             }
         }
@@ -567,7 +554,7 @@ public class ValidatingResolver implements Resolver {
         }
 
         this.n3valUtils.stripUnknownAlgNSEC3s(nsec3s);
-        if (!hasValidNSEC && nsec3s != null && nsec3s.size() > 0) {
+        if (!hasValidNSEC && nsec3s.size() > 0) {
             // try to prove NODATA with our NSEC3 record(s)
             SecurityStatus status = this.n3valUtils.proveNodata(nsec3s, qname, qtype, nsec3Signer);
             if (status == SecurityStatus.INSECURE) {
@@ -624,7 +611,7 @@ public class ValidatingResolver implements Resolver {
         // In addition, the NSEC record(s) must prove the NXDOMAIN condition.
         boolean hasValidNSEC = false;
         boolean hasValidWCNSEC = false;
-        List<NSEC3Record> nsec3s = null;
+        List<SRRset> nsec3s = new ArrayList<SRRset>(0);
         Name nsec3Signer = null;
         SRRset keyRrset = null;
 
@@ -653,21 +640,17 @@ public class ValidatingResolver implements Resolver {
             }
 
             if (set.getType() == Type.NSEC3) {
-                if (nsec3s == null) {
-                    nsec3s = new ArrayList<NSEC3Record>();
-                }
-
-                nsec3s.add((NSEC3Record)set.first());
+                nsec3s.add(set);
                 nsec3Signer = set.getSignerName();
             }
         }
 
         this.n3valUtils.stripUnknownAlgNSEC3s(nsec3s);
-        if ((!hasValidNSEC || !hasValidWCNSEC) && nsec3s != null) {
+        if ((!hasValidNSEC || !hasValidWCNSEC) && nsec3s.size() > 0) {
             logger.debug("Validating nxdomain: using NSEC3 records");
 
             // Attempt to prove name error with nsec3 records.
-            if (this.n3valUtils.allNSEC3sIgnoreable(nsec3s, keyRrset)) {
+            if (this.n3valUtils.allNSEC3sIgnoreable(nsec3s, this.keyCache)) {
                 response.setStatus(SecurityStatus.INSECURE, R.get("failed.nxdomain.nsec3_ignored"));
                 return;
             }
@@ -936,10 +919,9 @@ public class ValidatingResolver implements Resolver {
                 break;
         }
 
-
         // Or it could be using NSEC3.
         SRRset[] nsec3Rrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC3);
-        List<NSEC3Record> nsec3s = new ArrayList<NSEC3Record>();
+        List<SRRset> nsec3s = new ArrayList<SRRset>(0);
         Name nsec3Signer = null;
         long nsec3TTL = -1;
         if (nsec3Rrsets != null && nsec3Rrsets.length > 0) {
@@ -947,20 +929,19 @@ public class ValidatingResolver implements Resolver {
             for (SRRset nsec3set : nsec3Rrsets) {
                 SecurityStatus sstatus = this.valUtils.verifySRRset(nsec3set, keyRrset);
                 if (sstatus != SecurityStatus.SECURE) {
-                    // FIXME: we could just fail here -- there is an
-                    // invalid rrset -- but is more robust to skip like
-                    // we are.
+                    // We could just fail here as there is an invalid rrset, but
+                    // skipping doesn't matter because we might not need it or
+                    // the proof will fail anyway.
                     logger.debug("skipping bad nsec3");
                     continue;
                 }
 
-                NSEC3Record nsec3 = (NSEC3Record)nsec3set.first();
                 nsec3Signer = nsec3set.getSignerName();
                 if (nsec3TTL < 0 || nsec3set.getTTL() < nsec3TTL) {
                     nsec3TTL = nsec3set.getTTL();
                 }
 
-                nsec3s.add(nsec3);
+                nsec3s.add(nsec3set);
             }
 
             switch (this.n3valUtils.proveNoDS(nsec3s, qname, nsec3Signer)) {

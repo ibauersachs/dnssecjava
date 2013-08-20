@@ -372,14 +372,13 @@ public class SMessage {
 
     /**
      * Find an "answer" RRset. This will look for RRsets in the ANSWER section
-     * that match the <qname,qtype,qclass>, without considering CNAMEs.
+     * that match the &ltqname,qtype,qclass&gt, without considering CNAMEs.
      * 
      * @param qname The starting search name.
      * @param qtype The search type.
      * @param qclass The search class.
      * 
-     * @return a SRRset matching the query. This SRRset may have a different
-     *         name from qname, due to following a CNAME chain.
+     * @return a SRRset matching the query.
      */
     public SRRset findAnswerRRset(Name qname, int qtype, int qclass) {
         return this.findRRset(qname, qtype, qclass, Section.ANSWER);

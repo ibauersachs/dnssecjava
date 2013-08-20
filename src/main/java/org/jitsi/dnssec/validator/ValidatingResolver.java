@@ -287,7 +287,7 @@ public class ValidatingResolver implements Resolver {
             }
 
             // Verify the answer rrset.
-            KeyEntry ke = this.prepareFindKey(set, request);
+            KeyEntry ke = this.prepareFindKey(set);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -317,7 +317,7 @@ public class ValidatingResolver implements Resolver {
         // NS rrset (which could be missing, no problem)
         SRRset keyRrset = null;
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, request);
+            KeyEntry ke = this.prepareFindKey(set);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -427,7 +427,7 @@ public class ValidatingResolver implements Resolver {
 
         // validate the ANSWER section.
         for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
-            KeyEntry ke = this.prepareFindKey(set, request);
+            KeyEntry ke = this.prepareFindKey(set);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -444,7 +444,7 @@ public class ValidatingResolver implements Resolver {
         // validate the AUTHORITY section as well - this will be the NS rrset
         // (which could be missing, no problem)
         for (SRRset set : m.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, request);
+            KeyEntry ke = this.prepareFindKey(set);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -513,7 +513,7 @@ public class ValidatingResolver implements Resolver {
 
         // validate the AUTHORITY section
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, request);
+            KeyEntry ke = this.prepareFindKey(set);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -624,7 +624,7 @@ public class ValidatingResolver implements Resolver {
         SRRset keyRrset = null;
 
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set, request);
+            KeyEntry ke = this.prepareFindKey(set);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
                 return;
             }
@@ -722,19 +722,13 @@ public class ValidatingResolver implements Resolver {
         }
     }
 
-    private KeyEntry prepareFindKey(SRRset rrset, Message request) {
+    private KeyEntry prepareFindKey(SRRset rrset) {
         FindKeyState state = new FindKeyState();
         state.signerName = rrset.getSignerName();
-        state.qclass = request.getQuestion().getDClass();
+        state.qclass = rrset.getDClass();
 
         if (state.signerName == null) {
-            int qtype = request.getQuestion().getType();
-            if (qtype == Type.DS || qtype == Type.NS) {
-                state.signerName = new Name(request.getQuestion().getName(), 1);
-            }
-            else {
-                state.signerName = request.getQuestion().getName();
-            }
+            state.signerName = rrset.getName();
         }
 
         SRRset trustAnchorRRset = this.trustAnchors.find(state.signerName, rrset.getDClass());
@@ -866,14 +860,12 @@ public class ValidatingResolver implements Resolver {
                 // then we are done.
                 SRRset cnameRrset = response.findAnswerRRset(qname, Type.CNAME, qclass);
                 status = this.valUtils.verifySRRset(cnameRrset, keyRrset);
-                if (status != SecurityStatus.SECURE) {
-                    bogusKE.setBadReason(R.get("failed.ds.cname"));
-                    return bogusKE;
+                if (status == SecurityStatus.SECURE) {
+                    return null;
                 }
 
-                // Otherwise, we return the positive response.
-                logger.trace("CNAME rrset was good, unsigned response.");
-                return KeyEntry.newNullKeyEntry(cnameRrset.getName(), qclass, DEFAULT_TA_BAD_KEY_TTL);
+                bogusKE.setBadReason(R.get("failed.ds.cname"));
+                return bogusKE;
 
             case NODATA:
             case NAMEERROR:

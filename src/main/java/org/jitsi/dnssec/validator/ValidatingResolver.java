@@ -348,21 +348,19 @@ public class ValidatingResolver implements Resolver {
         if (wcs.size() > 0) {
             for (Map.Entry<Name, Name> wc : wcs.entrySet()) {
                 boolean wcNsecOk = false;
-                if (nsecs != null) {
-                    for (NSECRecord nsec : nsecs) {
-                        if (ValUtils.nsecProvesNameError(nsec, wc.getKey())) {
-                            try {
-                                Name nsecWc = ValUtils.nsecWildcard(wc.getKey(), nsec);
-                                if (wc.getValue().equals(nsecWc)) {
-                                    wcNsecOk = true;
-                                    break;
-                                }
+                for (NSECRecord nsec : nsecs) {
+                    if (ValUtils.nsecProvesNameError(nsec, wc.getKey())) {
+                        try {
+                            Name nsecWc = ValUtils.nsecWildcard(wc.getKey(), nsec);
+                            if (wc.getValue().equals(nsecWc)) {
+                                wcNsecOk = true;
+                                break;
                             }
-                            catch (NameTooLongException e) {
-                                response.setBogus(R.get("failed.positive.wildcardgeneration"));
-                                logger.error("Could not generate NSEC wildcard", e);
-                                return;
-                            }
+                        }
+                        catch (NameTooLongException e) {
+                            response.setBogus(R.get("failed.positive.wildcardgeneration"));
+                            logger.error("Could not generate NSEC wildcard", e);
+                            return;
                         }
                     }
                 }
@@ -370,7 +368,12 @@ public class ValidatingResolver implements Resolver {
                 // If this was a positive wildcard response that we haven't
                 // already proven, and we have NSEC3 records, try to prove it
                 // using the NSEC3 records.
-                if (!wcNsecOk && nsec3s != null) {
+                if (!wcNsecOk && nsec3s.size() > 0) {
+                    if (this.n3valUtils.allNSEC3sIgnoreable(nsec3s, this.keyCache)) {
+                        response.setStatus(SecurityStatus.BOGUS);
+                        return;
+                    }
+
                     SecurityStatus status = this.n3valUtils.proveWildcard(nsec3s, wc.getKey(), keyRrset.getName(), wc.getValue());
                     if (status == SecurityStatus.INSECURE) {
                         response.setStatus(status);
@@ -555,6 +558,11 @@ public class ValidatingResolver implements Resolver {
 
         this.n3valUtils.stripUnknownAlgNSEC3s(nsec3s);
         if (!hasValidNSEC && nsec3s.size() > 0) {
+            if (this.n3valUtils.allNSEC3sIgnoreable(nsec3s, this.keyCache)) {
+                response.setStatus(SecurityStatus.BOGUS);
+                return;
+            }
+
             // try to prove NODATA with our NSEC3 record(s)
             SecurityStatus status = this.n3valUtils.proveNodata(nsec3s, qname, qtype, nsec3Signer);
             if (status == SecurityStatus.INSECURE) {

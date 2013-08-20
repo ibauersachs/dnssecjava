@@ -23,7 +23,7 @@ API
 Code Coverage / Bugs
 --------------------
 - The code still has some untested parts:
-  - Wildcard/ENT DS delegations!!!
+  - <del>Wildcard/ENT DS delegations!!!
   - ANY responses, especially wildcard expansion
   - Insecure NSEC3 NODATA responses
   - <del>Wildcard NODATA responses might pass too broad cases

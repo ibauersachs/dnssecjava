@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Date;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DClass;
@@ -49,6 +50,7 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
+    @Ignore
     public void testSigNotIncepted() throws IOException {
         Message response = resolver.send(createMessage("signotincepted.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));

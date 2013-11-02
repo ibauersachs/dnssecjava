@@ -58,7 +58,7 @@ import org.xbill.DNS.TXTRecord;
 import org.xbill.DNS.Type;
 
 public abstract class TestBase {
-    private final static boolean offline = Boolean.getBoolean("org.jitsi.dnssecjava.offline");
+    private final static boolean offline = !Boolean.getBoolean("org.jitsi.dnssecjava.online");
     private final static boolean partialOffline = "partial".equals(System.getProperty("org.jitsi.dnssecjava.offline"));
     private final static boolean record = Boolean.getBoolean("org.jitsi.dnssecjava.record");
     private boolean unboundTest = false;

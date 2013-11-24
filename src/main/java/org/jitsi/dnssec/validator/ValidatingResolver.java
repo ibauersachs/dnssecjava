@@ -242,10 +242,18 @@ public class ValidatingResolver implements Resolver {
      * Given a "postive" response -- a response that contains an answer to the
      * question, and no CNAME chain, validate this response. This generally
      * consists of verifying the answer RRset and the authority RRsets.
+     *
+     * Given an "ANY" response -- a response that contains an answer to a
+     * qtype==ANY question, with answers. This consists of simply verifying all
+     * present answer/auth RRsets, with no checking that all types are present.
      * 
-     * Note that by the time this method is called, the process of finding the
-     * trusted DNSKEY rrset that signs this response must already have been
-     * completed.
+     * NOTE: it may be possible to get parent-side delegation point records
+     * here, which won't all be signed. Right now, this routine relies on the
+     * upstream iterative resolver to not return these responses -- instead
+     * treating them as referrals.
+     * 
+     * NOTE: RFC 4035 is silent on this issue, so this may change upon
+     * clarification.
      * 
      * @param request The request that generated this response.
      * @param response The response to validate.
@@ -253,90 +261,48 @@ public class ValidatingResolver implements Resolver {
     private void validatePositiveResponse(Message request, SMessage response) {
         int qtype = request.getQuestion().getType();
 
-        // validate the ANSWER section - this will be the answer itself
         Map<Name, Name> wcs = new HashMap<Name, Name>(1);
-        DNAMERecord dname = null;
         List<SRRset> nsec3s = new ArrayList<SRRset>(0);
         List<NSECRecord> nsecs = new ArrayList<NSECRecord>(0);
 
-        for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
-            // Validate the CNAME following a (validated) DNAME is correctly
-            // synthesized.
-            if (set.getType() == Type.CNAME && dname != null) {
-                if (set.size() > 1) {
-                    response.setBogus(R.get("failed.synthesize.multiple"));
-                    return;
-                }
-
-                CNAMERecord cname = (CNAMERecord)set.first();
-                try {
-                    Name expected = Name.concatenate(cname.getName().relativize(dname.getName()), dname.getTarget());
-                    if (!expected.equals(cname.getTarget())) {
-                        response.setBogus(R.get("failed.synthesize.nomatch", cname.getTarget(), expected));
-                        return;
-                    }
-                }
-                catch (NameTooLongException e) {
-                    response.setBogus(R.get("failed.synthesize.toolong"));
-                    return;
-                }
-
-                set.setSecurityStatus(SecurityStatus.SECURE);
-                dname = null;
-                continue;
-            }
-
-            // Verify the answer rrset.
-            KeyEntry ke = this.prepareFindKey(set);
-            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
-                return;
-            }
-
-            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset());
-            // If the answer rrset failed to validate, then this message is BAD
-            if (status != SecurityStatus.SECURE) {
-                response.setBogus(R.get("failed.answer.positive", set));
-                return;
-            }
-
-            // Check to see if the rrset is the result of a wildcard expansion.
-            // If so, an additional check will need to be made in the authority
-            // section.
-            Name wc = ValUtils.rrsetWildcard(set);
-            if (wc != null && !set.getName().equals(wc)) {
-                wcs.put(set.getName(), wc);
-            }
-
-            // Notice a DNAME that should be followed by an unsigned CNAME.
-            if (qtype != Type.DNAME && set.getType() == Type.DNAME) {
-                dname = (DNAMERecord)set.first();
-            }
+        if (!validateAnswerAndGetWildcards(response, qtype, wcs)) {
+            return;
         }
 
         // validate the AUTHORITY section as well - this will generally be the
         // NS rrset (which could be missing, no problem)
         SRRset keyRrset = null;
-        for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set);
-            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
-                return;
-            }
+        int[] sections;
+        if (request.getQuestion().getType() == Type.ANY) {
+            sections = new int[] { Section.ANSWER, Section.AUTHORITY };
+        }
+        else {
+            sections = new int[] { Section.AUTHORITY };
+        }
 
-            keyRrset = ke.getRRset();
-            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
-            // If anything in the authority section fails to be secure, we have
-            // a bad message.
-            if (status != SecurityStatus.SECURE) {
-                response.setBogus(R.get("failed.authority.positive", set));
-                return;
-            }
-
-            if (wcs.size() > 0) {
-                if (set.getType() == Type.NSEC) {
-                    nsecs.add((NSECRecord)set.first());
+        for (int section : sections) {
+            for (SRRset set : response.getSectionRRsets(section)) {
+                KeyEntry ke = this.prepareFindKey(set);
+                if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
+                    return;
                 }
-                else if (set.getType() == Type.NSEC3) {
-                    nsec3s.add(set);
+
+                keyRrset = ke.getRRset();
+                SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
+                // If anything in the authority section fails to be secure, we have
+                // a bad message.
+                if (status != SecurityStatus.SECURE) {
+                    response.setBogus(R.get("failed.authority.positive", set));
+                    return;
+                }
+
+                if (wcs.size() > 0) {
+                    if (set.getType() == Type.NSEC) {
+                        nsecs.add((NSECRecord)set.first());
+                    }
+                    else if (set.getType() == Type.NSEC3) {
+                        nsec3s.add(set);
+                    }
                 }
             }
         }
@@ -396,70 +362,64 @@ public class ValidatingResolver implements Resolver {
         response.setStatus(SecurityStatus.SECURE);
     }
 
-    /**
-     * Given an "ANY" response -- a response that contains an answer to a
-     * qtype==ANY question, with answers. This consists of simply verifying all
-     * present answer/auth RRsets, with no checking that all types are present.
-     * 
-     * NOTE: it may be possible to get parent-side delegation point records
-     * here, which won't all be signed. Right now, this routine relies on the
-     * upstream iterative resolver to not return these responses -- instead
-     * treating them as referrals.
-     * 
-     * NOTE: RFC 4035 is silent on this issue, so this may change upon
-     * clarification.
-     * 
-     * Note that by the time this method is called, the process of finding the
-     * trusted DNSKEY rrset that signs this response must already have been
-     * completed.
-     * 
-     * @param request The request that generated this response.
-     * @param response The response to validate.
-     */
-    private void validateAnyResponse(Message request, SMessage response) {
-        int qtype = request.getQuestion().getType();
-
-        if (qtype != Type.ANY) {
-            throw new IllegalArgumentException("ANY validation called on non-ANY response.");
-        }
-
-        SMessage m = response;
-
-        // validate the ANSWER section.
+    private boolean validateAnswerAndGetWildcards(SMessage response, int qtype, Map<Name, Name> wcs) {
+        // validate the ANSWER section - this will be the answer itself
+        DNAMERecord dname = null;
         for (SRRset set : response.getSectionRRsets(Section.ANSWER)) {
+            // Validate the CNAME following a (validated) DNAME is correctly
+            // synthesized.
+            if (set.getType() == Type.CNAME && dname != null) {
+                if (set.size() > 1) {
+                    response.setBogus(R.get("failed.synthesize.multiple"));
+                    return false;
+                }
+
+                CNAMERecord cname = (CNAMERecord)set.first();
+                try {
+                    Name expected = Name.concatenate(cname.getName().relativize(dname.getName()), dname.getTarget());
+                    if (!expected.equals(cname.getTarget())) {
+                        response.setBogus(R.get("failed.synthesize.nomatch", cname.getTarget(), expected));
+                        return false;
+                    }
+                }
+                catch (NameTooLongException e) {
+                    response.setBogus(R.get("failed.synthesize.toolong"));
+                    return false;
+                }
+
+                set.setSecurityStatus(SecurityStatus.SECURE);
+                dname = null;
+                continue;
+            }
+
+            // Verify the answer rrset.
             KeyEntry ke = this.prepareFindKey(set);
             if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
-                return;
+                return false;
             }
 
             SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset());
-            // If the (answer) rrset failed to validate, then this message is
-            // BAD.
+            // If the answer rrset failed to validate, then this message is BAD
             if (status != SecurityStatus.SECURE) {
-                response.setBogus(R.get("failed.answer.positive"));
-                return;
+                response.setBogus(R.get("failed.answer.positive", set));
+                return false;
+            }
+
+            // Check to see if the rrset is the result of a wildcard expansion.
+            // If so, an additional check will need to be made in the authority
+            // section.
+            Name wc = ValUtils.rrsetWildcard(set);
+            if (wc != null) {
+                wcs.put(set.getName(), wc);
+            }
+
+            // Notice a DNAME that should be followed by an unsigned CNAME.
+            if (qtype != Type.DNAME && set.getType() == Type.DNAME) {
+                dname = (DNAMERecord)set.first();
             }
         }
 
-        // validate the AUTHORITY section as well - this will be the NS rrset
-        // (which could be missing, no problem)
-        for (SRRset set : m.getSectionRRsets(Section.AUTHORITY)) {
-            KeyEntry ke = this.prepareFindKey(set);
-            if (!this.processKeyValidate(response, set.getSignerName(), ke)) {
-                return;
-            }
-
-            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset());
-            // If anything in the authority section fails to be secure, we have
-            // a bad message.
-            if (status != SecurityStatus.SECURE) {
-                response.setBogus(R.get("failed.authority.positive"));
-                return;
-            }
-        }
-
-        logger.trace("Successfully validated postive ANY response");
-        m.setStatus(SecurityStatus.SECURE);
+        return true;
     }
 
     /**
@@ -1066,6 +1026,7 @@ public class ValidatingResolver implements Resolver {
         switch (subtype) {
             case POSITIVE:
             case CNAME:
+            case ANY:
                 logger.trace("Validating a positive response");
                 this.validatePositiveResponse(request, response);
                 break;
@@ -1098,11 +1059,6 @@ public class ValidatingResolver implements Resolver {
                     this.validateNameErrorResponse(request, response);
                 }
 
-                break;
-
-            case ANY:
-                logger.trace("Validating a postive ANY response");
-                this.validateAnyResponse(request, response);
                 break;
 
             default:

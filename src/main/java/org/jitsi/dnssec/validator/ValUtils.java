@@ -266,14 +266,30 @@ public class ValUtils {
      *         null if not.
      */
     public static Name rrsetWildcard(RRset rrset) {
-        RRSIGRecord rrsig = (RRSIGRecord)rrset.sigs().next();
+        @SuppressWarnings("unchecked")
+        Iterator<RRSIGRecord> it = (Iterator<RRSIGRecord>)rrset.sigs();
+        RRSIGRecord rrsig = (RRSIGRecord)it.next();
+
+        // check rest of signatures have identical label count
+        while (it.hasNext()) {
+            if (it.next().getLabels() != rrsig.getLabels()) {
+                throw new RuntimeException("Label count mismatch on RRSIGs for " + rrset.getName());
+            }
+        }
 
         // if the RRSIG label count is shorter than the number of actual labels,
         // then this rrset was synthesized from a wildcard.
         // Note that the RRSIG label count doesn't count the root label.
-        int labelDiff = (rrset.getName().labels() - 1) - rrsig.getLabels();
+        Name wn = rrset.getName();
+
+        // skip a leading wildcard label in the dname (RFC4035 2.2)
+        if (rrset.getName().isWild()) {
+            wn = new Name(wn, 1);
+        }
+
+        int labelDiff = (wn.labels() - 1) - rrsig.getLabels();
         if (labelDiff > 0) {
-            return rrset.getName().wild(labelDiff);
+            return wn.wild(labelDiff);
         }
 
         return null;

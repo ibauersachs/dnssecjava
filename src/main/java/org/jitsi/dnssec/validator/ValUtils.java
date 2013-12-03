@@ -695,7 +695,7 @@ public class ValUtils {
                     case Algorithm.ECDSAP384SHA384:
                         return true;
                     default:
-                        return false;
+                        // do nothing, there could be another DS we understand
                 }
             }
         }
@@ -722,7 +722,7 @@ public class ValUtils {
                     case Digest.SHA384:
                         return true;
                     default:
-                        return false;
+                        // do nothing, there could be another DS we understand
                 }
             }
         }

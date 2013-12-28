@@ -35,7 +35,7 @@ public class TestCNames extends TestBase {
         Message response = resolver.send(createMessage("cunsinged.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec3", getReason(response));
     }
 
     @Test
@@ -43,7 +43,7 @@ public class TestCNames extends TestBase {
         Message response = resolver.send(createMessage("cunsinged.ingotronic.ch./MX"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec3", getReason(response));
     }
 
     @Test
@@ -83,7 +83,7 @@ public class TestCNames extends TestBase {
         Message response = resolver.send(createMessage("cunsinged.nsec3.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec3", getReason(response));
     }
 
     @Test
@@ -131,7 +131,7 @@ public class TestCNames extends TestBase {
         Message response = resolver.send(createMessage("cvoid4.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec", getReason(response));
     }
 
     @Test
@@ -139,7 +139,7 @@ public class TestCNames extends TestBase {
         Message response = resolver.send(createMessage("cvoid.dnssectest.jitsi.net./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec3", getReason(response));
     }
 
     @Test

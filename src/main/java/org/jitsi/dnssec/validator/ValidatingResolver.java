@@ -242,7 +242,7 @@ public class ValidatingResolver implements Resolver {
      * Given a "postive" response -- a response that contains an answer to the
      * question, and no CNAME chain, validate this response. This generally
      * consists of verifying the answer RRset and the authority RRsets.
-     *
+     * 
      * Given an "ANY" response -- a response that contains an answer to a
      * qtype==ANY question, with answers. This consists of simply verifying all
      * present answer/auth RRsets, with no checking that all types are present.
@@ -289,8 +289,8 @@ public class ValidatingResolver implements Resolver {
 
                 keyRrset = ke.getRRset();
                 SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
-                // If anything in the authority section fails to be secure, we have
-                // a bad message.
+                // If anything in the authority section fails to be secure, we
+                // have a bad message.
                 if (status != SecurityStatus.SECURE) {
                     response.setBogus(R.get("failed.authority.positive", set));
                     return;
@@ -995,7 +995,12 @@ public class ValidatingResolver implements Resolver {
             logger.debug("processKeyValidate: no signerName.");
             // Unsigned responses must be underneath a "null" key entry.
             if (keyEntry.isNull()) {
-                response.setStatus(SecurityStatus.INSECURE, R.get("validate.insecure_unsigned"));
+                String reason = keyEntry.getBadReason();
+                if (reason == null) {
+                    reason = R.get("validate.insecure_unsigned");
+                }
+
+                response.setStatus(SecurityStatus.INSECURE, reason);
                 return false;
             }
 
@@ -1014,7 +1019,12 @@ public class ValidatingResolver implements Resolver {
         }
 
         if (keyEntry.isNull()) {
-            response.setStatus(SecurityStatus.INSECURE, R.get("validate.insecure"));
+            String reason = keyEntry.getBadReason();
+            if (reason == null) {
+                reason = R.get("validate.insecure");
+            }
+
+            response.setStatus(SecurityStatus.INSECURE, reason);
             return false;
         }
 

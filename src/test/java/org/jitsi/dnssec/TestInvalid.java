@@ -80,7 +80,7 @@ public class TestInvalid extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertFalse(isEmptyAnswer(response));
-        assertEquals("validate.insecure", getReason(response));
+        assertEquals("insecure.ds.nsec", getReason(response));
     }
 
     @Test
@@ -120,7 +120,7 @@ public class TestInvalid extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertFalse(isEmptyAnswer(response));
-        assertEquals("validate.insecure", getReason(response));
+        assertEquals("insecure.ds.nsec3", getReason(response));
     }
 
     @Test

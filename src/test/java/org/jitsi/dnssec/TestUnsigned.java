@@ -36,7 +36,7 @@ public class TestUnsigned extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals(localhost, firstA(response));
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec", getReason(response));
     }
 
     @Test
@@ -44,7 +44,7 @@ public class TestUnsigned extends TestBase {
         Message response = resolver.send(createMessage("20min.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec3", getReason(response));
     }
 
     @Test
@@ -52,7 +52,7 @@ public class TestUnsigned extends TestBase {
         Message response = resolver.send(createMessage("yahoo.com./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec3", getReason(response));
     }
 
     @Test
@@ -61,6 +61,6 @@ public class TestUnsigned extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals(localhost, firstA(response));
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec", getReason(response));
     }
 }

@@ -38,13 +38,13 @@ public class TestKeyCacheUsage extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals(localhost, firstA(response));
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec", getReason(response));
 
         // send the query a second time to ensure the cache doesn't create a wrong behavior
         response = resolver.send(createMessage("www.unsigned.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals(localhost, firstA(response));
-        assertEquals("validate.insecure_unsigned", getReason(response));
+        assertEquals("insecure.ds.nsec", getReason(response));
     }
 }

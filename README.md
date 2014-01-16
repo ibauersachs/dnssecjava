@@ -32,7 +32,7 @@ a localized string in the additional section under the record ./65280/TXT
 
 Build
 -----
-Run `mvn package -Dmaven.test.failure.ignore=true` (as there are still
-failing unit tests).
+Run `mvn package`
+
 DnsJava is taken from a repository included in the project as 2.1.6 is not
 available on Maven central.

@@ -175,8 +175,16 @@ public class ValUtils {
             return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
         }
 
-        if (!atLeastOneDigestSupported(dsRrset) || !atLeastOneSupportedAlgorithm(dsRrset)) {
-            return KeyEntry.newNullKeyEntry(dsRrset.getName(), dsRrset.getDClass(), dsRrset.getTTL());
+        if (!atLeastOneDigestSupported(dsRrset)) {
+            KeyEntry ke = KeyEntry.newNullKeyEntry(dsRrset.getName(), dsRrset.getDClass(), dsRrset.getTTL());
+            ke.setBadReason(R.get("failed.ds.nodigest", dsRrset.getName()));
+            return ke;
+        }
+
+        if (!atLeastOneSupportedAlgorithm(dsRrset)) {
+            KeyEntry ke = KeyEntry.newNullKeyEntry(dsRrset.getName(), dsRrset.getDClass(), dsRrset.getTTL());
+            ke.setBadReason(R.get("failed.ds.noalg", dsRrset.getName()));
+            return ke;
         }
 
         for (Iterator<?> i = dsRrset.rrs(); i.hasNext();) {

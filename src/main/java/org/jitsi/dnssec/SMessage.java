@@ -147,7 +147,13 @@ public class SMessage {
         return this.question;
     }
 
-    private List<SRRset> getSectionList(int section) {
+    /**
+     * Gets signed RRsets for the queried section.
+     *
+     * @param section The section whose RRsets are demanded.
+     * @return Signed RRsets for the queried section.
+     */
+    public List<SRRset> getSectionRRsets(int section) {
         checkSectionValidity(section);
 
         if (this.sections[section - 1] == null) {
@@ -165,7 +171,7 @@ public class SMessage {
             return;
         }
 
-        List<SRRset> sectionList = this.getSectionList(section);
+        List<SRRset> sectionList = this.getSectionRRsets(section);
         sectionList.add(srrset);
     }
 
@@ -179,22 +185,11 @@ public class SMessage {
      * Gets signed RRsets for the queried section.
      * 
      * @param section The section whose RRsets are demanded.
-     * @return Signed RRsets for the queried section.
-     */
-    public SRRset[] getSectionRRsets(int section) {
-        List<SRRset> slist = this.getSectionList(section);
-        return slist.toArray(EMPTY_SRRSET_ARRAY);
-    }
-
-    /**
-     * Gets signed RRsets for the queried section.
-     * 
-     * @param section The section whose RRsets are demanded.
      * @param qtype Filter the results for these record types.
      * @return Signed RRsets for the queried section.
      */
     public SRRset[] getSectionRRsets(int section, int qtype) {
-        List<SRRset> slist = this.getSectionList(section);
+        List<SRRset> slist = this.getSectionRRsets(section);
 
         if (slist.size() == 0) {
             return EMPTY_SRRSET_ARRAY;
@@ -305,7 +300,7 @@ public class SMessage {
         }
 
         for (int sec = Section.ANSWER; sec <= Section.ADDITIONAL; sec++) {
-            List<SRRset> slist = this.getSectionList(sec);
+            List<SRRset> slist = this.getSectionRRsets(sec);
             for (SRRset rrset : slist) {
                 for (Iterator<?> j = rrset.rrs(); j.hasNext();) {
                     m.addRecord((Record)j.next(), sec);
@@ -335,7 +330,7 @@ public class SMessage {
             return 1;
         }
 
-        List<SRRset> sectionList = this.getSectionList(section);
+        List<SRRset> sectionList = this.getSectionRRsets(section);
         if (sectionList.size() == 0) {
             return 0;
         }

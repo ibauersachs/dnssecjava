@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 
 import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
@@ -66,8 +67,8 @@ public class TestSMessage {
     @Test()
     public void testGetEmptySection() {
         SMessage m = new SMessage(0, null);
-        SRRset[] sets = m.getSectionRRsets(Section.ANSWER);
-        assertEquals(0, sets.length);
+        List<SRRset> sets = m.getSectionRRsets(Section.ANSWER);
+        assertEquals(0, sets.size());
     }
 
     @Test()

@@ -111,8 +111,10 @@ public abstract class TestBase {
                     InputStream stream = getClass().getResourceAsStream(filename);
                     if (stream != null) {
                         r = new BufferedReader(new InputStreamReader(stream));
-                        SystemMock.overriddenMillis = DateTime.parse(r.readLine().substring("#Date: ".length()), ISODateTimeFormat.dateTimeNoMillis())
-                                .getMillis();
+                        long millis = DateTime.parse(r.readLine().substring("#Date: ".length()), ISODateTimeFormat.dateTimeNoMillis()).getMillis();
+                        SystemMock.overriddenMillis = millis;
+                        DateMock.overriddenMillis = millis;
+
                         Message m;
                         while ((m = messageReader.readMessage(r)) != null) {
                             queryResponsePairs.put(key(m), m);
@@ -137,6 +139,7 @@ public abstract class TestBase {
                 }
 
                 SystemMock.overriddenMillis = 0;
+                DateMock.overriddenMillis = 0;
             }
             catch (IOException e) {
                 throw new RuntimeException(e);

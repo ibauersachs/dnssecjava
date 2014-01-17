@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 
+import org.jitsi.dnssec.DateMock;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SystemMock;
 import org.jitsi.dnssec.TestBase;
@@ -87,6 +88,7 @@ public class UnboundTests extends TestBase {
 
         if (rpl.date != null) {
             SystemMock.overriddenMillis = rpl.date.getMillis();
+            DateMock.overriddenMillis = rpl.date.getMillis();
         }
 
         if (rpl.trustAnchors != null) {

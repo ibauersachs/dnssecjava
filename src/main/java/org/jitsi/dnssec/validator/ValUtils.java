@@ -543,13 +543,13 @@ public class ValUtils {
 
     /**
      * Check DS absence. There is a NODATA reply to a DS that needs checking.
-     * NSECs can prove this is not a delegation point, or sucessfully prove that
-     * there is no DS. Or this fails.
+     * NSECs can prove this is not a delegation point, or successfully prove
+     * that there is no DS. Or this fails.
      * 
      * @param request The request that generated this response.
      * @param response The response to validate.
      * @param keyRrset The key that validate the NSECs.
-     * @return The NODATA proof along with the reason the result.
+     * @return The NODATA proof along with the reason of the result.
      */
     public JustifiedSecStatus nsecProvesNodataDsReply(Message request, SMessage response, SRRset keyRrset) {
         Name qname = request.getQuestion().getName();

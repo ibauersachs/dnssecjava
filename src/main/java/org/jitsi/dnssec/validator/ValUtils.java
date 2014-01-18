@@ -685,7 +685,7 @@ public class ValUtils {
      * @return True when at least one DS record uses a supported algorithm,
      *         false otherwise.
      */
-    public static boolean atLeastOneSupportedAlgorithm(RRset dsRRset) {
+    static boolean atLeastOneSupportedAlgorithm(RRset dsRRset) {
         Iterator<?> it = dsRRset.rrs();
         while (it.hasNext()) {
             Record r = (Record)it.next();
@@ -719,7 +719,7 @@ public class ValUtils {
      * @return True when at least one DS record uses a supported digest
      *         algorithm, false otherwise.
      */
-    private static boolean atLeastOneDigestSupported(RRset dsRRset) {
+    static boolean atLeastOneDigestSupported(RRset dsRRset) {
         Iterator<?> it = dsRRset.rrs();
         while (it.hasNext()) {
             Record r = (Record)it.next();

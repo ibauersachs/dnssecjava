@@ -27,15 +27,20 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 
+import org.jitsi.dnssec.SMessage;
+import org.jitsi.dnssec.SecurityStatus;
 import org.jitsi.dnssec.TestBase;
 import org.junit.Test;
+import org.xbill.DNS.DClass;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
+import org.xbill.DNS.NSECRecord;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
+import org.xbill.DNS.Type;
 
 public class TestValUtils extends TestBase {
     @Test
@@ -194,6 +199,25 @@ public class TestValUtils extends TestBase {
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertNull(getReason(response));
+    }
+
+    @Test
+    public void testNsecProvesNoDS() throws IOException {
+        SecurityStatus s = ValUtils.nsecProvesNoDS(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.SOA, Type.NS }), Name.root);
+        assertEquals("Root NSEC SOA and without DS must be secure", SecurityStatus.SECURE, s);
+    }
+
+    @Test
+    public void testNsecProvesNoDSWithDSPresentForRoot() throws IOException {
+        SecurityStatus s = ValUtils.nsecProvesNoDS(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.SOA, Type.NS, Type.DS }), Name.root);
+        assertEquals("Root NSEC with DS must be bogus", SecurityStatus.BOGUS, s);
+    }
+
+    @Test
+    public void testNsecProvesNoDSWithSOAForNonRoot() throws IOException {
+        Name ch = Name.fromString("ch.");
+        SecurityStatus s = ValUtils.nsecProvesNoDS(new NSECRecord(ch, DClass.IN, 0, ch, new int[] { Type.SOA, Type.NS }), ch);
+        assertEquals("Non-root NSEC with SOA must be bogus", SecurityStatus.BOGUS, s);
     }
 
     @Test
@@ -369,5 +393,28 @@ public class TestValUtils extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("validate.bogus.badkey:sub.ingotronic.ch.:failed.ds.nsec.hasdata", getReason(response));
+    }
+
+    @Test
+    public void testHasSignedNsecsWithoutSignedSigsReturnsFalse() {
+        Message m = new Message();
+        m.addRecord(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.A }), Section.AUTHORITY);
+        SMessage sm = new SMessage(m);
+        boolean result = new ValUtils().hasSignedNsecs(sm);
+        assertFalse(result);
+    }
+
+    @Test
+    public void testAtLeastOneSupportedAlgorithmWithOnlyNonDSRecords() {
+        RRset set = new RRset(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.A }));
+        boolean result = ValUtils.atLeastOneSupportedAlgorithm(set);
+        assertFalse(result);
+    }
+
+    @Test
+    public void testAtLeastOneDigestSupportedWithOnlyNonDSRecords() {
+        RRset set = new RRset(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.A }));
+        boolean result = ValUtils.atLeastOneDigestSupported(set);
+        assertFalse(result);
     }
 }

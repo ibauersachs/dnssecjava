@@ -455,6 +455,15 @@ public class ValUtils {
     }
 
     /**
+     * Container for responses of
+     * {@link ValUtils#nsecProvesNodata(NSECRecord, Name, int)}.
+     */
+    public static class NsecProvesNodataResponse {
+        boolean result;
+        Name wc;
+    }
+
+    /**
      * Determine if a NSEC proves the NOERROR/NODATA conditions. This will also
      * handle the empty non-terminal (ENT) case and partially handle the
      * wildcard case. If the ownername of 'nsec' is a wildcard, the validator
@@ -466,7 +475,8 @@ public class ValUtils {
      * @param qtype The query type to check against.
      * @return true if the NSEC proves the condition.
      */
-    public static boolean nsecProvesNodata(NSECRecord nsec, Name qname, int qtype) {
+    public static NsecProvesNodataResponse nsecProvesNodata(NSECRecord nsec, Name qname, int qtype) {
+        NsecProvesNodataResponse result = new NsecProvesNodataResponse();
         if (!nsec.getName().equals(qname)) {
             // empty-non-terminal checking.
             // Done before wildcard, because this is an exact match,
@@ -476,7 +486,8 @@ public class ValUtils {
             // be less than qname, and the next name will be a child domain of
             // the qname.
             if (strictSubdomain(nsec.getNext(), qname) && nsec.getName().compareTo(qname) < 0) {
-                return true;
+                result.result = true;
+                return result;
             }
 
             // Wildcard checking:
@@ -493,37 +504,45 @@ public class ValUtils {
                 if (strictSubdomain(qname, ce)) {
                     if (nsec.hasType(Type.CNAME)) {
                         // should have gotten the wildcard CNAME
-                        return false;
+                        result.result = false;
+                        return result;
                     }
 
                     if (nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA)) {
                         // wrong parentside (wildcard) NSEC used, and it really
                         // should not exist anyway:
                         // http://tools.ietf.org/html/rfc4592#section-4.2
-                        return false;
+                        result.result = false;
+                        return result;
                     }
 
                     if (nsec.hasType(qtype)) {
-                        return false;
+                        result.result = false;
+                        return result;
                     }
                 }
 
-                return true;
+                result.wc = ce;
+                result.result = true;
+                return result;
             }
 
             // Otherwise, this NSEC does not prove ENT, so it does not prove
             // NODATA.
-            return false;
+            result.result = false;
+            return result;
         }
 
         // If the qtype exists, then we should have gotten it.
         if (nsec.hasType(qtype)) {
-            return false;
+            result.result = false;
+            return result;
         }
 
         // if the name is a CNAME node, then we should have gotten the CNAME
         if (nsec.hasType(Type.CNAME)) {
-            return false;
+            result.result = false;
+            return result;
         }
 
         // If an NS set exists at this name, and NOT a SOA (so this is a zone
@@ -532,13 +551,16 @@ public class ValUtils {
         // The reverse of this check is used when qtype is DS, since that
         // must use the NSEC from above the zone cut.
         if (qtype != Type.DS && nsec.hasType(Type.NS) && !nsec.hasType(Type.SOA)) {
-            return false;
+            result.result = false;
+            return result;
         }
         else if (qtype == Type.DS && nsec.hasType(Type.SOA) && !Name.root.equals(qname)) {
-            return false;
+            result.result = false;
+            return result;
         }
 
-        return true;
+        result.result = true;
+        return result;
     }
 
     /**
@@ -582,7 +604,8 @@ public class ValUtils {
 
         // Otherwise, there is no NSEC at qname. This could be an ENT.
         // If not, this is broken.
-        Name wc = null, ce = null;
+        NsecProvesNodataResponse ndp = new NsecProvesNodataResponse();
+        Name ce = null;
         boolean hasValidNSEC = false;
         NSECRecord wcNsec = null;
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY, Type.NSEC)) {
@@ -592,10 +615,10 @@ public class ValUtils {
             }
 
             NSECRecord nsec = (NSECRecord)set.first();
-            if (ValUtils.nsecProvesNodata(nsec, qname, Type.DS)) {
+            ndp = ValUtils.nsecProvesNodata(nsec, qname, Type.DS);
+            if (ndp.result) {
                 hasValidNSEC = true;
-                if (nsec.getName().isWild()) {
-                    wc = new Name(nsec.getName(), 1);
+                if (ndp.wc != null && nsec.getName().isWild()) {
                     wcNsec = nsec;
                 }
             }
@@ -608,12 +631,12 @@ public class ValUtils {
         // The wildcard NODATA is 1 NSEC proving that qname does not exists (and
         // also proving what the closest encloser is), and 1 NSEC showing the
         // matching wildcard, which must be *.closest_encloser.
-        if (wc != null && (ce == null || !ce.equals(wc))) {
+        if (ndp.wc != null && (ce == null || !ce.equals(ndp.wc))) {
             hasValidNSEC = false;
         }
 
         if (hasValidNSEC) {
-            if (wc != null) {
+            if (ndp.wc != null) {
                 SecurityStatus status = nsecProvesNoDS(wcNsec, qname);
                 return new JustifiedSecStatus(status, R.get("failed.ds.nowildcardproof"));
             }

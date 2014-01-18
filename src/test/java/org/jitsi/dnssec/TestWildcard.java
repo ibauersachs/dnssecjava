@@ -23,12 +23,18 @@ package org.jitsi.dnssec;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
+import java.net.InetAddress;
 
 import org.junit.Test;
+import org.xbill.DNS.ARecord;
+import org.xbill.DNS.DClass;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.Rcode;
+import org.xbill.DNS.Record;
+import org.xbill.DNS.Section;
+import org.xbill.DNS.Type;
 
 public class TestWildcard extends TestBase {
     @Test
@@ -119,5 +125,27 @@ public class TestWildcard extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("failed.nodata", getReason(response));
+    }
+
+    @Test
+    public void testDsNodataFromWildcardNsecChild() throws IOException {
+        Message m = Message.newQuery(Record.newRecord(Name.fromString("www.x.c.ingotronic.ch."), Type.A, DClass.IN));
+        m.addRecord(new ARecord(Name.fromString("www.x.c.ingotronic.ch."), DClass.IN, 300, InetAddress.getLocalHost()), Section.ANSWER);
+        add("www.x.c.ingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("www.x.c.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+    }
+
+    @Test
+    public void testDsNodataFromWildcardNsecCovered() throws IOException {
+        Message m = Message.newQuery(Record.newRecord(Name.fromString("www.x.ce.ingotronic.ch."), Type.A, DClass.IN));
+        m.addRecord(new ARecord(Name.fromString("www.x.ce.ingotronic.ch."), DClass.IN, 300, InetAddress.getLocalHost()), Section.ANSWER);
+        add("www.x.ce.ingotronic.ch./A", m);
+
+        Message response = resolver.send(createMessage("www.x.ce.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
     }
 }

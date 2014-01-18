@@ -69,6 +69,7 @@ import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
 import org.jitsi.dnssec.R;
+import org.jitsi.dnssec.validator.ValUtils.NsecProvesNodataResponse;
 import org.xbill.DNS.CNAMERecord;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNAMERecord;
@@ -460,7 +461,7 @@ public class ValidatingResolver implements Resolver {
         Name ce = null;
 
         // for wildcard nodata responses. This is the wildcard NSEC.
-        Name wc = null;
+        NsecProvesNodataResponse ndp = new NsecProvesNodataResponse();
 
         // A collection of NSEC3 RRs found in the authority section.
         List<SRRset> nsec3s = new ArrayList<SRRset>(0);
@@ -485,11 +486,12 @@ public class ValidatingResolver implements Resolver {
             // This needs to handle the empty non-terminal (ENT) NODATA case.
             if (set.getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)set.first();
-                if (ValUtils.nsecProvesNodata(nsec, qname, qtype)) {
+                ndp = ValUtils.nsecProvesNodata(nsec, qname, qtype);
+                if (ndp.result) {
                     hasValidNSEC = true;
-                    if (nsec.getName().isWild()) {
-                        wc = new Name(nsec.getName(), 1);
-                    }
+//                    if (nsec.getName().isWild()) {
+//                        wc = new Name(nsec.getName(), 1);
+//                    }
                 }
 
                 if (ValUtils.nsecProvesNameError(nsec, qname)) {
@@ -509,7 +511,7 @@ public class ValidatingResolver implements Resolver {
         // The wildcard NODATA is 1 NSEC proving that qname does not exists (and
         // also proving what the closest encloser is), and 1 NSEC showing the
         // matching wildcard, which must be *.closest_encloser.
-        if (wc != null && (ce == null || (!ce.equals(wc) && !qname.equals(ce)))) {
+        if (ndp.wc != null && (ce == null || (!ce.equals(ndp.wc) && !qname.equals(ce)))) {
             hasValidNSEC = false;
         }
 

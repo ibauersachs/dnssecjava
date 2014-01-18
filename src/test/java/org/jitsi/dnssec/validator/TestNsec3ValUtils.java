@@ -24,13 +24,22 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.security.PublicKey;
 import java.util.Properties;
+
+import mockit.Invocation;
+import mockit.Mock;
+import mockit.MockUp;
 
 import org.jitsi.dnssec.AlwaysOffline;
 import org.jitsi.dnssec.TestBase;
 import org.junit.Test;
+import org.xbill.DNS.DNSKEYRecord;
+import org.xbill.DNS.DNSSEC;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
+import org.xbill.DNS.Name;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
@@ -106,5 +115,35 @@ public class TestNsec3ValUtils extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NXDOMAIN, response.getRcode());
         assertEquals("failed.nxdomain.nsec3_insecure", getReason(response));
+    }
+
+    @Test
+    public void testPublicKeyLoadingException() throws IOException {
+        new MockUp<DNSKEYRecord>() {
+            @Mock
+            public PublicKey getPublicKey(Invocation invocation) throws DNSSEC.DNSSECException {
+                DNSKEYRecord dr = ((DNSKEYRecord)invocation.getInvokedInstance());
+
+                if (dr.getName().equals(Name.fromConstantString("nsec3.ingotronic.ch.")) && invocation.getInvocationCount() == 11) {
+                    DNSSEC.DNSSECException e = null;
+                    try {
+                        Constructor<?> c = DNSSEC.DNSSECException.class.getDeclaredConstructor(String.class);
+                        c.setAccessible(true);
+                        e = (DNSSEC.DNSSECException)c.newInstance("mock-test");
+                    }
+                    catch (Exception ex) {
+                    }
+
+                    throw e;
+                }
+
+                return dr.getPublicKey();
+            }
+        };
+
+        Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nsec3_ignored", getReason(response));
     }
 }

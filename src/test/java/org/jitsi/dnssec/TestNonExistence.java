@@ -72,6 +72,18 @@ public class TestNonExistence extends TestBase {
     }
 
     @Test
+    public void testDoubleLabelABelowSignedNsec3MissingNsec3() throws IOException {
+        Message m = resolver.send(createMessage("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A"));
+        Message message = messageFromString(m.toString().replaceAll("L40.+nsec3\\.ingotronic\\.ch\\.\\s+300.*", ""));
+        add("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A", message);
+
+        Message response = resolver.send(createMessage("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals("failed.nxdomain.nsec3_bogus", getReason(response));
+    }
+
+    @Test
     public void testDoubleLabelABelowSignedBeforeZoneNsec3() throws IOException {
         // the query name here must hash to a name BEFORE the first existing
         // NSEC3 owner name

@@ -158,11 +158,7 @@ final class NSEC3ValUtils {
     }
 
     private boolean supportsHashAlgorithm(int alg) {
-        if (alg == NSEC3Record.SHA1_DIGEST_ID) {
-            return true;
-        }
-
-        return false;
+        return alg == NSEC3Record.SHA1_DIGEST_ID;
     }
 
     /**
@@ -229,10 +225,10 @@ final class NSEC3ValUtils {
                 }
             }
             catch (NoSuchAlgorithmException e) {
-                continue;
+                logger.debug("Unrecognized NSEC3 in set:" + set, e);
             }
             catch (TextParseException e) {
-                continue;
+                logger.debug("Unrecognized NSEC3 in set:" + set, e);
             }
         }
 
@@ -245,10 +241,15 @@ final class NSEC3ValUtils {
      * the owner and next hashes and does not equal either.
      * 
      * @param nsec3 The candidate NSEC3Record.
+     * @param zonename The zone name.
      * @param hash The precalculated hash.
      * @return True if the NSEC3Record covers the hash.
      */
-    private boolean nsec3Covers(NSEC3Record nsec3, byte[] hash) {
+    private boolean nsec3Covers(NSEC3Record nsec3, Name zonename, byte[] hash) {
+        if (!new Name(nsec3.getName(), 1).equals(zonename)) {
+            return false;
+        }
+
         byte[] owner = new base32(base32.Alphabet.BASE32HEX, false, false).fromString(nsec3.getName().getLabelString(0));
         byte[] next = nsec3.getNext();
 
@@ -282,12 +283,12 @@ final class NSEC3ValUtils {
             try {
                 NSEC3Record nsec3 = (NSEC3Record)set.first();
                 byte[] hash = nsec3.hashName(name);
-                if (this.nsec3Covers(nsec3, hash)) {
+                if (this.nsec3Covers(nsec3, zonename, hash)) {
                     return nsec3;
                 }
             }
             catch (NoSuchAlgorithmException e) {
-                continue;
+                logger.debug("Unrecognized NSEC3 in set:" + set, e);
             }
         }
 
@@ -388,7 +389,7 @@ final class NSEC3ValUtils {
         try {
             for (Iterator<?> i = dnskeyRrset.rrs(); i.hasNext();) {
                 DNSKEYRecord dnskey = (DNSKEYRecord)i.next();
-                int keysize = 0;
+                int keysize;
                 switch (dnskey.getAlgorithm()) {
                     case Algorithm.RSAMD5:
                         return false; // obsoleted by rfc6944

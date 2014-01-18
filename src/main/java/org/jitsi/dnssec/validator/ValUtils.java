@@ -206,7 +206,7 @@ public class ValUtils {
 
                 // see if there is a length mismatch (unlikely)
                 if (keyHash.length != dsHash.length) {
-                    continue DNSKEY;
+                    continue;
                 }
 
                 for (int k = 0; k < keyHash.length; k++) {
@@ -276,7 +276,7 @@ public class ValUtils {
     public static Name rrsetWildcard(RRset rrset) {
         @SuppressWarnings("unchecked")
         Iterator<RRSIGRecord> it = (Iterator<RRSIGRecord>)rrset.sigs();
-        RRSIGRecord rrsig = (RRSIGRecord)it.next();
+        RRSIGRecord rrsig = it.next();
 
         // check rest of signatures have identical label count
         while (it.hasNext()) {
@@ -657,7 +657,7 @@ public class ValUtils {
      */
     public static SecurityStatus nsecProvesNoDS(NSECRecord nsec, Name qname) {
         // Could check to make sure the qname is a subdomain of nsec
-        if (nsec.hasType(Type.SOA) || nsec.hasType(Type.DS)) {
+        if ((nsec.hasType(Type.SOA) && !Name.root.equals(qname)) || nsec.hasType(Type.DS)) {
             // SOA present means that this is the NSEC from the child, not the
             // parent (so it is the wrong one) -> cannot happen because the
             // keyset is always from the parent zone and doesn't validate the

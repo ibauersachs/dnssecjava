@@ -60,7 +60,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -184,10 +183,10 @@ public class ValidatingResolver implements Resolver {
         // First read in the whole trust anchor file.
         Master master = new Master(data, Name.root, 0);
         List<Record> records = new ArrayList<Record>();
-        Record r = null;
+        Record mr;
 
-        while ((r = master.nextRecord()) != null) {
-            records.add(r);
+        while ((mr = master.nextRecord()) != null) {
+            records.add(mr);
         }
 
         // Record.compareTo() should sort them into DNSSEC canonical order.
@@ -196,9 +195,7 @@ public class ValidatingResolver implements Resolver {
         Collections.sort(records);
 
         SRRset currentRrset = new SRRset();
-        for (Iterator<Record> i = records.iterator(); i.hasNext();) {
-            r = i.next();
-
+        for (Record r : records) {
             // Skip RR types that cannot be used as trust anchors.
             if (r.getType() != Type.DNSKEY && r.getType() != Type.DS) {
                 continue;
@@ -271,7 +268,7 @@ public class ValidatingResolver implements Resolver {
 
         // validate the AUTHORITY section as well - this will generally be the
         // NS rrset (which could be missing, no problem)
-        SRRset keyRrset = null;
+        SRRset keyRrset;
         int[] sections;
         if (request.getQuestion().getType() == Type.ANY) {
             sections = new int[] { Section.ANSWER, Section.AUTHORITY };
@@ -340,7 +337,7 @@ public class ValidatingResolver implements Resolver {
                         return;
                     }
 
-                    SecurityStatus status = this.n3valUtils.proveWildcard(nsec3s, wc.getKey(), keyRrset.getName(), wc.getValue());
+                    SecurityStatus status = this.n3valUtils.proveWildcard(nsec3s, wc.getKey(), nsec3s.get(0).getSignerName(), wc.getValue());
                     if (status == SecurityStatus.INSECURE) {
                         response.setStatus(status);
                         return;
@@ -581,7 +578,7 @@ public class ValidatingResolver implements Resolver {
         boolean hasValidWCNSEC = false;
         List<SRRset> nsec3s = new ArrayList<SRRset>(0);
         Name nsec3Signer = null;
-        SRRset keyRrset = null;
+        SRRset keyRrset;
 
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
             KeyEntry ke = this.prepareFindKey(set);

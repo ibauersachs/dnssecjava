@@ -416,6 +416,7 @@ final class NSEC3ValUtils {
                     keyIters = this.maxIterations.firstKey();
                 }
 
+                keyIters = this.maxIterations.get(keyIters);
                 if (((NSEC3Record)nsec.first()).getIterations() > keyIters) {
                     return false;
                 }

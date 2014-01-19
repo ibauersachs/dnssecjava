@@ -55,6 +55,20 @@ public class TestNsec3ValUtils extends TestBase {
     }
 
     @Test
+    public void testInvalidIterationCountMarksInsecure() throws IOException {
+        Properties config = new Properties();
+        config.put("org.jitsi.dnssec.nsec3.iterations.1024", 0);
+        config.put("org.jitsi.dnssec.nsec3.iterations.2048", 0);
+        config.put("org.jitsi.dnssec.nsec3.iterations.4096", 0);
+        resolver.init(config);
+
+        Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertEquals("failed.nsec3_ignored", getReason(response));
+    }
+
+    @Test
     public void testNsec3WithoutClosestEncloser() throws IOException {
         Message m = resolver.send(createMessage("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A"));
         Message message = messageFromString(m.toString().replaceAll("((UDUMPS9J6F8348HFHH2FAED6I9DDE0U6)|(NTV3QJT4VQDVBPB6BNOVM40NMKJ3H29P))\\.nsec3.*", ""));
@@ -143,7 +157,7 @@ public class TestNsec3ValUtils extends TestBase {
 
         Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals("failed.nsec3_ignored", getReason(response));
     }
 }

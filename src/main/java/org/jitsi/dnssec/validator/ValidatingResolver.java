@@ -334,7 +334,7 @@ public class ValidatingResolver implements Resolver {
                 // using the NSEC3 records.
                 if (!wcNsecOk && nsec3s.size() > 0) {
                     if (this.n3valUtils.allNSEC3sIgnoreable(nsec3s, this.keyCache)) {
-                        response.setStatus(SecurityStatus.BOGUS, R.get("failed.nsec3_ignored"));
+                        response.setStatus(SecurityStatus.INSECURE, R.get("failed.nsec3_ignored"));
                         return;
                     }
 

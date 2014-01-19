@@ -22,10 +22,13 @@ package org.jitsi.dnssec.validator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.security.Provider;
 import java.security.PublicKey;
+import java.security.Security;
 import java.util.Properties;
 
 import mockit.Invocation;
@@ -34,6 +37,7 @@ import mockit.MockUp;
 
 import org.jitsi.dnssec.AlwaysOffline;
 import org.jitsi.dnssec.TestBase;
+import org.junit.Assume;
 import org.junit.Test;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC;
@@ -159,5 +163,25 @@ public class TestNsec3ValUtils extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals("failed.nsec3_ignored", getReason(response));
+    }
+
+    @Test
+    public void testNsecEcdsa256() throws IOException {
+        Provider[] providers = Security.getProviders("KeyFactory.EC");
+        Assume.assumeTrue(providers != null && providers.length > 0);
+
+        Message response = resolver.send(createMessage("www.wc.nsec3-ecdsa256.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+    }
+
+    @Test
+    public void testNsecEcdsa384() throws IOException {
+        Provider[] providers = Security.getProviders("KeyFactory.EC");
+        Assume.assumeTrue(providers != null && providers.length > 0);
+
+        Message response = resolver.send(createMessage("www.wc.nsec3-ecdsa384.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
     }
 }

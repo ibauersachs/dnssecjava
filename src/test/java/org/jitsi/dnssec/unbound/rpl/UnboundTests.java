@@ -632,6 +632,21 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
+    public void val_nx_nsec3_collision2() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_nx_nsec3_collision3() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_nx_nsec3_collision4() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
     public void val_nx_nsec3_params() throws ParseException, IOException {
         runUnboundTest();
     }

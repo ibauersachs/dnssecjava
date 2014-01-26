@@ -60,6 +60,7 @@ import org.jitsi.dnssec.SecurityStatus;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DSRecord;
 import org.xbill.DNS.Name;
+import org.xbill.DNS.Record;
 import org.xbill.DNS.Type;
 
 /**
@@ -102,7 +103,13 @@ public class TrustAnchorStore {
 
         String k = this.key(rrset.getName(), rrset.getDClass());
         rrset.setSecurityStatus(SecurityStatus.SECURE);
-        this.map.put(k, rrset);
+        SRRset previous = this.map.put(k, rrset);
+        if (previous != null) {
+            Iterator<?> rrs = previous.rrs();
+            while (rrs.hasNext()) {
+                rrset.addRR((Record)rrs.next());
+            }
+        }
     }
 
     /**

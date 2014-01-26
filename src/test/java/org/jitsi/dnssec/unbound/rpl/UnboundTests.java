@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -37,6 +38,8 @@ import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SystemMock;
 import org.jitsi.dnssec.TestBase;
 import org.junit.Test;
+import org.xbill.DNS.CNAMERecord;
+import org.xbill.DNS.DNAMERecord;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
@@ -61,7 +64,7 @@ public class UnboundTests extends TestBase {
         }
 
         for (Message m : rpl.replays) {
-            add(m);
+            add(stripAdditional(m));
             for (RRset set : m.getSectionRRsets(Section.AUTHORITY)) {
                 if (set.getType() == Type.DS && set.sigs().hasNext() && Name.fromString("sub.example.com.").equals(set.getName())) {
                     Message additional = new Message();
@@ -76,14 +79,78 @@ public class UnboundTests extends TestBase {
                         additional.addRecord((Record)it.next(), Section.ANSWER);
                     }
 
-                    add(additional);
+                    add(stripAdditional(additional));
                     break;
                 }
             }
         }
 
-        for (Check c : rpl.checks.values()) {
-            add(c.response);
+        // merge xNAME queries into one
+        List<Message> copy = new ArrayList<Message>(rpl.replays.size());
+        copy.addAll(rpl.replays);
+        List<Name> copiedTargets = new ArrayList<Name>(5);
+        for (Message m : copy) {
+            Name target = null;
+            for (RRset s : m.getSectionRRsets(Section.ANSWER)) {
+                if (s.getType() == Type.CNAME) {
+                    target = ((CNAMERecord)s.first()).getTarget();
+                }
+                else if (s.getType() == Type.DNAME) {
+                    target = ((DNAMERecord)s.first()).getTarget();
+                }
+
+                while (target != null) {
+                    Message a = get(target, m.getQuestion().getType());
+                    if (a == null) {
+                        a = get(target, Type.CNAME);
+                    }
+
+                    if (a == null) {
+                        a = get(target, Type.DNAME);
+                    }
+
+                    if (a != null) {
+                        target = add(m, a);
+                        if (copiedTargets.contains(target)) {
+                            break;
+                        }
+
+                        copiedTargets.add(target);
+                        rpl.replays.remove(a);
+                    }
+                    else {
+                        target = null;
+                    }
+                }
+            }
+        }
+
+        // promote any DS records in auth. sections to real queries
+        copy = new ArrayList<Message>(rpl.replays.size());
+        copy.addAll(rpl.replays);
+        for (Message m : copy) {
+            for (RRset s : m.getSectionRRsets(Section.AUTHORITY)) {
+                if (s.getType() == Type.DS) {
+                    Message ds = new Message();
+                    ds.addRecord(Record.newRecord(s.getName(), s.getType(), s.getDClass()), Section.QUESTION);
+                    Iterator<?> rrs = s.rrs();
+                    while (rrs.hasNext()) {
+                        ds.addRecord((Record)rrs.next(), Section.ANSWER);
+                    }
+
+                    Iterator<?> sigs = s.sigs();
+                    while (sigs.hasNext()) {
+                        ds.addRecord((Record)sigs.next(), Section.ANSWER);
+                    }
+
+                    rpl.replays.add(ds);
+                }
+            }
+        }
+
+        clear();
+        for (Message m : rpl.replays) {
+            add(stripAdditional(m));
         }
 
         if (rpl.date != null) {
@@ -105,6 +172,56 @@ public class UnboundTests extends TestBase {
         }
     }
 
+    private Message stripAdditional(Message m) {
+        if (m.getQuestion().getType() == Type.RRSIG) {
+            return m;
+        }
+
+        Message copy = new Message();
+        copy.setHeader(m.getHeader());
+        for (int i = 0; i < Section.ADDITIONAL; i++) {
+            for (RRset set : m.getSectionRRsets(i)) {
+                if (set.getType() == Type.NS && m.getQuestion().getType() != Type.NS) {
+                    continue;
+                }
+
+                Iterator<?> rrs = set.rrs();
+                while (rrs.hasNext()) {
+                    copy.addRecord((Record)rrs.next(), i);
+                }
+
+                Iterator<?> sigs = set.sigs();
+                while (sigs.hasNext()) {
+                    copy.addRecord((Record)sigs.next(), i);
+                }
+            }
+        }
+
+        return copy;
+    }
+
+    private Name add(Message target, Message source) {
+        Name next = null;
+        target.getHeader().setRcode(source.getRcode());
+        for (Record r : source.getSectionArray(Section.ANSWER)) {
+            target.addRecord(r, Section.ANSWER);
+            if (r.getType() == Type.CNAME) {
+                next = ((CNAMERecord)r).getTarget();
+            }
+            else if (r.getType() == Type.DNAME) {
+                next = ((DNAMERecord)r).getTarget();
+            }
+        }
+
+        for (Record r : source.getSectionArray(Section.AUTHORITY)) {
+            if (r.getType() != Type.NS) {
+                target.addRecord(r, Section.AUTHORITY);
+            }
+        }
+
+        return next;
+    }
+
     public static void main(String[] srgs) throws ParseException, IOException {
         String[] ignored = new String[] { "val_faildnskey_ok.rpl", // tests an
                                                                    // unbound
@@ -112,20 +229,28 @@ public class UnboundTests extends TestBase {
                                                                    // config
                                                                    // option
                 "val_nsec3_nods_negcache.rpl", // we don't do negative caching
-                "val_unsecds_negcache.rpl", // we don't do negative caching
+                "val_unsecds_negcache.rpl", // "
+                "val_negcache_dssoa.rpl", // "
+                "val_nsec3_b3_optout_negcache.rpl", // "
+                "val_dsnsec.rpl", // "
+                "val_refer_unsignadd.rpl", // more cache stuff
+                "val_referglue.rpl", // "
                 "val_noadwhennodo.rpl", // irrelevant - if we wouldn't want AD,
                                         // we wouldn't be using this stuff
                 "val_fwdds.rpl", // irrelevant, we're not a recursive resolver
                 "val_referd.rpl", // NSEC records missing for validation, tests
                                   // caching stuff
                 "val_stubds.rpl", // tests unbound specific config (stub zones)
-                "val_refer_unsignadd.rpl", // more cache stuff
-                "val_referglue.rpl", // more cache stuff
                 "val_cnametonsec.rpl", // incomplete CNAME answer
                 "val_cnametooptin.rpl", // incomplete CNAME answer
                 "val_cnametoinsecure.rpl", // incomplete CNAME answer
                 "val_nsec3_optout_cache.rpl", // more cache stuff
-                "val_ds_gost.rpl", //we don't support GOST (RFC5933)
+                "val_ds_gost.rpl", // we don't support GOST (RFC5933)
+                "val_ds_gost_downgrade.rpl", // no GOST
+                "val_unsecds_qtypeds.rpl", // tests the iterative resolver
+                "val_anchor_nx.rpl", // tests caching of NX from a parent
+                                     // resolver
+                "val_anchor_nx_nosig.rpl", // "
         };
         List<String> ignoredList = Arrays.asList(ignored);
 
@@ -148,16 +273,6 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_adcopy() throws ParseException, IOException {
-        runUnboundTest();
-    }
-
-    @Test
-    public void val_anchor_nx() throws ParseException, IOException {
-        runUnboundTest();
-    }
-
-    @Test
-    public void val_anchor_nx_nosig() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -317,11 +432,6 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
-    public void val_dsnsec() throws ParseException, IOException {
-        runUnboundTest();
-    }
-
-    @Test
     public void val_ds_afterprime() throws ParseException, IOException {
         runUnboundTest();
     }
@@ -333,11 +443,6 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_ds_cnamesub() throws ParseException, IOException {
-        runUnboundTest();
-    }
-
-    @Test
-    public void val_ds_gost_downgrade() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -378,11 +483,6 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_negcache_ds() throws ParseException, IOException {
-        runUnboundTest();
-    }
-
-    @Test
-    public void val_negcache_dssoa() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -483,11 +583,6 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_nsec3_b3_optout() throws ParseException, IOException {
-        runUnboundTest();
-    }
-
-    @Test
-    public void val_nsec3_b3_optout_negcache() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -758,11 +853,6 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_unsecds() throws ParseException, IOException {
-        runUnboundTest();
-    }
-
-    @Test
-    public void val_unsecds_qtypeds() throws ParseException, IOException {
         runUnboundTest();
     }
 

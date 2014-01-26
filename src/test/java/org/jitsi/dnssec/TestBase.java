@@ -202,6 +202,14 @@ public abstract class TestBase {
         }
     }
 
+    protected Message get(Name target, int type) {
+        return queryResponsePairs.get(key(target, type));
+    }
+
+    protected void clear() {
+        queryResponsePairs.clear();
+    }
+
     protected Message createMessage(String query) throws IOException {
         return Message.newQuery(Record.newRecord(Name.fromString(query.split("/")[0]), Type.value(query.split("/")[1]), DClass.IN));
     }
@@ -241,7 +249,15 @@ public abstract class TestBase {
         return sectionRRsets.length == 0;
     }
 
+    private String key(Name n, int t) {
+        return n + "/" + Type.string(t);
+    }
+
+    private String key(Record r) {
+        return key(r.getName(), r.getType());
+    }
+
     private String key(Message m) {
-        return m.getQuestion().getName() + "/" + Type.string(m.getQuestion().getType());
+        return key(m.getQuestion());
     }
 }

@@ -47,7 +47,7 @@ Code Coverage / Bugs
   - http://tools.ietf.org/html/rfc6840#section-4.3 (CNAME bit check)
   - http://tools.ietf.org/html/rfc6840#section-4.4 (Insecure Delegation Proofs)
   - http://tools.ietf.org/html/rfc6840#section-5.4 (Caution about Local Policy and Multiple RRSIGs)
-  - Refuse DNAME wildcards (RFC4597)
+  - <del>Refuse DNAME wildcards (RFC4597)
 
 - JaCoCo/EclEmma doesn't work with jmockit enabled at the same time without
   specifying -javaagent:jmockit-1.2.jar as a VM argument.

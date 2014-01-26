@@ -409,6 +409,12 @@ public class ValidatingResolver implements Resolver {
             // section.
             Name wc = ValUtils.rrsetWildcard(set);
             if (wc != null) {
+                // RFC 4592, Section 4.4 does not allow wildcarded DNAMEs
+                if (set.getType() == Type.DNAME) {
+                    response.setBogus(R.get("failed.dname.wildcard", set.getName()));
+                    return false;
+                }
+
                 wcs.put(set.getName(), wc);
             }
 

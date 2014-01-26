@@ -647,6 +647,16 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
+    public void val_nx_nsec3_hashalg() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_nx_nsec3_nsecmix() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
     public void val_nx_nsec3_params() throws ParseException, IOException {
         runUnboundTest();
     }

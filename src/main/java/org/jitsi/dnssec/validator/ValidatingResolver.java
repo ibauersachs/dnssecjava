@@ -1096,7 +1096,7 @@ public class ValidatingResolver implements Resolver {
                 // For now, in the absence of any other API information, we
                 // return SERVFAIL.
                 int code = response.getHeader().getRcode();
-                if (code == Rcode.NOERROR || code == Rcode.NXDOMAIN) {
+                if (code == Rcode.NOERROR || code == Rcode.NXDOMAIN || code == Rcode.YXDOMAIN) {
                     code = Rcode.SERVFAIL;
                 }
 

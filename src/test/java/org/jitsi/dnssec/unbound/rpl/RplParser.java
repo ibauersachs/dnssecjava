@@ -116,16 +116,16 @@ public class RplParser {
                     break;
 
                 case Server:
-                    if (line.startsWith("\ttrust-anchor:")) {
+                    if (line.matches("\\s*trust-anchor:.*")) {
                         SRRset rrset = new SRRset();
                         rrset.setSecurityStatus(SecurityStatus.SECURE);
                         rrset.addRR(parseRecord(line.substring(line.indexOf("\"") + 1, line.length() - 1)));
                         rpl.trustAnchors.add(rrset);
                     }
-                    else if (line.startsWith("\tval-override-date:")) {
+                    else if (line.matches("\\s*val-override-date:.*")) {
                         rpl.date = DateTime.parse(line.substring(line.indexOf("\"") + 1, line.length() - 2), DateTimeFormat.forPattern("yyyyMMddHHmmss"));
                     }
-                    else if (line.startsWith("\tval-nsec3-keysize-iterations:")) {
+                    else if (line.matches("\\s*val-nsec3-keysize-iterations:.*")) {
                         String[] data = line.substring(line.indexOf("\"") + 1, line.length() - 1).split("\\s");
                         if (data.length % 2 != 0) {
                             throw new ParseException("val-nsec3-keysize-iterations invalid", 0);

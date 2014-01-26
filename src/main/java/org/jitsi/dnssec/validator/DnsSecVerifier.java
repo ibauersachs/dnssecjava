@@ -133,6 +133,12 @@ public class DnsSecVerifier {
         SecurityStatus status = SecurityStatus.UNCHECKED;
         for (DNSKEYRecord key : keys) {
             try {
+                if (!rrset.getName().subdomain(keyRrset.getName())) {
+                    logger.debug("signer name is off-tree");
+                    status = SecurityStatus.BOGUS;
+                    continue;
+                }
+
                 DNSSEC.verify(rrset, sigrec, key);
                 return SecurityStatus.SECURE;
             }

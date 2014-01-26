@@ -52,6 +52,7 @@
 package org.jitsi.dnssec.validator;
 
 import java.util.Iterator;
+import java.util.Properties;
 
 import org.apache.log4j.Logger;
 import org.jitsi.dnssec.R;
@@ -85,14 +86,37 @@ public class ValUtils {
 
     private static final Name WILDCARD = Name.fromConstantString("*");
 
+    private static final String DIGEST_PREFERENCE = "org.jisi.dnssec.algorithm_preference";
+
     /** A local copy of the verifier object. */
     private DnsSecVerifier verifier;
+    private int[] digestPreference = null;
 
     /**
      * Creates a new instance of this class.
      */
     public ValUtils() {
         this.verifier = new DnsSecVerifier();
+    }
+
+    /**
+     * Initialize the module. The only recognized configuration value is
+     * {@value #DIGEST_PREFERENCE}.
+     * 
+     * @param config The configuration data for this module.
+     */
+    public void init(Properties config) {
+        String dp = config.getProperty(DIGEST_PREFERENCE);
+        if (dp != null) {
+            String[] dpdata = dp.split(",");
+            this.digestPreference = new int[dpdata.length];
+            for (int i = 0; i < dpdata.length; i++) {
+                this.digestPreference[i] = Integer.parseInt(dpdata[i]);
+                if (!isDigestSupported(this.digestPreference[i])) {
+                    throw new IllegalArgumentException("Unsupported digest ID in digest preferences");
+                }
+            }
+        }
     }
 
     /**
@@ -187,8 +211,12 @@ public class ValUtils {
             return ke;
         }
 
+        int favoriteDigestID = favoriteDSDigestID(dsRrset);
         for (Iterator<?> i = dsRrset.rrs(); i.hasNext();) {
             DSRecord ds = (DSRecord)i.next();
+            if (ds.getDigestID() != favoriteDigestID) {
+                continue;
+            }
 
             DNSKEY: for (Iterator<?> j = dnskeyRrset.rrs(); j.hasNext();) {
                 DNSKEYRecord dnskey = (DNSKEYRecord)j.next();
@@ -232,6 +260,44 @@ public class ValUtils {
         KeyEntry badKey = KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
         badKey.setBadReason(R.get("dnskey.no_ds_match"));
         return badKey;
+    }
+
+    /**
+     * Gets the digest ID for the favorite (best) algorithm that is support in a
+     * given DS set.
+     * 
+     * The order of preference can be configured with the property
+     * {@value #DIGEST_PREFERENCE}. If the property is not set, the highest
+     * supported number is returned.
+     * 
+     * @param dsset The DS set to check for the favorite algorithm.
+     * @return The favorite digest ID or 0 if none is supported. 0 is not a
+     *         known digest ID.
+     */
+    int favoriteDSDigestID(SRRset dsset) {
+        if (this.digestPreference == null) {
+            int max = 0;
+            for (Iterator<?> rrs = dsset.rrs(); rrs.hasNext();) {
+                DSRecord r = (DSRecord)rrs.next();
+                if (r.getDigestID() > max && isDigestSupported(r.getDigestID()) && isAlgorithmSupported(r.getAlgorithm())) {
+                    max = r.getDigestID();
+                }
+            }
+
+            return max;
+        }
+        else {
+            for (int i = 0; i < this.digestPreference.length; i++) {
+                for (Iterator<?> rrs = dsset.rrs(); rrs.hasNext();) {
+                    DSRecord r = (DSRecord)rrs.next();
+                    if (r.getDigestID() == this.digestPreference[i]) {
+                        return r.getDigestID();
+                    }
+                }
+            }
+        }
+
+        return 0;
     }
 
     /**
@@ -713,25 +779,39 @@ public class ValUtils {
         while (it.hasNext()) {
             Record r = (Record)it.next();
             if (r.getType() == Type.DS) {
-                switch (((DSRecord)r).getAlgorithm()) {
-                    case Algorithm.RSAMD5:
-                        return false; // obsoleted by rfc6944
-                    case Algorithm.DSA:
-                    case Algorithm.DSA_NSEC3_SHA1:
-                    case Algorithm.RSASHA1:
-                    case Algorithm.RSA_NSEC3_SHA1:
-                    case Algorithm.RSASHA256:
-                    case Algorithm.RSASHA512:
-                    case Algorithm.ECDSAP256SHA256:
-                    case Algorithm.ECDSAP384SHA384:
-                        return true;
-                    default:
-                        // do nothing, there could be another DS we understand
+                if (isAlgorithmSupported(((DSRecord)r).getAlgorithm())) {
+                    return true;
                 }
+
+                // do nothing, there could be another DS we understand
             }
         }
 
         return false;
+    }
+
+    /**
+     * Determines if the algorithm is supported.
+     * 
+     * @param alg The algorithm to check.
+     * @return True when the algorithm is supported, false otherwise.
+     */
+    static boolean isAlgorithmSupported(int alg) {
+        switch (alg) {
+            case Algorithm.RSAMD5:
+                return false; // obsoleted by rfc6944
+            case Algorithm.DSA:
+            case Algorithm.DSA_NSEC3_SHA1:
+            case Algorithm.RSASHA1:
+            case Algorithm.RSA_NSEC3_SHA1:
+            case Algorithm.RSASHA256:
+            case Algorithm.RSASHA512:
+            case Algorithm.ECDSAP256SHA256:
+            case Algorithm.ECDSAP384SHA384:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /**
@@ -747,17 +827,31 @@ public class ValUtils {
         while (it.hasNext()) {
             Record r = (Record)it.next();
             if (r.getType() == Type.DS) {
-                switch (((DSRecord)r).getDigestID()) {
-                    case Digest.SHA1:
-                    case Digest.SHA256:
-                    case Digest.SHA384:
-                        return true;
-                    default:
-                        // do nothing, there could be another DS we understand
+                if (isDigestSupported(((DSRecord)r).getDigestID())) {
+                    return true;
                 }
+
+                // do nothing, there could be another DS we understand
             }
         }
 
         return false;
+    }
+
+    /**
+     * Determines if the digest algorithm is supported.
+     * 
+     * @param digestID the algorithm to check.
+     * @return True when the digest algorithm is supported, false otherwise.
+     */
+    static boolean isDigestSupported(int digestID) {
+        switch (digestID) {
+            case Digest.SHA1:
+            case Digest.SHA256:
+            case Digest.SHA384:
+                return true;
+            default:
+                return false;
+        }
     }
 }

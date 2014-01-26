@@ -163,6 +163,7 @@ public class ValidatingResolver implements Resolver {
     public void init(Properties config) throws IOException {
         this.keyCache.init(config);
         this.n3valUtils.init(config);
+        this.valUtils.init(config);
 
         // Load trust anchors
         String s = config.getProperty("org.jitsi.dnssec.trust_anchor_file");

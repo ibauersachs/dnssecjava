@@ -27,7 +27,7 @@ Code Coverage / Bugs
   - ANY responses, especially wildcard expansion
   - Insecure NSEC3 NODATA responses
   - <del>Wildcard NODATA responses might pass too broad cases
-  - Behavior if all NSEC3s are not understandable
+  - <del>Behavior if all NSEC3s are not understandable
   - NXDOMAIN when a NSEC would prove that a wildcard exists
   - Exceptions thrown by the head resolver
   - Bogus/Insecure handling of CNAME answer to DS query
@@ -36,14 +36,14 @@ Code Coverage / Bugs
   - Various cases in dsReponseToKeForNodata
   - <del>longestCommonName
   - <del>Various NSEC NODATA cases
-  - Unsupported algorithm or digest ID cases
+  - <del>Unsupported algorithm or digest ID cases
   - <del>NSEC3 iteration count configuration
-  - NSEC3 with unsupported hash algorithm
+  - <del>NSEC3 with unsupported hash algorithm
   - Multiple NSEC3s for a zone
   - NSEC3: proveClosestEncloser
   - NSEC3: proveNodata
   - NSEC3: proveNoDS
-  - Implement http://tools.ietf.org/html/rfc4509#section-3 to prevent downgrade attacks
+  - <del>Implement http://tools.ietf.org/html/rfc4509#section-3 to prevent downgrade attacks
   - http://tools.ietf.org/html/rfc6840#section-4.3 (CNAME bit check)
   - http://tools.ietf.org/html/rfc6840#section-4.4 (Insecure Delegation Proofs)
   - http://tools.ietf.org/html/rfc6840#section-5.4 (Caution about Local Policy and Multiple RRSIGs)

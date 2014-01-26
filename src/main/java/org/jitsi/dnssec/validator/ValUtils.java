@@ -447,14 +447,20 @@ public class ValUtils {
      * 
      * @param nsec The NSEC to check.
      * @param qname The qname to check against.
+     * @param signerName The signer of the NSEC RRset.
      * @return true if the NSEC proves the condition.
      */
-    public static boolean nsecProvesNameError(NSECRecord nsec, Name qname) {
+    public static boolean nsecProvesNameError(NSECRecord nsec, Name qname, Name signerName) {
         Name owner = nsec.getName();
         Name next = nsec.getNext();
 
         // If NSEC owner == qname, then this NSEC proves that qname exists.
         if (qname.equals(owner)) {
+            return false;
+        }
+
+        // deny overreaching NSECs
+        if (!next.subdomain(signerName)) {
             return false;
         }
 
@@ -503,16 +509,17 @@ public class ValUtils {
      * 
      * @param nsec The nsec to check.
      * @param qname The qname to check against.
+     * @param signerName The signer of the NSEC RRset.
      * @return true if the NSEC proves the condition.
      */
-    public static boolean nsecProvesNoWC(NSECRecord nsec, Name qname) {
+    public static boolean nsecProvesNoWC(NSECRecord nsec, Name qname, Name signerName) {
         int qnameLabels = qname.labels();
         Name ce = closestEncloser(qname, nsec);
         int ceLabels = ce.labels();
 
         for (int i = qnameLabels - ceLabels; i > 0; i--) {
             Name wcName = qname.wild(i);
-            if (nsecProvesNameError(nsec, wcName)) {
+            if (nsecProvesNameError(nsec, wcName, signerName)) {
                 return true;
             }
         }
@@ -689,7 +696,7 @@ public class ValUtils {
                 }
             }
 
-            if (ValUtils.nsecProvesNameError(nsec, qname)) {
+            if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
                 ce = closestEncloser(qname, nsec);
             }
         }

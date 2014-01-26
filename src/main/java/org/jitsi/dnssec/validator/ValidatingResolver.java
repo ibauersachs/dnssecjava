@@ -262,7 +262,7 @@ public class ValidatingResolver implements Resolver {
 
         Map<Name, Name> wcs = new HashMap<Name, Name>(1);
         List<SRRset> nsec3s = new ArrayList<SRRset>(0);
-        List<NSECRecord> nsecs = new ArrayList<NSECRecord>(0);
+        List<SRRset> nsecs = new ArrayList<SRRset>(0);
 
         if (!validateAnswerAndGetWildcards(response, qtype, wcs)) {
             return;
@@ -297,7 +297,7 @@ public class ValidatingResolver implements Resolver {
 
                 if (wcs.size() > 0) {
                     if (set.getType() == Type.NSEC) {
-                        nsecs.add((NSECRecord)set.first());
+                        nsecs.add(set);
                     }
                     else if (set.getType() == Type.NSEC3) {
                         nsec3s.add(set);
@@ -313,8 +313,9 @@ public class ValidatingResolver implements Resolver {
         if (wcs.size() > 0) {
             for (Map.Entry<Name, Name> wc : wcs.entrySet()) {
                 boolean wcNsecOk = false;
-                for (NSECRecord nsec : nsecs) {
-                    if (ValUtils.nsecProvesNameError(nsec, wc.getKey())) {
+                for (SRRset set : nsecs) {
+                    NSECRecord nsec = (NSECRecord)set.first();
+                    if (ValUtils.nsecProvesNameError(nsec, wc.getKey(), set.getSignerName())) {
                         try {
                             Name nsecWc = ValUtils.nsecWildcard(wc.getKey(), nsec);
                             if (wc.getValue().equals(nsecWc)) {
@@ -496,12 +497,9 @@ public class ValidatingResolver implements Resolver {
                 ndp = ValUtils.nsecProvesNodata(nsec, qname, qtype);
                 if (ndp.result) {
                     hasValidNSEC = true;
-//                    if (nsec.getName().isWild()) {
-//                        wc = new Name(nsec.getName(), 1);
-//                    }
                 }
 
-                if (ValUtils.nsecProvesNameError(nsec, qname)) {
+                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
                     ce = ValUtils.closestEncloser(qname, nsec);
                 }
             }
@@ -604,11 +602,11 @@ public class ValidatingResolver implements Resolver {
 
             if (set.getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)set.first();
-                if (ValUtils.nsecProvesNameError(nsec, qname)) {
+                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
                     hasValidNSEC = true;
                 }
 
-                if (ValUtils.nsecProvesNoWC(nsec, qname)) {
+                if (ValUtils.nsecProvesNoWC(nsec, qname, set.getSignerName())) {
                     hasValidWCNSEC = true;
                 }
             }

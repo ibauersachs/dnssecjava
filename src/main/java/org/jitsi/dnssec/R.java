@@ -20,6 +20,7 @@
 
 package org.jitsi.dnssec;
 
+import java.text.MessageFormat;
 import java.util.ResourceBundle;
 
 /**
@@ -38,6 +39,6 @@ public final class R {
      * @return The formatted message.
      */
     public static String get(String key, Object... values) {
-        return String.format(rb.getString(key), values);
+        return MessageFormat.format(rb.getString(key), values);
     }
 }

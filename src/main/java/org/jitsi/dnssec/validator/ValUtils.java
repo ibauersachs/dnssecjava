@@ -86,7 +86,7 @@ public class ValUtils {
 
     private static final Name WILDCARD = Name.fromConstantString("*");
 
-    private static final String DIGEST_PREFERENCE = "org.jisi.dnssec.algorithm_preference";
+    private static final String DIGEST_PREFERENCE = "org.jitsi.dnssec.digest_preference";
 
     /** A local copy of the verifier object. */
     private DnsSecVerifier verifier;

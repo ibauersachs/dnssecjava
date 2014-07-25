@@ -67,4 +67,4 @@ DNSJAVA
   as it is not officially distributed on Maven central
 - <del>Version 2.1.5 contains a bug in the Name constructor and needs at least
   SVN rev. 1686
-- Remove local-repo once 2.1.6 appears on Maven central
+- <del>Remove local-repo once 2.1.6 appears on Maven central

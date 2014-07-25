@@ -37,7 +37,7 @@
 		<dependency>
 			<groupId>dnsjava</groupId>
 			<artifactId>dnsjava</artifactId>
-			<version>2.1.6</version>
+			<version>[2.1.6,)</version>
 			<type>jar</type>
 		</dependency>
 		<dependency>
@@ -158,11 +158,4 @@
 			<email>ingo@jitsi.org</email>
 		</developer>
 	</developers>
-
-	<repositories>
-		<repository>
-			<id>local-repo</id>
-			<url>file://${project.basedir}/local-repo</url>
-		</repository>
-	</repositories>
 </project>

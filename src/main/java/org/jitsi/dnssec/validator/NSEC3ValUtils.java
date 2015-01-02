@@ -576,7 +576,7 @@ final class NSEC3ValUtils {
                 return SecurityStatus.BOGUS;
             }
 
-            if (qtype == Type.DS && qname.labels() != 1 && nsec3.hasType(Type.SOA) && !Name.root.equals(qname)) {
+            if (qtype == Type.DS && nsec3.hasType(Type.SOA) && !Name.root.equals(qname)) {
                 logger.debug("proveNodata: apex NSEC3 abused for no DS proof, bogus");
                 return SecurityStatus.BOGUS;
             }

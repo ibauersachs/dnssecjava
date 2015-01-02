@@ -99,8 +99,8 @@ public abstract class TestBase {
                 }
 
                 String filename = "/recordings/" + description.getClassName().replace(".", "_") + "/" + testName;
-                if (record && !alwaysOffline) {
-                    File f = new File("./src/test/resources" + filename);
+                File f = new File("./src/test/resources" + filename);
+                if ((record || !f.exists()) && !alwaysOffline) {
                     f.getParentFile().getParentFile().mkdir();
                     f.getParentFile().mkdir();
                     w = new FileWriter(f.getAbsoluteFile());

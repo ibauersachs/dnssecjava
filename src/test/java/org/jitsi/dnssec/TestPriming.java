@@ -27,8 +27,6 @@ import java.io.IOException;
 
 import mockit.Mock;
 import mockit.MockUp;
-import mockit.Mocked;
-import mockit.NonStrictExpectations;
 
 import org.junit.Test;
 import org.xbill.DNS.DClass;
@@ -84,13 +82,10 @@ public class TestPriming extends TestBase {
 
     @Test
     public void testDnskeyPrimeResponseWithMismatchedFootprintIsBad() throws IOException, NumberFormatException, DNSSECException {
-        new NonStrictExpectations() {
-            @Mocked({ "getFootprint()" })
-            DNSKEYRecord mock;
-
-            {
-                mock.getFootprint();
-                result = -1;
+        new MockUp<DNSKEYRecord>() {
+            @Mock
+            public int getFootprint() {
+                return -1;
             }
         };
 
@@ -102,13 +97,10 @@ public class TestPriming extends TestBase {
 
     @Test
     public void testDnskeyPrimeResponseWithMismatchedAlgorithmIsBad() throws IOException, NumberFormatException, DNSSECException {
-        new NonStrictExpectations() {
-            @Mocked({ "getAlgorithm()" })
-            DNSKEYRecord mock;
-
-            {
-                mock.getAlgorithm();
-                result = -1;
+        new MockUp<DNSKEYRecord>() {
+            @Mock
+            public int getAlgorithm() {
+                return -1;
             }
         };
 

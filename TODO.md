@@ -50,7 +50,7 @@ Code Coverage / Bugs
   - <del>Refuse DNAME wildcards (RFC4597)
 
 - JaCoCo/EclEmma doesn't work with jmockit enabled at the same time without
-  specifying -javaagent:jmockit-1.2.jar as a VM argument.
+  specifying -javaagent:jmockit-1.14.jar as a VM argument.
 
 Unit Tests
 ----------

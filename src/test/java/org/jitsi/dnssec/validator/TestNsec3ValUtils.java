@@ -140,7 +140,7 @@ public class TestNsec3ValUtils extends TestBase {
         new MockUp<DNSKEYRecord>() {
             @Mock
             public PublicKey getPublicKey(Invocation invocation) throws DNSSEC.DNSSECException {
-                DNSKEYRecord dr = ((DNSKEYRecord)invocation.getInvokedInstance());
+                DNSKEYRecord dr = invocation.getInvokedInstance();
 
                 if (dr.getName().equals(Name.fromConstantString("nsec3.ingotronic.ch.")) && invocation.getInvocationCount() == 11) {
                     DNSSEC.DNSSECException e = null;
@@ -155,7 +155,7 @@ public class TestNsec3ValUtils extends TestBase {
                     throw e;
                 }
 
-                return dr.getPublicKey();
+                return invocation.proceed();
             }
         };
 

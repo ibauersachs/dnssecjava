@@ -21,7 +21,7 @@ See the corresponding TODO-file for details.
 Usage
 -----
 The project is intended to be used as a `Resolver` for
-[DNSJAVA](www.xbill.org/dnsjava/). Validated, secure responses contain
+[DNSJAVA](http://www.xbill.org/dnsjava/). Validated, secure responses contain
 the DNS `AD`-flag, while responses that failed validation return the
 `SERVFAIL`-RCode. Insecure responses return the actual return code
 without the `AD`-flag set.

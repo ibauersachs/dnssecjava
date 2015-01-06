@@ -42,6 +42,7 @@ import org.xbill.DNS.Type;
 
 public class TestInvalid extends TestBase {
     @Test
+    @AlwaysOffline
     public void testUnknownAlg() throws IOException {
         Message response = resolver.send(createMessage("unknownalgorithm.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -51,6 +52,7 @@ public class TestInvalid extends TestBase {
 
     @Test
     @Ignore
+    @AlwaysOffline
     public void testSigNotIncepted() throws IOException {
         Message response = resolver.send(createMessage("signotincepted.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -59,6 +61,7 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
+    @AlwaysOffline
     public void testSigExpired() throws IOException {
         Message response = resolver.send(createMessage("sigexpired.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -67,6 +70,7 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
+    @AlwaysOffline
     public void testBogusSig() throws IOException {
         Message response = resolver.send(createMessage("bogussig.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -75,6 +79,7 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
+    @AlwaysOffline
     public void testSignedBelowUnsignedBelowSigned() throws IOException {
         Message response = resolver.send(createMessage("ok.nods.ok.dnssec.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -84,6 +89,7 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
+    @AlwaysOffline
     public void testUnknownAlgNsec3() throws IOException {
         Message response = resolver.send(createMessage("unknownalgorithm.Nsec3.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -92,6 +98,7 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
+    @AlwaysOffline
     public void testSigNotInceptedNsec3() throws IOException {
         Message response = resolver.send(createMessage("signotincepted.Nsec3.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -99,6 +106,7 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
+    @AlwaysOffline
     public void testSigExpiredNsec3() throws IOException {
         Message response = resolver.send(createMessage("sigexpired.Nsec3.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -107,6 +115,7 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
+    @AlwaysOffline
     public void testBogusSigNsec3() throws IOException {
         Message response = resolver.send(createMessage("bogussig.Nsec3.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
@@ -115,6 +124,7 @@ public class TestInvalid extends TestBase {
     }
 
     @Test
+    @AlwaysOffline
     public void testSignedBelowUnsignedBelowSignedNsec3() throws IOException {
         Message response = resolver.send(createMessage("ok.nods.ok.Nsec3.tjeb.nl./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));

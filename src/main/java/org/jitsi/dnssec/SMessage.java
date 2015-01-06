@@ -124,7 +124,7 @@ public class SMessage {
             RRset[] rrsets = m.getSectionRRsets(i);
 
             for (int j = 0; j < rrsets.length; j++) {
-                addRRset(new SRRset(rrsets[j]), i);
+                this.addRRset(new SRRset(rrsets[j]), i);
             }
         }
     }
@@ -154,7 +154,7 @@ public class SMessage {
      * @return Signed RRsets for the queried section.
      */
     public List<SRRset> getSectionRRsets(int section) {
-        checkSectionValidity(section);
+        this.checkSectionValidity(section);
 
         if (this.sections[section - 1] == null) {
             this.sections[section - 1] = new LinkedList<SRRset>();
@@ -164,7 +164,7 @@ public class SMessage {
     }
 
     private void addRRset(SRRset srrset, int section) {
-        checkSectionValidity(section);
+        this.checkSectionValidity(section);
 
         if (srrset.getType() == Type.OPT) {
             this.oPTRecord = (OPTRecord)srrset.first();

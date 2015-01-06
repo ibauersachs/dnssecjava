@@ -75,12 +75,13 @@
 						<include>**/*.java</include>
 					</includes>
 					<forkCount>1C</forkCount>
+					<redirectTestOutputToFile>true</redirectTestOutputToFile>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-checkstyle-plugin</artifactId>
-				<version>2.11</version>
+				<version>2.13</version>
 				<executions>
 					<execution>
 						<phase>compile</phase>
@@ -88,6 +89,7 @@
 							<goal>check</goal>
 						</goals>
 						<configuration>
+							<configLocation>${checkstyle.config.location}</configLocation>
 							<violationSeverity>warning</violationSeverity>
 							<failsOnError>true</failsOnError>
 							<maxAllowedViolations>0</maxAllowedViolations>

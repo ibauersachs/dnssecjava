@@ -211,7 +211,7 @@ public class ValUtils {
             return ke;
         }
 
-        int favoriteDigestID = favoriteDSDigestID(dsRrset);
+        int favoriteDigestID = this.favoriteDSDigestID(dsRrset);
         for (Iterator<?> i = dsRrset.rrs(); i.hasNext();) {
             DSRecord ds = (DSRecord)i.next();
             if (ds.getDigestID() != favoriteDigestID) {

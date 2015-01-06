@@ -169,7 +169,7 @@ public class ValidatingResolver implements Resolver {
         String s = config.getProperty("org.jitsi.dnssec.trust_anchor_file");
         if (s != null) {
             logger.debug("reading trust anchor file file: " + s);
-            loadTrustAnchors(new FileInputStream(s));
+            this.loadTrustAnchors(new FileInputStream(s));
         }
     }
 
@@ -264,7 +264,7 @@ public class ValidatingResolver implements Resolver {
         List<SRRset> nsec3s = new ArrayList<SRRset>(0);
         List<SRRset> nsecs = new ArrayList<SRRset>(0);
 
-        if (!validateAnswerAndGetWildcards(response, qtype, wcs)) {
+        if (!this.validateAnswerAndGetWildcards(response, qtype, wcs)) {
             return;
         }
 
@@ -710,7 +710,7 @@ public class ValidatingResolver implements Resolver {
 
             // and otherwise, don't continue processing this event.
             // (it will be reactivated when the priming query returns).
-            processFindKey(state);
+            this.processFindKey(state);
         }
 
         return state.keyEntry;

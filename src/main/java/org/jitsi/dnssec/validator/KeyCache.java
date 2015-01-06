@@ -138,8 +138,8 @@ public class KeyCache {
      */
     public KeyEntry find(Name n, int dclass) {
         while (n.labels() > 0) {
-            String k = key(n, dclass);
-            KeyEntry entry = lookupEntry(k);
+            String k = this.key(n, dclass);
+            KeyEntry entry = this.lookupEntry(k);
             if (entry != null) {
                 return entry;
             }

@@ -113,6 +113,7 @@
     <module name="StringLiteralEquality"/>
     <module name="UnnecessaryParentheses"/>
     <module name="OneStatementPerLine"/>
+    <module name="RequireThis"/>
   </module>
   <module name="JavadocPackage">
     <property name="severity" value="ignore"/>

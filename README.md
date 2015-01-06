@@ -31,7 +31,7 @@ a localized string in the additional section under the record ./65280/TXT
 `ValidatingResolver.VALIDATION_REASON_QCLASS`).
 
 ### Example
-```
+```java
 import java.io.*;
 
 import org.jitsi.dnssec.validator.ValidatingResolver;
@@ -97,9 +97,6 @@ RCode:   NOERROR
 Build
 -----
 Run `mvn package`
-
-DnsJava is taken from a repository included in the project as 2.1.6 is not
-available on Maven central.
 
 Configuration Options
 ---------------------

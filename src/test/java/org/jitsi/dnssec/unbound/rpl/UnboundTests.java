@@ -54,13 +54,15 @@ public class UnboundTests extends TestBase {
         InputStream data = getClass().getResourceAsStream("/unbound/" + testName + ".rpl");
         RplParser p = new RplParser(data);
         Rpl rpl = p.parse();
+        Properties config = new Properties();
         if (rpl.nsec3iterations != null) {
-            Properties config = new Properties();
             for (Entry<Integer, Integer> e : rpl.nsec3iterations.entrySet()) {
                 config.put("org.jitsi.dnssec.nsec3.iterations." + e.getKey(), e.getValue());
             }
+        }
 
-            resolver.init(config);
+        if (rpl.digestPreference != null) {
+            config.put("org.jitsi.dnssec.digest_preference", rpl.digestPreference);
         }
 
         for (Message m : rpl.replays) {
@@ -164,6 +166,8 @@ public class UnboundTests extends TestBase {
                 resolver.getTrustAnchors().store(rrset);
             }
         }
+
+        resolver.init(config);
 
         for (Check c : rpl.checks.values()) {
             Message s = resolver.send(c.query);
@@ -453,6 +457,11 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_ds_sha2_downgrade() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_ds_sha2_downgrade_override() throws ParseException, IOException {
         runUnboundTest();
     }
 

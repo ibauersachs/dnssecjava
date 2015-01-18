@@ -136,6 +136,9 @@ public class RplParser {
                             rpl.nsec3iterations.put(Integer.parseInt(data[i]), Integer.parseInt(data[i + 1]));
                         }
                     }
+                    else if (line.matches("\\s*val-digest-preference:.*")) {
+                        rpl.digestPreference = line.substring(line.indexOf("\"") + 1, line.length() - 1);
+                    }
                     else if (line.startsWith("CONFIG_END")) {
                         state = ParseState.Zero;
                     }

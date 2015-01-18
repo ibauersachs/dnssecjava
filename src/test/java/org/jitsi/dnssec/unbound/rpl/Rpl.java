@@ -36,4 +36,5 @@ public class Rpl {
     public List<Message> replays;
     public Map<Integer, Check> checks;
     public TreeMap<Integer, Integer> nsec3iterations;
+    public String digestPreference;
 }

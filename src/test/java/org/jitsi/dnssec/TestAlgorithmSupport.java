@@ -24,10 +24,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
+import java.util.Properties;
 
+import mockit.Deencapsulation;
+
+import org.jitsi.dnssec.validator.ValUtils;
 import org.junit.Test;
+import org.xbill.DNS.DClass;
+import org.xbill.DNS.DNSSEC.Algorithm;
+import org.xbill.DNS.DSRecord;
+import org.xbill.DNS.DSRecord.Digest;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
+import org.xbill.DNS.Name;
 import org.xbill.DNS.Rcode;
 
 public class TestAlgorithmSupport extends TestBase {
@@ -53,5 +62,47 @@ public class TestAlgorithmSupport extends TestBase {
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals("failed.ds.nodigest:unknown-alg.ingotronic.ch.", getReason(response));
+    }
+
+    @AlwaysOffline
+    @Test(expected = IllegalArgumentException.class)
+    public void testUnsupportedDigestInDigestPreference() throws IOException {
+        Properties config = new Properties();
+        config.put("org.jitsi.dnssec.digest_preference", "1,2,0");
+        resolver.init(config);
+    }
+
+    @AlwaysOffline
+    @Test
+    public void testFavoriteDigestNotInRRset() {
+        Properties config = new Properties();
+        config.put("org.jitsi.dnssec.digest_preference", "4");
+        ValUtils v = new ValUtils();
+        v.init(config);
+        SRRset set = new SRRset();
+        set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, Algorithm.DSA, Digest.SHA1, new byte[] { 1, 2, 3 }));
+        set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, Algorithm.DSA, Digest.SHA256, new byte[] { 1, 2, 3 }));
+        int digestId = Deencapsulation.invoke(v, "favoriteDSDigestID", set);
+        assertEquals(0, digestId);
+    }
+
+    @AlwaysOffline
+    @Test
+    public void testOnlyUnsupportedDigestInRRset() {
+        ValUtils v = new ValUtils();
+        SRRset set = new SRRset();
+        set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, Algorithm.DSA, 3 /*GOST*/, new byte[] { 1, 2, 3 }));
+        int digestId = Deencapsulation.invoke(v, "favoriteDSDigestID", set);
+        assertEquals(0, digestId);
+    }
+
+    @AlwaysOffline
+    @Test
+    public void testOnlyUnsupportedAlgorithmInRRset() {
+        ValUtils v = new ValUtils();
+        SRRset set = new SRRset();
+        set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, 0 /*Unknown alg*/, Digest.SHA1, new byte[] { 1, 2, 3 }));
+        int digestId = Deencapsulation.invoke(v, "favoriteDSDigestID", set);
+        assertEquals(0, digestId);
     }
 }

@@ -347,7 +347,7 @@ public class ValUtils {
         // check rest of signatures have identical label count
         while (it.hasNext()) {
             if (it.next().getLabels() != rrsig.getLabels()) {
-                throw new RuntimeException("Label count mismatch on RRSIGs for " + rrset.getName());
+                throw new RuntimeException("failed.wildcard.label_count_mismatch");
             }
         }
 

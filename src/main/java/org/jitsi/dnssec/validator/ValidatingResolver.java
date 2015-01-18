@@ -408,7 +408,15 @@ public class ValidatingResolver implements Resolver {
             // Check to see if the rrset is the result of a wildcard expansion.
             // If so, an additional check will need to be made in the authority
             // section.
-            Name wc = ValUtils.rrsetWildcard(set);
+            Name wc = null;
+            try {
+                wc = ValUtils.rrsetWildcard(set);
+            }
+            catch (RuntimeException ex) {
+                response.setBogus(R.get(ex.getMessage(), set.getName()));
+                return false;
+            }
+
             if (wc != null) {
                 // RFC 4592, Section 4.4 does not allow wildcarded DNAMEs
                 if (set.getType() == Type.DNAME) {

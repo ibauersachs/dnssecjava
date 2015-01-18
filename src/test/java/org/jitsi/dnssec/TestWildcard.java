@@ -66,6 +66,15 @@ public class TestWildcard extends TestBase {
         assertEquals("failed.positive.wildcard_too_broad", getReason(response));
     }
 
+    @AlwaysOffline
+    @Test
+    public void testLabelCountInSignaturesNotAllSame() throws IOException {
+        Message response = resolver.send(createMessage("b.d.nsec3.ingotronic.ch./A"));
+        assertFalse(response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getHeader().getRcode());
+        assertEquals("failed.wildcard.label_count_mismatch:b.d.nsec3.ingotronic.ch.", getReason(response));
+    }
+
     @Test
     public void testSynthesisUsesCorrectWildcard() throws IOException {
         Message m = resolver.send(createMessage("a.wc.ingotronic.ch./A"));

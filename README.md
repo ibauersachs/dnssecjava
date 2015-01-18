@@ -111,7 +111,7 @@ is 900s (15min).
 Maximum number of entries in the key cache. The default is 1000.
 
 ### org.jitsi.dnssec.nsec3.iterations.N
-Maximum iteration count for the NSEC3 hashing function depending on the ke 
+Maximum iteration count for the NSEC3 hashing function depending on the key 
 size N. The defaults are:
 
 - 1024 bit keys: 512 iterations (i.e. org.jitsi.dnssec.nsec3.iterations.1024=512)

@@ -324,9 +324,13 @@ public class ValidatingResolver implements Resolver {
                             }
                         }
                         catch (NameTooLongException e) {
-                            response.setBogus(R.get("failed.positive.wildcardgeneration"));
-                            logger.error("Could not generate NSEC wildcard", e);
-                            return;
+                            // COVERAGE:OFF -> a NTLE can only be thrown when
+                            // the qname is equal to the NSEC owner or NSEC next
+                            // name, so that the wildcard is appended to
+                            // CE=qname=owner=next. This would however indicate
+                            // that the qname exists, which is proofed not the
+                            // be the case beforehand.
+                            throw new RuntimeException(R.get("failed.positive.wildcardgeneration"));
                         }
                     }
                 }

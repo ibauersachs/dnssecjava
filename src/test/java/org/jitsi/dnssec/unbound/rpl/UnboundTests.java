@@ -451,6 +451,11 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
+    public void val_ds_cnamesubbogus() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
     public void val_ds_sha2() throws ParseException, IOException {
         runUnboundTest();
     }

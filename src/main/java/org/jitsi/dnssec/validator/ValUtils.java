@@ -194,11 +194,6 @@ public class ValUtils {
      *         checked before fetching the matching DNSKEY rrset.
      */
     public KeyEntry verifyNewDNSKEYs(SRRset dnskeyRrset, SRRset dsRrset, long badKeyTTL) {
-        if (!dnskeyRrset.getName().equals(dsRrset.getName())) {
-            logger.debug("DNSKEY RRset did not match DS RRset by name!");
-            return KeyEntry.newBadKeyEntry(dsRrset.getName(), dsRrset.getDClass(), badKeyTTL);
-        }
-
         if (!atLeastOneDigestSupported(dsRrset)) {
             KeyEntry ke = KeyEntry.newNullKeyEntry(dsRrset.getName(), dsRrset.getDClass(), dsRrset.getTTL());
             ke.setBadReason(R.get("failed.ds.nodigest", dsRrset.getName()));

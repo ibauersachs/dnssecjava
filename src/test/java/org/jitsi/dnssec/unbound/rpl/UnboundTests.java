@@ -516,6 +516,16 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
+    public void val_nodatawc_wrongdeleg() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_nodatawc_wcns() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
     public void val_nodatawc_one() throws ParseException, IOException {
         runUnboundTest();
     }

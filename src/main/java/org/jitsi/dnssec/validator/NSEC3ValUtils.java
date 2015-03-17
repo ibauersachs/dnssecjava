@@ -215,11 +215,12 @@ final class NSEC3ValUtils {
      * @return The matching NSEC3Record if one is present, null otherwise.
      */
     private NSEC3Record findMatchingNSEC3(Name name, Name zonename, List<SRRset> nsec3s) {
+        base32 b32 = new base32(base32.Alphabet.BASE32HEX, false, false);
         for (SRRset set : nsec3s) {
             try {
                 NSEC3Record nsec3 = (NSEC3Record)set.first();
                 byte[] hash = nsec3.hashName(name);
-                Name complete = new Name(new base32(base32.Alphabet.BASE32HEX, false, false).toString(hash), zonename);
+                Name complete = new Name(b32.toString(hash), zonename);
                 if (complete.equals(nsec3.getName())) {
                     return nsec3;
                 }

@@ -900,7 +900,7 @@ public class ValidatingResolver implements Resolver {
         List<SRRset> nsec3s = new ArrayList<SRRset>(0);
         Name nsec3Signer = null;
         long nsec3TTL = -1;
-        if (nsec3Rrsets != null && nsec3Rrsets.length > 0) {
+        if (nsec3Rrsets.length > 0) {
             // Attempt to prove no DS with NSEC3s.
             for (SRRset nsec3set : nsec3Rrsets) {
                 SecurityStatus sstatus = this.valUtils.verifySRRset(nsec3set, keyRrset);

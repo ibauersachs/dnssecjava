@@ -50,7 +50,7 @@ applies to them as a whole. Each file that is relicensed is marked as such.
 ###############################################################################
 
 The unit test scenarios in the folder /src/test/resources/unbound are from the
-Unbound DNS server are based on work under the following copyright and
+Unbound DNS server and are based on work under the following copyright and
 permission notice:
 
     Copyright (c) 2007, NLnet Labs. All rights reserved.

@@ -21,6 +21,7 @@
 package org.jitsi.dnssec;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -48,6 +49,7 @@ import org.junit.runner.Description;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.DClass;
+import org.xbill.DNS.Master;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.RRset;
@@ -259,5 +261,16 @@ public abstract class TestBase {
 
     private String key(Message m) {
         return key(m.getQuestion());
+    }
+
+    protected Record toRecord(String data){
+        try {
+            InputStream in = new ByteArrayInputStream(data.getBytes("UTF-8"));
+            Master m = new Master(in, Name.root);
+            return m._nextRecord();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

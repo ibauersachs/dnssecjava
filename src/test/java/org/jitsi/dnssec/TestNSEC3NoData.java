@@ -56,6 +56,29 @@ public class TestNSEC3NoData extends TestBase {
 
     @Test
     @AlwaysOffline
+    public void testNodataApexNsec3ProofInsecureDelegation() throws IOException {
+        // get NSEC3 hashed whose name is sub.nsec3.ingotronic.ch. from the nsec3.ingotronic.ch. zone
+        // then return NODATA for the following query, "proofed" by the NSEC3 from the parent
+        // which has the DS flag removed, effectively making the reply insecure
+        Message response = resolver.send(createMessage("sub.nsec3.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
+    }
+
+    @Test
+    @AlwaysOffline
+    public void testNodataApexNsec3WithSOAValid() throws IOException {
+        // get NSEC3 hashed whose name is sub.nsec3.ingotronic.ch. from the nsec3.ingotronic.ch.
+        // then return NODATA for the following query, "proofed" by the NSEC3 from the parent
+        Message response = resolver.send(createMessage("sub.nsec3.ingotronic.ch./A"));
+        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
+    }
+
+    @Test
+    @AlwaysOffline
     public void testNodataApexNsec3AbusedForNoDS() throws IOException {
         // get NSEC3 hashed whose name is sub.nsec3.ingotronic.ch. from the sub.nsec3.ingotronic.ch.
         // then return NODATA for the following query, "proofed" by the NSEC3 from the child
@@ -87,5 +110,25 @@ public class TestNSEC3NoData extends TestBase {
         assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertNull(getReason(response));
+    }
+
+    @Test
+    @AlwaysOffline
+    public void testNsec3ClosestEncloserIsInsecureDelegation() throws IOException {
+        Message response = resolver.send(createMessage("a.unsigned.nsec3.ingotronic.ch./A"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.NOERROR, response.getRcode());
+        assertNull(getReason(response));
+    }
+
+    @Test
+    @AlwaysOffline
+    public void testNsec3ClosestEncloserIsInsecureDelegationDS() throws IOException {
+        //rfc5155#section-7.2.4
+        //response does not contain next closer NSEC3, thus bogus
+        Message response = resolver.send(createMessage("a.unsigned.nsec3.ingotronic.ch./DS"));
+        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+        assertEquals(Rcode.SERVFAIL, response.getRcode());
+        assertTrue(getReason(response).startsWith("failed.nodata"));
     }
 }

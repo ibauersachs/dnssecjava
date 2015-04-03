@@ -584,11 +584,10 @@ final class NSEC3ValUtils {
             else if (qtype != Type.DS && nsec3.hasType(Type.NS) && !nsec3.hasType(Type.SOA)) {
                 if (!nsec3.hasType(Type.DS)) {
                     logger.debug("proveNodata: matching NSEC3 is insecure delegation");
-                }
-                else {
-                    logger.debug("proveNodata: matching NSEC3 is a delegation, bogus");
+                    return SecurityStatus.INSECURE;
                 }
 
+                logger.debug("proveNodata: matching NSEC3 is a delegation, bogus");
                 return SecurityStatus.BOGUS;
             }
 

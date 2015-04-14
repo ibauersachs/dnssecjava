@@ -2,7 +2,8 @@ dnssecjava
 ==========
 A DNSSEC validating stub resolver for Java.
 
-[![Build Status](https://travis-ci.org/ibauersachs/dnssecjava.svg?branch=master)](https://travis-ci.org/ibauersachs/dnssecjava) 
+[![Build Status](https://travis-ci.org/ibauersachs/dnssecjava.svg?branch=master)](https://travis-ci.org/ibauersachs/dnssecjava)
+[![Coverage Status](https://coveralls.io/repos/ibauersachs/dnssecjava/badge.svg)](https://coveralls.io/r/ibauersachs/dnssecjava)
 
 Is this library safe to use?
 ---------------------------

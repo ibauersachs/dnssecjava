@@ -48,6 +48,8 @@ Code Coverage / Bugs
   - http://tools.ietf.org/html/rfc6840#section-4.4 (Insecure Delegation Proofs)
   - http://tools.ietf.org/html/rfc6840#section-5.4 (Caution about Local Policy and Multiple RRSIGs)
   - <del>Refuse DNAME wildcards (RFC4597)
+  - Test validating against a non-Bind9 head solver
+  - Rate limit queries to be able to validate against Google's public resolvers
 
 - JaCoCo/EclEmma doesn't work with jmockit enabled at the same time without
   specifying -javaagent:jmockit-1.14.jar as a VM argument.

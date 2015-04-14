@@ -1,22 +1,28 @@
-#<center>Work in Progress! Do NOT yet rely on the results!</center>
-<hr/>
-
 dnssecjava
 ==========
 A DNSSEC validating stub resolver for Java.
 
+Is this library safe to use?
+---------------------------
+Maybe. There's been no audit of the code so far, so there are absolutely no
+guarantees. The rest depends currently on your use case: the proof that a
+positive response is correct _should_ be safe to use. Most of the
+NXDOMAIN/NODATA responses are safe too, but there are some corner cases that
+have no tests yet.
+
+Unit tests are currently covering over 95% of the code, including 123
+from the current production Unbound. Also keep in mind that while most of the
+code paths are covered by unit tests, this does not mean it is performing
+according to the RFCs or that something that should be checked for is really
+done.
+
+See the [To-Do list](TODO.md) for more details.
+
 History
 -------
-This project is based on the work of the Unbound Java prototype
-from 2005/2006. The Unbound prototype was stripped from all
-unnecessary parts, heavily modified and bugfixed.
-
-Current State
--------------
-Unit tests are currently covering over 90% of the code, including 123
-from the current production Unbound. Most cases should be successfully
-validated, but there are still untested parts.
-See the corresponding TODO-file for details.
+This project is based on the work of the Unbound Java prototype from 2005/2006.
+The Unbound prototype was stripped from all unnecessary parts, heavily
+modified, complemented with more than 300 unit test and found bugs were fixed.
 
 Usage
 -----

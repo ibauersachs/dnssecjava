@@ -161,14 +161,14 @@
 		<url>https://jitsi.org</url>
 	</organization>
 	<scm>
-		<url>https://github.com/jitsi/dnssecjava</url>
-		<connection>scm:git:https://github.com/jitsi/dnssecjava.git</connection>
+		<url>https://github.com/ibauersachs/dnssecjava</url>
+		<connection>scm:git:https://github.com/ibauersachs/dnssecjava.git</connection>
 	</scm>
 	<description>A DNSSEC validating stub resolver for Java.</description>
 	<licenses>
 		<license>
-			<name>GNU Lesser General Public License (LGPL), Version 3</name>
-			<url>http://www.gnu.org/licenses/lgpl.html</url>
+			<name>Eclipse Public License v1.0</name>
+			<url>http://www.eclipse.org/legal/epl-v10.html</url>
 			<distribution>repo</distribution>
 		</license>
 	</licenses>

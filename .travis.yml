@@ -1,3 +1,10 @@
 language: java
 after_success:
-  - mvn clean test jacoco:report coveralls:report
+- mvn clean test jacoco:report coveralls:report
+- echo "<settings><servers><server><id>ossrh</id><username>\${env.OSSRH_USER}</username><password>\${env.OSSRH_PASS}</password></server></servers></settings>" > ~/settings.xml
+- if [ "${TRAVIS_BRANCH}" == "master" ]; then mvn deploy -Dmaven.test.skip=true --settings ~/settings.xml; fi
+
+env:
+  global:
+  - secure: cLkceI83cfryz/iUvWCsHuMvwDSKCLydLSvAMDNTN3Y+JVQ8rtyZjl6/hJ+Bbg22OZdugFZpNa3GW2FHozCuKJf1hvAN9/I/Eg0smIUdPr0jDuo2gLLcYjqoY9kvfXddVW0YGfVB/x+OI5MvNetciM8maksZxiEE5EhLxwyvD2o=
+  - secure: UcCGPkQ1NzQDTUKo+obN0eYJiJAWaS3s+pB3L4YtGEdZkPAjwoTimJOCSANsueFqBWlJCiMyS6LR0T9YoewD1mEZq1O0lSZlTirUNSTm8vbg8FF/zOd4Yvy9cmjvczPSiaGblTy4PX0oLOPXOPOgjSMrCleaC86+7/PSxNpPNtg=

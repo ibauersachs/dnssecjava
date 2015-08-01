@@ -72,7 +72,7 @@ public class TestAlgorithmSupport extends TestBase {
         SRRset set = new SRRset();
         set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, Algorithm.DSA, Digest.SHA1, new byte[] { 1, 2, 3 }));
         set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, Algorithm.DSA, Digest.SHA256, new byte[] { 1, 2, 3 }));
-        int digestId = Deencapsulation.invoke(v, "favoriteDSDigestID", set);
+        int digestId = Deencapsulation.<Integer>invoke(v, "favoriteDSDigestID", set);
         assertEquals(0, digestId);
     }
 
@@ -82,7 +82,7 @@ public class TestAlgorithmSupport extends TestBase {
         ValUtils v = new ValUtils();
         SRRset set = new SRRset();
         set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, Algorithm.DSA, 3 /*GOST*/, new byte[] { 1, 2, 3 }));
-        int digestId = Deencapsulation.invoke(v, "favoriteDSDigestID", set);
+        int digestId = Deencapsulation.<Integer>invoke(v, "favoriteDSDigestID", set);
         assertEquals(0, digestId);
     }
 
@@ -92,7 +92,7 @@ public class TestAlgorithmSupport extends TestBase {
         ValUtils v = new ValUtils();
         SRRset set = new SRRset();
         set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, 0 /*Unknown alg*/, Digest.SHA1, new byte[] { 1, 2, 3 }));
-        int digestId = Deencapsulation.invoke(v, "favoriteDSDigestID", set);
+        int digestId = Deencapsulation.<Integer>invoke(v, "favoriteDSDigestID", set);
         assertEquals(0, digestId);
     }
 }

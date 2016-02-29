@@ -189,7 +189,7 @@ public class KeyCache {
         private Date expiration;
         private KeyEntry keyEntry;
 
-        public CacheEntry(KeyEntry keyEntry, long maxTtl) {
+        CacheEntry(KeyEntry keyEntry, long maxTtl) {
             long ttl = keyEntry.getTTL();
             if (ttl > maxTtl) {
                 ttl = maxTtl;

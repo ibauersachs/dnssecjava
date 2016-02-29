@@ -161,6 +161,7 @@
 	<scm>
 		<url>https://github.com/ibauersachs/dnssecjava</url>
 		<connection>scm:git:https://github.com/ibauersachs/dnssecjava.git</connection>
+		<developerConnection>scm:git:https://github.com/ibauersachs/dnssecjava.git</developerConnection>
 	</scm>
 	<description>A DNSSEC validating stub resolver for Java.</description>
 	<licenses>

@@ -1249,7 +1249,7 @@ public class ValidatingResolver implements Resolver {
      * @param query The query to send
      * @param listener The object containing the callbacks.
      * @return An identifier, which is also a parameter in the callback
-     * @throws UnsupportedOperationException
+     * @throws UnsupportedOperationException Always
      */
     public Object sendAsync(Message query, ResolverListener listener) {
         throw new UnsupportedOperationException("Not implemented");

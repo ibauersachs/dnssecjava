@@ -338,7 +338,7 @@ public class SMessage {
      * @param name the name of the RRset.
      * @param type the type of the RRset.
      * @param dclass the class of the RRset.
-     * @param section the section to look in (ANSWER -> ADDITIONAL)
+     * @param section the section to look in (ANSWER to ADDITIONAL)
      * 
      * @return The SRRset if found, null otherwise.
      */
@@ -356,7 +356,7 @@ public class SMessage {
 
     /**
      * Find an "answer" RRset. This will look for RRsets in the ANSWER section
-     * that match the &ltqname,qtype,qclass&gt, without considering CNAMEs.
+     * that match the &lt;qname,qtype,qclass&gt;, without considering CNAMEs.
      * 
      * @param qname The starting search name.
      * @param qtype The search type.

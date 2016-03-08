@@ -53,7 +53,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
@@ -89,7 +90,7 @@ public class ValidatingResolver implements Resolver {
      */
     public static final int VALIDATION_REASON_QCLASS = 65280;
 
-    private static final Logger logger = Logger.getLogger(ValidatingResolver.class);
+    private static final Logger logger = LoggerFactory.getLogger(ValidatingResolver.class);
 
     /**
      * This is the TTL to use when a trust anchor priming query failed to

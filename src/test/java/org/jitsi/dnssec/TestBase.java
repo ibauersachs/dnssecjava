@@ -21,12 +21,8 @@ import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.logging.LogManager;
 
-import org.apache.log4j.Appender;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
 import org.jitsi.dnssec.validator.ValidatingResolver;
 import org.joda.time.DateTime;
 import org.joda.time.format.ISODateTimeFormat;
@@ -65,13 +61,12 @@ public abstract class TestBase {
     protected ValidatingResolver resolver;
     protected String testName;
 
-    {
-        Logger root = Logger.getRootLogger();
-        if (root.getAppender("junit") == null) {
-            root.setLevel(Level.ALL);
-            Appender junit = new ConsoleAppender(new PatternLayout("%r %c{2}.%M.%L - %m%n"));
-            junit.setName("junit");
-            root.addAppender(junit);
+    static {
+        try {
+            LogManager.getLogManager().readConfiguration(TestBase.class.getResourceAsStream("logging.properties"));
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

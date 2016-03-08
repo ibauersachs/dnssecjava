@@ -43,7 +43,8 @@ package org.jitsi.dnssec.validator;
 import java.util.Iterator;
 import java.util.Properties;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jitsi.dnssec.R;
 import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SRRset;
@@ -71,7 +72,7 @@ import org.xbill.DNS.Type;
  * @author davidb
  */
 public class ValUtils {
-    private static final Logger logger = Logger.getLogger(ValUtils.class);
+    private static final Logger logger = LoggerFactory.getLogger(ValUtils.class);
 
     private static final Name WILDCARD = Name.fromConstantString("*");
 

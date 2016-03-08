@@ -52,7 +52,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
 import org.xbill.DNS.DNSKEYRecord;
@@ -71,7 +72,7 @@ import org.xbill.DNS.utils.base32;
  */
 final class NSEC3ValUtils {
     // The logger to use in static methods.
-    private static final Logger logger = Logger.getLogger(NSEC3ValUtils.class);
+    private static final Logger logger = LoggerFactory.getLogger(NSEC3ValUtils.class);
 
     private static final Name ASTERISK_LABEL = Name.fromConstantString("*");
 

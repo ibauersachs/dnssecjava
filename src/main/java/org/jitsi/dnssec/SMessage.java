@@ -45,7 +45,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Header;
 import org.xbill.DNS.Message;
@@ -63,7 +64,7 @@ import org.xbill.DNS.Type;
  * @author davidb
  */
 public class SMessage {
-    private static final Logger logger = Logger.getLogger(SMessage.class);
+    private static final Logger logger = LoggerFactory.getLogger(SMessage.class);
     private static final SRRset[] EMPTY_SRRSET_ARRAY = new SRRset[0];
     private static final int NUM_SECTIONS = 3;
     private static final int MAX_FLAGS = 16;

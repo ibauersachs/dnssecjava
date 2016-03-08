@@ -44,8 +44,9 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 import org.jitsi.dnssec.SecurityStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC;
 import org.xbill.DNS.DNSSEC.DNSSECException;
@@ -61,7 +62,7 @@ import org.xbill.DNS.RRset;
  * @version $Revision: 361 $
  */
 public class DnsSecVerifier {
-    private static final Logger logger = Logger.getLogger(DnsSecVerifier.class);
+    private static final Logger logger = LoggerFactory.getLogger(DnsSecVerifier.class);
 
     /**
      * Find the matching DNSKEY(s) to an RRSIG within a DNSKEY rrset. Normally

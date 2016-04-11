@@ -28,6 +28,10 @@ This project is based on the work of the Unbound Java prototype from 2005/2006.
 The Unbound prototype was stripped from all unnecessary parts, heavily
 modified, complemented with more than 300 unit test and found bugs were fixed.
 
+### Released versions
+* 1.1: Change logging to slf4j
+* 1.0: Initial release
+
 Usage
 -----
 The project is intended to be used as a `Resolver` for

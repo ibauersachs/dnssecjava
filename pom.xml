@@ -3,7 +3,7 @@
 	<groupId>org.jitsi</groupId>
 	<artifactId>dnssecjava</artifactId>
 	<packaging>bundle</packaging>
-	<version>1.1-SNAPSHOT</version>
+	<version>1.1</version>
 	<name>dnssecjava</name>
 	<url>https://jitsi.org/dnssec</url>
 
@@ -173,7 +173,7 @@
 		<url>https://github.com/ibauersachs/dnssecjava</url>
 		<connection>scm:git:https://github.com/ibauersachs/dnssecjava.git</connection>
 		<developerConnection>scm:git:https://github.com/ibauersachs/dnssecjava.git</developerConnection>
-	  <tag>HEAD</tag>
+	  <tag>dnssecjava-1.1</tag>
   </scm>
 	<description>A DNSSEC validating stub resolver for Java.</description>
 	<licenses>

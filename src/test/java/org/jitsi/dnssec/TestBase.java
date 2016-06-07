@@ -20,6 +20,7 @@ import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.LogManager;
 
@@ -224,7 +225,14 @@ public abstract class TestBase {
     protected String getReason(Message m) {
         for (RRset set : m.getSectionRRsets(Section.ADDITIONAL)) {
             if (set.getName().equals(Name.root) && set.getType() == Type.TXT && set.getDClass() == ValidatingResolver.VALIDATION_REASON_QCLASS) {
-                return (String)((TXTRecord)set.first()).getStrings().get(0);
+                StringBuilder sb = new StringBuilder();
+                @SuppressWarnings("unchecked")
+                List<String> strings = (List<String>)((TXTRecord)set.first()).getStrings();
+                for (String part : strings){
+                    sb.append(part);
+                }
+
+                return sb.toString();
             }
         }
 

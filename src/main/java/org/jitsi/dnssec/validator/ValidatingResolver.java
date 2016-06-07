@@ -1236,9 +1236,16 @@ public class ValidatingResolver implements Resolver {
         final SMessage validated = this.processValidate(query, response);
 
         Message m = validated.getMessage();
-        if (validated.getBogusReason() != null) {
-            m.addRecord(new TXTRecord(Name.root, VALIDATION_REASON_QCLASS, 0, Arrays.asList(validated.getBogusReason().split("(?<=\\G.{255})"))),
-                    Section.ADDITIONAL);
+        String reason = validated.getBogusReason();
+        if (reason != null) {
+            final int maxTxtRecordStringLength = 255;
+            String[] parts = new String[reason.length() / maxTxtRecordStringLength + 1];
+            for (int i = 0; i < parts.length; i++) {
+                int length = Math.min((i + 1) * maxTxtRecordStringLength, reason.length());
+                parts[i] = reason.substring(i * maxTxtRecordStringLength, length);
+            }
+
+            m.addRecord(new TXTRecord(Name.root, VALIDATION_REASON_QCLASS, 0, Arrays.asList(parts)), Section.ADDITIONAL);
         }
 
         return m;

@@ -29,8 +29,9 @@ The Unbound prototype was stripped from all unnecessary parts, heavily
 modified, complemented with more than 300 unit test and found bugs were fixed.
 
 ### Released versions
-* 1.1: Change logging to slf4j
-* 1.0: Initial release
+* 1.1.1: Issue #5: Avoid using a regex to split long validation reasons, they don't work on Android
+* 1.1:   Change logging to slf4j
+* 1.0:   Initial release
 
 Usage
 -----

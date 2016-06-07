@@ -361,7 +361,7 @@ final class NSEC3ValUtils {
         }
 
         // Otherwise, we need to show that the next closer name is covered.
-        Name nextClosest = nextClosest(qname, candidate.closestEncloser);
+        Name nextClosest = this.nextClosest(qname, candidate.closestEncloser);
         candidate.ncNsec3 = this.findCoveringNSEC3(nextClosest, zonename, nsec3s);
         if (candidate.ncNsec3 == null) {
             logger.debug("Could not find proof that the closest encloser was the closest encloser");
@@ -678,7 +678,7 @@ final class NSEC3ValUtils {
 
         // Now we still need to prove that the original data did not exist.
         // Otherwise, we need to show that the next closer name is covered.
-        Name nextClosest = nextClosest(qname, candidate.closestEncloser);
+        Name nextClosest = this.nextClosest(qname, candidate.closestEncloser);
         candidate.ncNsec3 = this.findCoveringNSEC3(nextClosest, zonename, nsec3s);
 
         if (candidate.ncNsec3 == null) {

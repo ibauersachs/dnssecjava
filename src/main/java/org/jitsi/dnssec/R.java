@@ -11,6 +11,7 @@
 package org.jitsi.dnssec;
 
 import java.text.MessageFormat;
+import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
 /**
@@ -23,12 +24,32 @@ public final class R {
     }
 
     /**
+     * Programmatically set the ResourceBundle to be used.
+     *
+     * @param rb ResourceBundle to Be Used.
+     */
+    public static void setBundle(ResourceBundle rb) {
+        R.rb = rb;
+    }
+
+    /**
      * Gets a translated message.
-     * @param key The message key to retrieve.
+     *
+     * @param key    The message key to retrieve.
      * @param values The values that fill placeholders in the message.
      * @return The formatted message.
      */
     public static String get(String key, Object... values) {
-        return MessageFormat.format(rb.getString(key), values);
+        try {
+            return MessageFormat.format(rb.getString(key), values);
+        }
+        catch (MissingResourceException e) {
+            StringBuilder sb = new StringBuilder(key);
+            for (Object val : values) {
+                sb.append(":");
+                sb.append(val.toString());
+            }
+            return sb.toString();
+        }
     }
 }

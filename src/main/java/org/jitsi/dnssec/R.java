@@ -11,7 +11,6 @@
 package org.jitsi.dnssec;
 
 import java.text.MessageFormat;
-import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 
@@ -43,7 +42,7 @@ public final class R {
      */
     public static String get(String key, Object... values) {
         try {
-            if(R.rb == null) {
+            if (R.rb == null) {
                  rb = ResourceBundle.getBundle("messages");
             }
             return MessageFormat.format(rb.getString(key), values);

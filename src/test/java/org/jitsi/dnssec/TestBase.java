@@ -29,6 +29,7 @@ import org.joda.time.DateTime;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
@@ -134,6 +135,12 @@ public abstract class TestBase {
             }
         }
     };
+
+    @BeforeClass
+    public static void setupClass() {
+        R.setBundle(null);
+        R.setUseNeutralMessages(true);
+    }
 
     @Before
     public void setup() throws NumberFormatException, IOException, DNSSECException {

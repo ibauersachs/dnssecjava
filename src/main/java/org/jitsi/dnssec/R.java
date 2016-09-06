@@ -19,6 +19,7 @@ import java.util.ResourceBundle;
  */
 public final class R {
     private static ResourceBundle rb;
+    private static boolean useNeutral;
 
     private R() {
     }
@@ -33,6 +34,16 @@ public final class R {
     }
 
     /**
+     * If set to {@code true}, messages will not be obtained from resource bundles but formatted as
+     * {@code key:param1:...:paramN}.
+     *
+     * @param useNeutral {@code true} to use neutral messages, {@code false} otherwise
+     */
+    public static void setUseNeutralMessages(boolean useNeutral) {
+        R.useNeutral = useNeutral;
+    }
+
+    /**
      * Gets a translated message.
      *
      * @param key    The message key to retrieve.
@@ -40,21 +51,29 @@ public final class R {
      * @return The formatted message.
      */
     public static String get(String key, Object... values) {
+        if (useNeutral) {
+            return getNeutral(key, values);
+        }
+
         try {
             if (R.rb == null) {
-                 rb = ResourceBundle.getBundle("messages");
+                rb = ResourceBundle.getBundle("messages");
             }
 
             return MessageFormat.format(rb.getString(key), values);
         }
         catch (MissingResourceException e) {
-            StringBuilder sb = new StringBuilder(key);
-            for (Object val : values) {
-                sb.append(":");
-                sb.append(val.toString());
-            }
-
-            return sb.toString();
+            return getNeutral(key, values);
         }
+    }
+
+    private static String getNeutral(String key, Object[] values) {
+        StringBuilder sb = new StringBuilder(key);
+        for (Object val : values) {
+            sb.append(":");
+            sb.append(val);
+        }
+
+        return sb.toString();
     }
 }

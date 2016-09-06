@@ -138,7 +138,8 @@ public abstract class TestBase {
 
     @BeforeClass
     public static void setupClass() {
-        new RMock();
+        R.setBundle(null);
+        R.setUseNeutralMessages(true);
     }
 
     @Before

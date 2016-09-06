@@ -13,7 +13,7 @@ package org.jitsi.dnssec;
 import mockit.Mock;
 import mockit.MockUp;
 
-public class RTest extends MockUp<R> {
+public class RMock extends MockUp<R> {
     @Mock
     public static String get(String key, Object... values){
         StringBuilder sb = new StringBuilder();

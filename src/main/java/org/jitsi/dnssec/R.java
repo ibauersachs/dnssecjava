@@ -18,8 +18,7 @@ import java.util.ResourceBundle;
  * Utility class to retrieve messages from {@link ResourceBundle}s.
  */
 public final class R {
-
-    private static ResourceBundle rb = null;
+    private static ResourceBundle rb;
 
     private R() {
     }
@@ -27,7 +26,7 @@ public final class R {
     /**
      * Programmatically set the ResourceBundle to be used.
      *
-     * @param resourceBundle ResourceBundle to Be Used.
+     * @param resourceBundle the bundle to be used.
      */
     public static void setBundle(ResourceBundle resourceBundle) {
         R.rb = resourceBundle;
@@ -45,6 +44,7 @@ public final class R {
             if (R.rb == null) {
                  rb = ResourceBundle.getBundle("messages");
             }
+
             return MessageFormat.format(rb.getString(key), values);
         }
         catch (MissingResourceException e) {
@@ -53,6 +53,7 @@ public final class R {
                 sb.append(":");
                 sb.append(val.toString());
             }
+
             return sb.toString();
         }
     }

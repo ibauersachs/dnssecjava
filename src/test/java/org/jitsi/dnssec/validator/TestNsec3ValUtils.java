@@ -13,22 +13,27 @@ package org.jitsi.dnssec.validator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.powermock.api.mockito.PowerMockito.doAnswer;
+import static org.powermock.api.mockito.PowerMockito.spy;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.Security;
 import java.util.Properties;
 
-import mockit.Invocation;
-import mockit.Mock;
-import mockit.MockUp;
-
 import org.jitsi.dnssec.AlwaysOffline;
+import org.jitsi.dnssec.PrepareMocks;
 import org.jitsi.dnssec.TestBase;
 import org.junit.Assume;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC;
 import org.xbill.DNS.Flags;
@@ -39,6 +44,8 @@ import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({DNSKEYRecord.class, NSEC3ValUtils.class})
 public class TestNsec3ValUtils extends TestBase {
     @Test(expected = IllegalArgumentException.class)
     public void testTooLargeIterationCountMustThrow() {
@@ -126,33 +133,35 @@ public class TestNsec3ValUtils extends TestBase {
     }
 
     @Test
+    @PrepareMocks("prepareTestPublicKeyLoadingException")
     public void testPublicKeyLoadingException() throws IOException {
-        new MockUp<DNSKEYRecord>() {
-            @Mock
-            public PublicKey getPublicKey(Invocation invocation) throws DNSSEC.DNSSECException {
-                DNSKEYRecord dr = invocation.getInvokedInstance();
-
-                if (dr.getName().equals(Name.fromConstantString("nsec3.ingotronic.ch.")) && invocation.getInvocationCount() == 11) {
-                    DNSSEC.DNSSECException e = null;
-                    try {
-                        Constructor<?> c = DNSSEC.DNSSECException.class.getDeclaredConstructor(String.class);
-                        c.setAccessible(true);
-                        e = (DNSSEC.DNSSECException)c.newInstance("mock-test");
-                    }
-                    catch (Exception ex) {
-                    }
-
-                    throw e;
-                }
-
-                return invocation.proceed();
-            }
-        };
-
         Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.NOERROR, response.getRcode());
         assertEquals("failed.nsec3_ignored", getReason(response));
+    }
+
+    private int invocationCount = 0;
+    public void prepareTestPublicKeyLoadingException() throws Exception {
+        whenNew(DNSKEYRecord.class).withNoArguments().thenAnswer(new Answer<DNSKEYRecord>() {
+            @Override
+            public DNSKEYRecord answer(InvocationOnMock invocationOnMock) throws Throwable {
+                DNSKEYRecord dr = spy(Whitebox.invokeConstructor(DNSKEYRecord.class));
+                doAnswer(new Answer<PublicKey>() {
+                    @Override
+                    public PublicKey answer(InvocationOnMock invocation) throws Throwable {
+                        DNSKEYRecord dr = (DNSKEYRecord)invocation.getMock();
+                        invocationCount++;
+                        if (dr.getName().equals(Name.fromConstantString("nsec3.ingotronic.ch.")) && invocationCount == 11) {
+                            throw Whitebox.invokeConstructor(DNSSEC.DNSSECException.class, "mock-test");
+                        }
+
+                        return (PublicKey)invocation.callRealMethod();
+                    }
+                }).when(dr).getPublicKey();
+                return dr;
+            }
+        });
     }
 
     @Test

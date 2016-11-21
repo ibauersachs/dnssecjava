@@ -10,25 +10,34 @@
 
 package org.jitsi.dnssec;
 
-import mockit.Mock;
-import mockit.MockUp;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ResourceBundle;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.anyString;
+import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(R.class)
 public class RTest {
     @Test
     public void testCustomResourceBundle() {
-        MockUp<ResourceBundle> rb = new MockUp<ResourceBundle>() {
-            @Mock
-            public String getString(String key) {
-                return key;
+        ResourceBundle rb = mock(ResourceBundle.class);
+        when(rb.getString(anyString())).then(new Answer<String>() {
+            @Override
+            public String answer(InvocationOnMock invocation) throws Throwable {
+                return (String)invocation.getArguments()[0];
             }
-        };
+        });
         R.setUseNeutralMessages(false);
-        R.setBundle(rb.getMockInstance());
+        R.setBundle(rb);
         assertEquals("key", R.get("key"));
         assertEquals("msg 1", R.get("msg {0}", 1));
     }

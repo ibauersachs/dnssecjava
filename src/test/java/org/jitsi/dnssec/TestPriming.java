@@ -12,13 +12,20 @@ package org.jitsi.dnssec;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
+import static org.powermock.api.mockito.PowerMockito.doReturn;
+import static org.powermock.api.mockito.PowerMockito.spy;
+import static org.powermock.api.mockito.PowerMockito.when;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.IOException;
 
-import mockit.Mock;
-import mockit.MockUp;
-
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC;
@@ -32,6 +39,8 @@ import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(DNSKEYRecord.class)
 public class TestPriming extends TestBase {
     @Test
     public void testDnskeyPrimeResponseWithEmptyAnswerIsBad() throws IOException {
@@ -71,43 +80,39 @@ public class TestPriming extends TestBase {
     }
 
     @Test
-    public void testDnskeyPrimeResponseWithMismatchedFootprintIsBad() throws IOException, NumberFormatException, DNSSECException {
-        new MockUp<DNSKEYRecord>() {
-            @Mock
-            public int getFootprint() {
-                return -1;
-            }
-        };
-
+    @PrepareMocks("prepareTestDnskeyPrimeResponseWithMismatchedFootprintIsBad")
+    public void testDnskeyPrimeResponseWithMismatchedFootprintIsBad() throws Exception {
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
     }
 
+    public void prepareTestDnskeyPrimeResponseWithMismatchedFootprintIsBad() throws Exception {
+        DNSKEYRecord emptyDnskeyRecord = spy(Whitebox.invokeConstructor(DNSKEYRecord.class));
+        when(emptyDnskeyRecord.getFootprint()).thenReturn(-1);
+        whenNew(DNSKEYRecord.class).withNoArguments().thenReturn(emptyDnskeyRecord);
+    }
+
     @Test
+    @PrepareMocks("prepareTestDnskeyPrimeResponseWithMismatchedAlgorithmIsBad")
     public void testDnskeyPrimeResponseWithMismatchedAlgorithmIsBad() throws IOException, NumberFormatException, DNSSECException {
-        new MockUp<DNSKEYRecord>() {
-            @Mock
-            public int getAlgorithm() {
-                return -1;
-            }
-        };
-
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
         assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
     }
 
+    public void prepareTestDnskeyPrimeResponseWithMismatchedAlgorithmIsBad() throws Exception {
+        DNSKEYRecord emptyDnskeyRecord = spy(Whitebox.invokeConstructor(DNSKEYRecord.class));
+        when(emptyDnskeyRecord.getAlgorithm()).thenReturn(-1);
+        whenNew(DNSKEYRecord.class).withNoArguments().thenReturn(emptyDnskeyRecord);
+    }
+
     @Test
-    public void testDnskeyPrimeResponseWithWeirdHashIsBad() throws IOException, NumberFormatException, DNSSECException {
-        new MockUp<DNSSEC>() {
-            @Mock
-            public byte[] generateDSDigest(DNSKEYRecord key, int digestid) {
-                return new byte[] { 1, 2, 3 };
-            }
-        };
+    public void testDnskeyPrimeResponseWithWeirdHashIsBad() throws Exception {
+        spy(DNSSEC.class);
+        doReturn(new byte[]{1, 2, 3}).when(DNSSEC.class, "generateDSDigest", any(DNSKEYRecord.class), anyInt());
 
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));

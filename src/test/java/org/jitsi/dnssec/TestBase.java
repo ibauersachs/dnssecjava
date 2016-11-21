@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -34,9 +35,17 @@ import org.junit.Rule;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 import org.xbill.DNS.ARecord;
-import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.DClass;
+import org.xbill.DNS.DNSSEC;
+import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.Master;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
@@ -47,6 +56,10 @@ import org.xbill.DNS.SimpleResolver;
 import org.xbill.DNS.TXTRecord;
 import org.xbill.DNS.Type;
 
+import static org.powermock.api.mockito.PowerMockito.whenNew;
+
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({DNSSEC.class, TestInvalid.class})
 public abstract class TestBase {
     private final static boolean offline = !Boolean.getBoolean("org.jitsi.dnssecjava.online");
     private final static boolean partialOffline = "partial".equals(System.getProperty("org.jitsi.dnssecjava.offline"));
@@ -97,12 +110,22 @@ public abstract class TestBase {
                     w.write("\n");
                 }
                 else if (offline || partialOffline || alwaysOffline) {
+                    PrepareMocks pm = description.getAnnotation(PrepareMocks.class);
+                    if (pm != null) {
+                        Whitebox.invokeMethod(TestBase.this, pm.value());
+                    }
+
                     InputStream stream = getClass().getResourceAsStream(filename);
                     if (stream != null) {
                         r = new BufferedReader(new InputStreamReader(stream));
                         long millis = DateTime.parse(r.readLine().substring("#Date: ".length()), ISODateTimeFormat.dateTimeNoMillis()).getMillis();
-                        SystemMock.overriddenMillis = millis;
-                        DateMock.overriddenMillis = millis;
+                        whenNew(Date.class).withNoArguments().thenReturn(new Date(millis));
+                        whenNew(Date.class).withArguments(Mockito.anyLong()).thenAnswer(new Answer<Date>(){
+                            @Override
+                            public Date answer(InvocationOnMock invocationOnMock) throws Throwable {
+                                return new Date((Long)invocationOnMock.getArguments()[0]);
+                            }
+                        });
 
                         Message m;
                         while ((m = messageReader.readMessage(r)) != null) {
@@ -113,7 +136,8 @@ public abstract class TestBase {
                     }
                 }
             }
-            catch (IOException e) {
+            catch (Exception e) {
+                System.err.println(e);
                 throw new RuntimeException(e);
             }
         }
@@ -126,9 +150,6 @@ public abstract class TestBase {
                     w.close();
                     w = null;
                 }
-
-                SystemMock.overriddenMillis = 0;
-                DateMock.overriddenMillis = 0;
             }
             catch (IOException e) {
                 throw new RuntimeException(e);

@@ -16,10 +16,9 @@ import static org.junit.Assert.assertFalse;
 import java.io.IOException;
 import java.util.Properties;
 
-import mockit.Deencapsulation;
-
 import org.jitsi.dnssec.validator.ValUtils;
 import org.junit.Test;
+import org.powermock.reflect.Whitebox;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DSRecord;
@@ -64,7 +63,7 @@ public class TestAlgorithmSupport extends TestBase {
 
     @AlwaysOffline
     @Test
-    public void testFavoriteDigestNotInRRset() {
+    public void testFavoriteDigestNotInRRset() throws Exception {
         Properties config = new Properties();
         config.put("org.jitsi.dnssec.digest_preference", "4");
         ValUtils v = new ValUtils();
@@ -72,27 +71,27 @@ public class TestAlgorithmSupport extends TestBase {
         SRRset set = new SRRset();
         set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, Algorithm.DSA, Digest.SHA1, new byte[] { 1, 2, 3 }));
         set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, Algorithm.DSA, Digest.SHA256, new byte[] { 1, 2, 3 }));
-        int digestId = Deencapsulation.<Integer>invoke(v, "favoriteDSDigestID", set);
+        int digestId = Whitebox.invokeMethod(v, "favoriteDSDigestID", set);
         assertEquals(0, digestId);
     }
 
     @AlwaysOffline
     @Test
-    public void testOnlyUnsupportedDigestInRRset() {
+    public void testOnlyUnsupportedDigestInRRset() throws Exception {
         ValUtils v = new ValUtils();
         SRRset set = new SRRset();
         set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, Algorithm.DSA, 3 /*GOST*/, new byte[] { 1, 2, 3 }));
-        int digestId = Deencapsulation.<Integer>invoke(v, "favoriteDSDigestID", set);
+        int digestId = Whitebox.invokeMethod(v, "favoriteDSDigestID", set);
         assertEquals(0, digestId);
     }
 
     @AlwaysOffline
     @Test
-    public void testOnlyUnsupportedAlgorithmInRRset() {
+    public void testOnlyUnsupportedAlgorithmInRRset() throws Exception {
         ValUtils v = new ValUtils();
         SRRset set = new SRRset();
         set.addRR(new DSRecord(Name.root, DClass.IN, 120, 1234, 0 /*Unknown alg*/, Digest.SHA1, new byte[] { 1, 2, 3 }));
-        int digestId = Deencapsulation.<Integer>invoke(v, "favoriteDSDigestID", set);
+        int digestId = Whitebox.invokeMethod(v, "favoriteDSDigestID", set);
         assertEquals(0, digestId);
     }
 }

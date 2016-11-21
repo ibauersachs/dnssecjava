@@ -11,6 +11,7 @@
 package org.jitsi.dnssec.unbound.rpl;
 
 import static org.junit.Assert.assertEquals;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,18 +19,21 @@ import java.io.InputStream;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 
-import org.jitsi.dnssec.DateMock;
 import org.jitsi.dnssec.SRRset;
-import org.jitsi.dnssec.SystemMock;
 import org.jitsi.dnssec.TestBase;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 import org.xbill.DNS.CNAMERecord;
 import org.xbill.DNS.DNAMERecord;
+import org.xbill.DNS.DNSSEC;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
@@ -39,6 +43,8 @@ import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(DNSSEC.class)
 public class UnboundTests extends TestBase {
     public void runUnboundTest() throws ParseException, IOException {
         InputStream data = getClass().getResourceAsStream("/unbound/" + testName + ".rpl");
@@ -146,8 +152,13 @@ public class UnboundTests extends TestBase {
         }
 
         if (rpl.date != null) {
-            SystemMock.overriddenMillis = rpl.date.getMillis();
-            DateMock.overriddenMillis = rpl.date.getMillis();
+            try {
+                Date d = new Date(rpl.date.getMillis());
+                whenNew(Date.class).withNoArguments().thenReturn(d);
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
 
         if (rpl.trustAnchors != null) {

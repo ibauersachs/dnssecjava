@@ -72,11 +72,10 @@ import org.xbill.DNS.Type;
  * @author davidb
  */
 public class ValUtils {
+    public static final String DIGEST_PREFERENCE = "org.jitsi.dnssec.digest_preference";
+
     private static final Logger logger = LoggerFactory.getLogger(ValUtils.class);
-
     private static final Name WILDCARD = Name.fromConstantString("*");
-
-    private static final String DIGEST_PREFERENCE = "org.jitsi.dnssec.digest_preference";
 
     /** A local copy of the verifier object. */
     private DnsSecVerifier verifier;
@@ -91,7 +90,7 @@ public class ValUtils {
 
     /**
      * Initialize the module. The only recognized configuration value is
-     * {@value #DIGEST_PREFERENCE}.
+     * {@link #DIGEST_PREFERENCE}.
      * 
      * @param config The configuration data for this module.
      */

@@ -29,6 +29,10 @@ The Unbound prototype was stripped from all unnecessary parts, heavily
 modified, complemented with more than 300 unit test and found bugs were fixed.
 
 ### Released versions
+* 1.1.3:
+ - Replace jmockit with PowerMockito due to ever changing API (and there's a Debian package for PowerMockito)
+ - Use fixed versions for the dependencies
+ - Fix a Javadoc error in ValUtils
 * 1.1.2:
  - Issue #7: Provide alternatve to the resource bundle mechanism (thanks to Matt David)
  - Issue #8: Fix parameter in dnskey.anchor_verify_failed (thanks to Andreas Schildbach)

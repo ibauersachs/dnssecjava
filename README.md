@@ -15,10 +15,9 @@ NXDOMAIN/NODATA responses are safe too, but there are some corner cases that
 have no tests yet.
 
 Unit tests are currently covering over 95% of the code, including 123
-from the current production Unbound. Also keep in mind that while most of the
-code paths are covered by unit tests, this does not mean it is performing
-according to the RFCs or that something that should be checked for is really
-done.
+from Unbound. Also keep in mind that while most of the code paths are covered
+by unit tests, this does not mean it is performing according to the RFCs or
+that something that should be checked for is really done.
 
 See the [To-Do list](TODO.md) for more details.
 
@@ -30,12 +29,12 @@ modified, complemented with more than 300 unit test and found bugs were fixed.
 
 ### Released versions
 * 1.1.3:
- - Replace jmockit with PowerMockito due to ever changing API (and there's a Debian package for PowerMockito)
- - Use fixed versions for the dependencies
- - Fix a Javadoc error in ValUtils
+  - Replace jmockit with PowerMockito due to ever changing API (and there's a Debian package for PowerMockito)
+  - Use fixed versions for the dependencies
+  - Fix a Javadoc error in ValUtils
 * 1.1.2:
- - Issue #7: Provide alternatve to the resource bundle mechanism (thanks to Matt David)
- - Issue #8: Fix parameter in dnskey.anchor_verify_failed (thanks to Andreas Schildbach)
+  - Issue #7: Provide alternatve to the resource bundle mechanism (thanks to Matt David)
+  - Issue #8: Fix parameter in dnskey.anchor_verify_failed (thanks to Andreas Schildbach)
 * 1.1.1: Issue #5: Avoid using a regex to split long validation reasons, they don't work on Android
 * 1.1:   Change logging to slf4j
 * 1.0:   Initial release
@@ -60,7 +59,7 @@ import org.jitsi.dnssec.validator.ValidatingResolver;
 import org.xbill.DNS.*;
 
 public class ResolveExample {
-    static String ROOT = ". IN DS 19036 8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5";
+    static String ROOT = ". IN DS 20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D";
 
     public static void main(String[] args) throws Exception {
         // Send two sample queries using a standard DNSJAVA resolver

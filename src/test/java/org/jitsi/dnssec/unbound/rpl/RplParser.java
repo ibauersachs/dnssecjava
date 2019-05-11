@@ -113,7 +113,7 @@ public class RplParser {
                         rpl.trustAnchors.add(rrset);
                     }
                     else if (line.matches("\\s*val-override-date:.*")) {
-                        rpl.date = DateTime.parse(line.substring(line.indexOf("\"") + 1, line.length() - 2), DateTimeFormat.forPattern("yyyyMMddHHmmss"));
+                        rpl.date = DateTime.parse(line.substring(line.indexOf("\"") + 1, line.length() - 2), DateTimeFormat.forPattern("yyyyMMddHHmmss").withZoneUTC());
                     }
                     else if (line.matches("\\s*val-nsec3-keysize-iterations:.*")) {
                         String[] data = line.substring(line.indexOf("\"") + 1, line.length() - 1).split("\\s");

@@ -73,6 +73,7 @@ import org.xbill.DNS.Type;
  */
 public class ValUtils {
     public static final String DIGEST_PREFERENCE = "org.jitsi.dnssec.digest_preference";
+    public static final String DIGEST_HARDEN_DOWNGRADE = "org.jitsi.dnssec.harden_algo_downgrade";
 
     private static final Logger logger = LoggerFactory.getLogger(ValUtils.class);
     private static final Name WILDCARD = Name.fromConstantString("*");
@@ -80,6 +81,7 @@ public class ValUtils {
     /** A local copy of the verifier object. */
     private DnsSecVerifier verifier;
     private int[] digestPreference = null;
+    private boolean digestHardenDowngrade = true;
 
     /**
      * Creates a new instance of this class.
@@ -89,8 +91,11 @@ public class ValUtils {
     }
 
     /**
-     * Initialize the module. The only recognized configuration value is
-     * {@link #DIGEST_PREFERENCE}.
+     * Initialize the module. The recognized configuration value are
+     * <ul>
+     *     <li>{@link #DIGEST_PREFERENCE}</li>
+     *     <li>{@link #DIGEST_HARDEN_DOWNGRADE}</li>
+     * </ul>.
      * 
      * @param config The configuration data for this module.
      */
@@ -106,6 +111,8 @@ public class ValUtils {
                 }
             }
         }
+
+        this.digestHardenDowngrade = Boolean.parseBoolean(config.getProperty(DIGEST_HARDEN_DOWNGRADE));
     }
 
     /**
@@ -198,7 +205,7 @@ public class ValUtils {
         int favoriteDigestID = this.favoriteDSDigestID(dsRrset);
         for (Iterator<?> i = dsRrset.rrs(); i.hasNext();) {
             DSRecord ds = (DSRecord)i.next();
-            if (ds.getDigestID() != favoriteDigestID) {
+            if (this.digestHardenDowngrade && ds.getDigestID() != favoriteDigestID) {
                 continue;
             }
 

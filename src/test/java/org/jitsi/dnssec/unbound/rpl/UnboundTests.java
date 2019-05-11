@@ -27,6 +27,7 @@ import java.util.Properties;
 
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.TestBase;
+import org.jitsi.dnssec.validator.ValUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -58,8 +59,10 @@ public class UnboundTests extends TestBase {
         }
 
         if (rpl.digestPreference != null) {
-            config.put("org.jitsi.dnssec.digest_preference", rpl.digestPreference);
+            config.put(ValUtils.DIGEST_PREFERENCE, rpl.digestPreference);
         }
+
+        config.put(ValUtils.DIGEST_HARDEN_DOWNGRADE, Boolean.toString(rpl.hardenAlgoDowngrade));
 
         for (Message m : rpl.replays) {
             add(stripAdditional(m));
@@ -172,8 +175,8 @@ public class UnboundTests extends TestBase {
 
         for (Check c : rpl.checks.values()) {
             Message s = resolver.send(c.query);
-            assertEquals(c.response.getHeader().getFlag(Flags.AD), s.getHeader().getFlag(Flags.AD));
-            assertEquals(Rcode.string(c.response.getRcode()), Rcode.string(s.getRcode()));
+            assertEquals("AD Flag must match", c.response.getHeader().getFlag(Flags.AD), s.getHeader().getFlag(Flags.AD));
+            assertEquals("RCode must match", Rcode.string(c.response.getRcode()), Rcode.string(s.getRcode()));
         }
     }
 
@@ -468,6 +471,11 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_ds_sha2_downgrade_override() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_ds_sha2_lenient() throws ParseException, IOException {
         runUnboundTest();
     }
 

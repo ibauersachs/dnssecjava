@@ -8,13 +8,14 @@ server:
 	fake-dsa: yes
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	harden-algo-downgrade: no
 
 stub-zone:
 	name: "."
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
 CONFIG_END
 
-SCENARIO_BEGIN Test validator with SHA256 DS digest
+SCENARIO_BEGIN Test validator with SHA256 DS downgrade to SHA1 lenience
 
 ; K.ROOT-SERVERS.NET.
 RANGE_BEGIN 0 100
@@ -118,12 +119,17 @@ SECTION ANSWER
 SECTION AUTHORITY
 sub.example.com. IN	NS ns.sub.example.com.
 
+; Downgrade attack: false SHA2, correct SHA1
+
 ; SHA256 DS for sub.example.com.
-sub.example.com.	3600	IN	DS	30899 5 2 51be8e847cc663f2775d0f2b6d15e41553c97ecb99b8dd667f18244e2f652033
-sub.example.com.	3600	IN	RRSIG	DS 3 3 3600 20070926135752 20070829135752 2854 example.com. AJ6FL7yKjrpEEO8WMKlG7TVZoGjgFblJeu0rkJCmJxfdeh6ysUlWQWs= ;{id = 2854}
+;sub.example.com.	3600	IN	DS	30899 5 2 51be8e847cc663f2775d0f2b6d15e41553c97ecb99b8dd667f18244e2f652033
+; BAD SHA256 DS
+sub.example.com.	3600	IN	DS	30899 5 2 51be8e847cc663f2775d0f2b6d15e41553c97ecb99b8dd667f18244e2f652000
 
 ; SHA1 DS for sub.example.com.
-;sub.example.com.        3600    IN      DS      30899 RSASHA1 1 f7ed618f24d5e5202927e1d27bc2e84a141cb4b3
+sub.example.com.        3600    IN      DS      30899 RSASHA1 1 f7ed618f24d5e5202927e1d27bc2e84a141cb4b3
+sub.example.com.	3600	IN	RRSIG	DS 3 3 3600 20070926135752 20070829135752 2854 example.com. ACqqpk1ow07XJvN1orEpiWOeqMLdDKQtTgWB8Mp6CF/9VTfHuWWmsu8= ;{id = 2854}
+
 SECTION ADDITIONAL
 ns.sub.example.com. IN A 1.2.3.6
 ENTRY_END
@@ -179,6 +185,23 @@ www.sub.example.com.    3600    IN      RRSIG   A 5 4 3600 20070926134150 200708
 SECTION AUTHORITY
 SECTION ADDITIONAL
 ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA REFUSED
+SECTION QUESTION
+ns.sub.example.com. IN A
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA REFUSED
+SECTION QUESTION
+ns.sub.example.com. IN AAAA
+ENTRY_END
+
 RANGE_END
 
 STEP 1 QUERY
@@ -189,6 +212,7 @@ www.sub.example.com. IN A
 ENTRY_END
 
 ; recursion happens here.
+; must servfail, BOGUS
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all

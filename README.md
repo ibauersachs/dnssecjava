@@ -145,11 +145,18 @@ The file from which the trust anchor should be loaded. There is no default.
 It must be formatted like a DNS zone master file. It can only contain DS
 or DNSKEY records.
 
-### org.jitsi.dnssec.digest_preference
+### org.jitsi.dnssec.digest\_preference
 Defines the preferred DS record digest algorithm if a zone has registered
 multiple DS records. The list is comma-separated, highest preference first.
 
 If this property is not specified, the DS record with the highest [digest ID]
 (http://www.iana.org/assignments/ds-rr-types/ds-rr-types.xhtml) is chosen.
 To stay compliant with the RFCs, the mandatory digest IDs must be listed in
-this property. The GOST digest is not (yet) implemented.
+this property.
+
+The GOST digest is not (yet) implemented.
+
+### org.jitsi.dnssec.harden\_algo\_downgrade
+Prevent algorithm downgrade when multiple algorithms are advertised in a zones
+DS records. If `false`, allows any algorithm to validate the zone.
+Default is `true`.

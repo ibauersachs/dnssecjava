@@ -47,7 +47,7 @@ example.com.	IN NS	ns.example.com.
 example.com.	IN NS	ns.example.net.
 SECTION ADDITIONAL
 ns.example.com.		IN 	A	1.2.3.4
-ns.example.net.	IN	A	1.2.3.5
+ns.example.net	IN	A	1.2.3.5
 ENTRY_END
 
 ENTRY_BEGIN
@@ -101,7 +101,7 @@ example.com.	IN NS	ns.example.com.
 example.com.	IN NS	ns.example.net.
 SECTION ADDITIONAL
 ns.example.com.		IN 	A	1.2.3.4
-ns.example.net.	IN	A	1.2.3.5
+ns.example.net	IN	A	1.2.3.5
 ENTRY_END
 ENTRY_BEGIN
 MATCH opcode qname
@@ -261,7 +261,7 @@ ns.example.net. IN DS
 SECTION AUTHORITY
 example.net. IN SOA ns-pri.ripe.net. ops.ripe.net. 2007092101 3600 7200 1209600 7200
 example.net.    3600    IN      RRSIG   SOA 5 2 3600 20070926134150 20070829134150 30899 example.net. E1T+LAsAk7rtA6mnKRlgca5Lk+NJYUNNkfco1CrUp5IZZ1+QL7u7CINQBcndJkvoBwKhdVI8rz2LLW19wIywTw== ;{id = 30899}
-ns.example.net.	IN	NSEC	ns-new.example.net. A AAAA RRSIG NSEC
+ns.example.net	IN	NSEC	ns-new.example.net. A AAAA RRSIG NSEC
 ns.example.net. 3600    IN      RRSIG   NSEC 5 3 3600 20070926134150 20070829134150 30899 example.net. HLkPBWA8Hstub8e/zdp/A8xyI6+fnnMsA9oiZ20VBuSTaBknX0SXmVulNhVGfdmz9fYmYFUr1zjqvPFG+ErO8A== ;{id = 30899}
 ENTRY_END
 
@@ -274,7 +274,7 @@ ns.example.net. IN DNSKEY
 SECTION AUTHORITY
 example.net. IN SOA ns-pri.ripe.net. ops.ripe.net. 2007092101 3600 7200 1209600 7200
 example.net.    3600    IN      RRSIG   SOA 5 2 3600 20070926134150 20070829134150 30899 example.net. E1T+LAsAk7rtA6mnKRlgca5Lk+NJYUNNkfco1CrUp5IZZ1+QL7u7CINQBcndJkvoBwKhdVI8rz2LLW19wIywTw== ;{id = 30899}
-ns.example.net.	IN	NSEC	ns-new.example.net. A RRSIG NSEC
+ns.example.net	IN	NSEC	ns-new.example.net. A RRSIG NSEC
 ns.example.net. 3600    IN      RRSIG   NSEC 5 3 3600 20070926134150 20070829134150 30899 example.net. fAbDxuMP6lMqi71Wa9nsByG7buoJpfxyQhjps6HXOPzOC24UCCjdvZfZltlRy7Yrfrs28MjHwYEmHFmCeFpfPw== ;{id = 30899}
 ENTRY_END
 
@@ -298,7 +298,7 @@ ns.example.net. IN AAAA
 SECTION AUTHORITY
 example.net. IN SOA ns-pri.ripe.net. ops.ripe.net. 2007092101 3600 7200 1209600 7200
 example.net.    3600    IN      RRSIG   SOA 5 2 3600 20070926134150 20070829134150 30899 example.net. E1T+LAsAk7rtA6mnKRlgca5Lk+NJYUNNkfco1CrUp5IZZ1+QL7u7CINQBcndJkvoBwKhdVI8rz2LLW19wIywTw== ;{id = 30899}
-ns.example.net.	IN	NSEC	ns-new.example.net. A RRSIG NSEC
+ns.example.net	IN	NSEC	ns-new.example.net. A RRSIG NSEC
 ns.example.net. 3600    IN      RRSIG   NSEC 5 3 3600 20070926134150 20070829134150 30899 example.net. fAbDxuMP6lMqi71Wa9nsByG7buoJpfxyQhjps6HXOPzOC24UCCjdvZfZltlRy7Yrfrs28MjHwYEmHFmCeFpfPw== ;{id = 30899}
 ENTRY_END
 

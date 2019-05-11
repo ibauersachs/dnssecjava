@@ -211,7 +211,7 @@ public class RplParser {
 
     private Record parseRecord(String line) throws IOException {
         try {
-            Master ma = new Master(new ByteArrayInputStream(line.getBytes()), null, 3600);
+            Master ma = new Master(new ByteArrayInputStream(line.getBytes()), Name.root, 3600);
             Record r = ma.nextRecord();
             if (r.getType() == Type.RRSIG) {
                 RRSIGRecord rr = (RRSIGRecord)r;

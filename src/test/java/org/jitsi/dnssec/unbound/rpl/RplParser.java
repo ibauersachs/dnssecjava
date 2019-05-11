@@ -129,6 +129,9 @@ public class RplParser {
                     else if (line.matches("\\s*val-digest-preference:.*")) {
                         rpl.digestPreference = line.substring(line.indexOf("\"") + 1, line.length() - 1);
                     }
+                    else if (line.matches("\\s*harden-algo-downgrade:.*")) {
+                        rpl.hardenAlgoDowngrade = !"no".equalsIgnoreCase(line.split(":")[1].trim());
+                    }
                     else if (line.startsWith("CONFIG_END")) {
                         state = ParseState.Zero;
                     }

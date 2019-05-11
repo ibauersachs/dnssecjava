@@ -27,4 +27,5 @@ public class Rpl {
     public Map<Integer, Check> checks;
     public TreeMap<Integer, Integer> nsec3iterations;
     public String digestPreference;
+    public boolean hardenAlgoDowngrade;
 }

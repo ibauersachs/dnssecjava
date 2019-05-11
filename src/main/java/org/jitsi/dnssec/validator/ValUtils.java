@@ -111,15 +111,56 @@ public class ValUtils {
     /**
      * Given a response, classify ANSWER responses into a subtype.
      * 
+     * @param request The original query message.
      * @param m The response to classify.
      * 
      * @return A subtype ranging from UNKNOWN to NAMEERROR.
      */
-    public static ResponseClassification classifyResponse(SMessage m) {
+    public static ResponseClassification classifyResponse(Message request, SMessage m) {
         // Normal Name Error's are easy to detect -- but don't mistake a CNAME
         // chain ending in NXDOMAIN.
         if (m.getRcode() == Rcode.NXDOMAIN && m.getCount(Section.ANSWER) == 0) {
             return ResponseClassification.NAMEERROR;
+        }
+
+        // check for referral: nonRD query and it looks like a nodata
+        if (m.getCount(Section.ANSWER) == 0 && m.getRcode() != Rcode.NOERROR) {
+            // SOA record in auth indicates it is NODATA instead.
+            // All validation requiring NODATA messages have SOA in
+            // authority section.
+            // uses fact that answer section is empty
+            boolean sawNs = false;
+            for (RRset set : m.getSectionRRsets(Section.AUTHORITY)) {
+                if (set.getType() == Type.SOA) {
+                    return ResponseClassification.NODATA;
+                }
+
+                if (set.getType() == Type.DS) {
+                    return ResponseClassification.REFERRAL;
+                }
+
+                if (set.getType() == Type.NS) {
+                    sawNs = true;
+                }
+            }
+
+            return sawNs
+                    ? ResponseClassification.REFERRAL
+                    : ResponseClassification.NODATA;
+        }
+
+        // root referral where NS set is in the answer section
+        if (m.getSectionRRsets(Section.AUTHORITY).size() == 0
+                && m.getSectionRRsets(Section.ANSWER).size() == 1
+                && m.getRcode() == Rcode.NOERROR
+                && m.getSectionRRsets(Section.ANSWER).get(0).getType() == Type.NS
+                && !m.getSectionRRsets(Section.ANSWER).get(0).getName().equals(request.getQuestion().getName())) {
+            return ResponseClassification.REFERRAL;
+        }
+
+        // dump bad messages
+        if (m.getRcode() != Rcode.NOERROR && m.getRcode() != Rcode.NXDOMAIN) {
+            return ResponseClassification.UNKNOWN;
         }
 
         // Next is NODATA

@@ -912,14 +912,20 @@ public class ValidatingResolver implements Resolver {
 
             switch (this.n3valUtils.proveNoDS(nsec3s, qname, nsec3Signer)) {
                 case INSECURE:
-                    logger.debug("nsec3s proved no delegation.");
-                    return null;
+                    // case insecure also continues to unsigned space. 
+                    // If nsec3-iter-count too high or optout, then treat below as unsigned
                 case SECURE:
                     KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, nsec3TTL);
                     nullKey.setBadReason(R.get("insecure.ds.nsec3"));
                     return nullKey;
-                default:
+                case INDETERMINATE:
+                    logger.debug("nsec3s for the referral proved no delegation.");
+                    return null;
+                case BOGUS:
                     bogusKE.setBadReason(R.get("failed.ds.nsec3"));
+                    return bogusKE;
+                default:
+                    bogusKE.setBadReason(R.get("unknown.ds.nsec3"));
                     return bogusKE;
             }
         }

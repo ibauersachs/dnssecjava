@@ -736,7 +736,7 @@ final class NSEC3ValUtils {
             return SecurityStatus.SECURE;
         }
 
-        // Otherwise, we are probably in the opt-in case.
+        // Otherwise, we are probably in the opt-out case.
         CEResponse ce = this.proveClosestEncloser(qname, zonename, nsec3s);
         if (ce.status != SecurityStatus.SECURE) {
             return SecurityStatus.BOGUS;
@@ -745,11 +745,11 @@ final class NSEC3ValUtils {
         // If we had the closest encloser proof, then we need to check that the
         // covering NSEC3 was opt-in -- the proveClosestEncloser step already
         // checked to see if the closest encloser was a delegation or DNAME.
-        if (ce.ncNsec3.getFlags() == 1) {
-            return SecurityStatus.SECURE;
+        if ((ce.ncNsec3.getFlags() & Flags.OPT_OUT) != Flags.OPT_OUT) {
+            return SecurityStatus.BOGUS;
         }
 
-        return SecurityStatus.BOGUS;
+        //RFC5155 section 9.2: if nc has optout then no AD flag set
+        return SecurityStatus.INSECURE;
     }
-
 }

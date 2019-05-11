@@ -1,7 +1,7 @@
 ; config options
 ; The island of trust is at example.com
 server:
-	trust-anchor: "sub.example.com.    3600    IN      DS      30899 5 1 f7ed618f24d5e5202927e1d27bc2e84a141cb4b3"
+	trust-anchor: "sub.example.com.    3600    IN      DS      30899 RSASHA1 1 f7ed618f24d5e5202927e1d27bc2e84a141cb4b3"
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
 	qname-minimisation: "no"
@@ -157,7 +157,7 @@ RANGE_BEGIN 0 100
 	ADDRESS 1.2.3.6
 
 ; response to DNSKEY priming query
-; sub.example.com.        3600    IN      DS      30899 5 1 f7ed618f24d5e5202927e1d27bc2e84a141cb4b3
+; sub.example.com.        3600    IN      DS      30899 RSASHA1 1 f7ed618f24d5e5202927e1d27bc2e84a141cb4b3
 ENTRY_BEGIN
 MATCH opcode qtype qname
 ADJUST copy_id

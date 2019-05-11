@@ -1,3 +1,6 @@
+branches:
+  only:
+    - master
 language: java
 after_success:
 - mvn clean test jacoco:report coveralls:report

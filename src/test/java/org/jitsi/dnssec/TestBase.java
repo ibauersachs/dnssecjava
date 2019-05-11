@@ -42,6 +42,8 @@ import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSSEC;
@@ -61,6 +63,8 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({DNSSEC.class, TestInvalid.class})
 public abstract class TestBase {
+    private static final Logger logger = LoggerFactory.getLogger(TestBase.class);
+
     private final static boolean offline = !Boolean.getBoolean("org.jitsi.dnssecjava.online");
     private final static boolean partialOffline = "partial".equals(System.getProperty("org.jitsi.dnssecjava.offline"));
     private final static boolean record = Boolean.getBoolean("org.jitsi.dnssecjava.record");
@@ -168,7 +172,7 @@ public abstract class TestBase {
         resolver = new ValidatingResolver(new SimpleResolver("62.192.5.131") {
             @Override
             public Message send(Message query) throws IOException {
-                System.out.println("---" + key(query));
+                logger.info("---{}", key(query));
                 Message response = queryResponsePairs.get(key(query));
                 if (response != null) {
                     return response;
@@ -188,7 +192,6 @@ public abstract class TestBase {
         });
 
         resolver.loadTrustAnchors(getClass().getResourceAsStream("/trust_anchors"));
-        System.err.println("--------------");
     }
 
     protected void add(Message m) throws IOException {

@@ -131,22 +131,6 @@ example.com.    3600    IN      RRSIG   NSEC 3 2 3600 20070926134150 20070829134
 ENTRY_END
 
 ; response for query in question - delegation
-
-ENTRY_BEGIN
-MATCH opcode
-ADJUST copy_id copy_query
-REPLY QR NOERROR
-SECTION QUESTION
-c.5.6.example.com. IN DS
-SECTION ANSWER
-c.5.6.example.com.      3600    IN      DS      2854 3 1 4449f16fa7d712283aa43cc8dcc8e07c05856e08
-c.5.6.example.com.      3600    IN      RRSIG   DS 3 5 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCgiF7eFL89mSqjUPEpQuL5QEa1OgIUWdfUmMkwVBwOgmxlxZIKfGs5od0= ;{id = 2854}
-SECTION AUTHORITY
-SECTION ADDITIONAL
-ns.c.5.6.example.com.   IN  A 1.2.3.6
-ENTRY_END
-RANGE_END
-
 ; and all other queries, receive a delegation to c.5.6.example.com.
 ENTRY_BEGIN
 MATCH opcode
@@ -218,11 +202,12 @@ MATCH opcode
 ADJUST copy_id copy_query
 REPLY AA QR NOERROR
 SECTION QUESTION
-b.3.4.c.5.6.example.com. IN DS
-SECTION ANSWER
+; dnssecjava: modify query to avoid overlap in query cache, match is not implemented
+4.c.5.6.example.com. IN NS
+SECTION AUTHORITY
+b.3.4.c.5.6.example.com. IN NS ns.b.3.4.c.5.6.example.com.
 b.3.4.c.5.6.example.com.        3600    IN      DS      30899 5 1 849ebbdefa338db3e6c3ddffd58851523ba701de
 b.3.4.c.5.6.example.com.        3600    IN      RRSIG   DS 3 8 3600 20070926134150 20070829134150 2854 c.5.6.example.com. MC0CFEuXbvClpAOx7E1SXeH0d+Q4jpySAhUAtbEbQ8qtRF5chUOWNtg31ESAjWg= ;{id = 2854}
-SECTION AUTHORITY
 SECTION ADDITIONAL
 ns.b.3.4.c.5.6.example.com. IN A 1.2.3.7
 ENTRY_END

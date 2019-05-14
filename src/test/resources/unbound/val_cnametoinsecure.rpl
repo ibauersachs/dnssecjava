@@ -3,6 +3,8 @@ server:
 	trust-anchor: "example.com.	3600	IN	DNSKEY	256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}"
 	trust-anchor: "example.org.	3600	IN	DNSKEY	256 3 5 AQPQ41chR9DEHt/aIzIFAqanbDlRflJoRs5yz1jFsoRIT7dWf0r+PeDuewdxkszNH6wnU4QL8pfKFRh5PIYVBLK3 ;{id = 30899 (zsk), size = 512b}"
 	val-override-date: "20091011000000"
+	fake-sha1: yes
+	trust-anchor-signaling: no
 
 forward-zone:
 	name: "."
@@ -101,7 +103,7 @@ ENTRY_END
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
-REPLY QR RD RA NOERROR
+REPLY QR RD RA DO NOERROR
 SECTION QUESTION
 www.example.com. IN AAAA
 SECTION ANSWER
@@ -123,7 +125,7 @@ ENTRY_END
 STEP 30 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
-REPLY QR RD RA NOERROR
+REPLY QR RD RA DO NOERROR
 SECTION QUESTION
 www.example.org. IN AAAA
 SECTION ANSWER

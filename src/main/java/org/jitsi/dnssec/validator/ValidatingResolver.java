@@ -49,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -225,6 +226,41 @@ public class ValidatingResolver implements Resolver {
      */
     public TrustAnchorStore getTrustAnchors() {
         return this.trustAnchors;
+    }
+
+    /**
+     * For messages that are not referrals, if the chase reply contains an
+     * unsigned NS record in the authority section it could have been inserted
+     * by a (BIND) forwarder that thinks the zone is insecure, and that has an
+     * NS record without signatures in cache. Remove the NS record since the
+     * reply does not hinge on that record (in the authority section), but do
+     * not remove it if it removes the last record from the answer+authority
+     * sections.
+     *
+     * @param response: the chased reply, we have a key for this contents, so we
+     *            should have signatures for these rrsets and not having
+     *            signatures means it will be bogus.
+     */
+    private void removeSpuriousAuthority(SMessage response) {
+        // if no answer and only 1 auth RRset, do not remove that one
+        if (response.getSectionRRsets(Section.ANSWER).size() == 0 && response.getSectionRRsets(Section.AUTHORITY).size() == 1) {
+            return;
+        }
+
+        // search authority section for unsigned NS records
+        Iterator<SRRset> authRrsetIterator = response.getSectionRRsets(Section.AUTHORITY).iterator();
+        while (authRrsetIterator.hasNext()) {
+            SRRset rrset = authRrsetIterator.next();
+            if (rrset.getType() == Type.NS) {
+                if (!rrset.sigs().hasNext()) {
+                    logger.trace("Removing spurious unsigned NS record (likely inserted by forwarder) {}/{}/{}",
+                            rrset.getName(),
+                            Type.string(rrset.getType()),
+                            DClass.string(rrset.getDClass()));
+                    authRrsetIterator.remove();
+                }
+            }
+        }
     }
 
     /**
@@ -797,7 +833,7 @@ public class ValidatingResolver implements Resolver {
         int qclass = request.getQuestion().getDClass();
 
         SecurityStatus status;
-        ResponseClassification subtype = ValUtils.classifyResponse(response);
+        ResponseClassification subtype = ValUtils.classifyResponse(request, response);
 
         KeyEntry bogusKE = KeyEntry.newBadKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
         switch (subtype) {
@@ -1044,7 +1080,11 @@ public class ValidatingResolver implements Resolver {
     }
 
     private SMessage processValidate(Message request, SMessage response) {
-        ResponseClassification subtype = ValUtils.classifyResponse(response);
+        ResponseClassification subtype = ValUtils.classifyResponse(request, response);
+        if (subtype != ResponseClassification.REFERRAL) {
+            this.removeSpuriousAuthority(response);
+        }
+
         switch (subtype) {
             case POSITIVE:
             case CNAME:

@@ -4,6 +4,9 @@ server:
 	trust-anchor: "example.com.    3600    IN      DS      2854 3 1 46e4ffc6e9a4793b488954bd3f0cc6af0dfb201b"
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
+	fake-sha1: yes
+	trust-anchor-signaling: no
 
 stub-zone:
 	name: "."
@@ -327,7 +330,7 @@ ENTRY_END
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
-REPLY QR RD RA NOERROR
+REPLY QR RD RA DO NOERROR
 SECTION QUESTION
 a.b.sub.example.com. IN A
 SECTION ANSWER
@@ -349,7 +352,7 @@ ENTRY_END
 STEP 30 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
-REPLY QR RD RA NOERROR
+REPLY QR RD RA DO NOERROR
 SECTION QUESTION
 a.b.sub.example.com. IN DS
 SECTION AUTHORITY

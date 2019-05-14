@@ -65,25 +65,7 @@ public class UnboundTests extends TestBase {
         config.put(ValUtils.DIGEST_HARDEN_DOWNGRADE, Boolean.toString(rpl.hardenAlgoDowngrade));
 
         for (Message m : rpl.replays) {
-            add(stripAdditional(m));
-            for (RRset set : m.getSectionRRsets(Section.AUTHORITY)) {
-                if (set.getType() == Type.DS && set.sigs().hasNext() && Name.fromString("sub.example.com.").equals(set.getName())) {
-                    Message additional = new Message();
-                    additional.addRecord(Record.newRecord(set.getName(), set.getType(), set.getDClass()), Section.QUESTION);
-                    Iterator<?> it = set.rrs();
-                    while (it.hasNext()) {
-                        additional.addRecord((Record)it.next(), Section.ANSWER);
-                    }
-
-                    it = set.sigs();
-                    while (it.hasNext()) {
-                        additional.addRecord((Record)it.next(), Section.ANSWER);
-                    }
-
-                    add(stripAdditional(additional));
-                    break;
-                }
-            }
+            add(m);
         }
 
         // merge xNAME queries into one
@@ -151,7 +133,7 @@ public class UnboundTests extends TestBase {
 
         clear();
         for (Message m : rpl.replays) {
-            add(stripAdditional(m));
+            add(m);
         }
 
         if (rpl.date != null) {
@@ -178,34 +160,6 @@ public class UnboundTests extends TestBase {
             assertEquals("AD Flag must match", c.response.getHeader().getFlag(Flags.AD), s.getHeader().getFlag(Flags.AD));
             assertEquals("RCode must match", Rcode.string(c.response.getRcode()), Rcode.string(s.getRcode()));
         }
-    }
-
-    private Message stripAdditional(Message m) {
-        if (m.getQuestion().getType() == Type.RRSIG) {
-            return m;
-        }
-
-        Message copy = new Message();
-        copy.setHeader(m.getHeader());
-        for (int i = 0; i < Section.ADDITIONAL; i++) {
-            for (RRset set : m.getSectionRRsets(i)) {
-                if (set.getType() == Type.NS && m.getQuestion().getType() != Type.NS) {
-                    continue;
-                }
-
-                Iterator<?> rrs = set.rrs();
-                while (rrs.hasNext()) {
-                    copy.addRecord((Record)rrs.next(), i);
-                }
-
-                Iterator<?> sigs = set.sigs();
-                while (sigs.hasNext()) {
-                    copy.addRecord((Record)sigs.next(), i);
-                }
-            }
-        }
-
-        return copy;
     }
 
     private Name add(Message target, Message source) {
@@ -846,6 +800,11 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_secds_nosig() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_spurious_ns() throws ParseException, IOException {
         runUnboundTest();
     }
 

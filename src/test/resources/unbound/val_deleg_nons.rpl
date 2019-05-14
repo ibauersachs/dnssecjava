@@ -13,7 +13,7 @@ stub-zone:
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
 CONFIG_END
 
-SCENARIO_BEGIN Test validator with CNAME response to DS 
+SCENARIO_BEGIN Test validator with unsigned delegation with no NS bit in NSEC
 
 ; K.ROOT-SERVERS.NET.
 RANGE_BEGIN 0 100
@@ -31,11 +31,11 @@ K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
 ENTRY_END
 
 ENTRY_BEGIN
-MATCH opcode qtype qname
-ADJUST copy_id
+MATCH opcode subdomain
+ADJUST copy_id copy_query
 REPLY QR NOERROR
 SECTION QUESTION
-www.example.com. IN A
+com. IN A
 SECTION AUTHORITY
 com.	IN NS	a.gtld-servers.net.
 SECTION ADDITIONAL
@@ -59,11 +59,11 @@ a.gtld-servers.net.     IN      A       192.5.6.30
 ENTRY_END
 
 ENTRY_BEGIN
-MATCH opcode qtype qname
-ADJUST copy_id
+MATCH opcode subdomain
+ADJUST copy_id copy_query
 REPLY QR NOERROR
 SECTION QUESTION
-www.example.com. IN A
+example.com. IN A
 SECTION AUTHORITY
 example.com.	IN NS	ns.example.com.
 SECTION ADDITIONAL
@@ -90,13 +90,38 @@ REPLY QR NOERROR
 SECTION QUESTION
 ns.example.com. IN AAAA
 SECTION ANSWER
-; not legal NOERROR/NODATA response, but leniently accepted (not validated)
+SECTION AUTHORITY
+example.com. IN SOA alfa.ns.example.com.cz. hostmaster.example.com. 2010030800 10800 86400 604800 86400
+example.com.	3600	IN	RRSIG	SOA 3 2 3600 20070926134150 20070829134150 2854 example.com. ADsxLOHjxFzwFmwIiGOubqD9nKWAp4RccRIXQ0+EAUGfSDZMCB0ZiFA= ;{id = 2854}
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns3.example.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. IN SOA alfa.ns.example.com.cz. hostmaster.example.com. 2010030800 10800 86400 604800 86400
+example.com.	3600	IN	RRSIG	SOA 3 2 3600 20070926134150 20070829134150 2854 example.com. ADsxLOHjxFzwFmwIiGOubqD9nKWAp4RccRIXQ0+EAUGfSDZMCB0ZiFA= ;{id = 2854}
+SECTION ADDITIONAL
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN A
+SECTION ANSWER
+ns.example.com.         IN      A       1.2.3.4
+ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926135752 20070829135752 2854 example.com. MC0CFQCMSWxVehgOQLoYclB9PIAbNP229AIUeH0vNNGJhjnZiqgIOKvs1EhzqAo= ;{id = 2854}
 SECTION AUTHORITY
 example.com.    IN NS   ns.example.com.
 example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
 SECTION ADDITIONAL
-ns.example.com.         IN      A       1.2.3.4
-ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926135752 20070829135752 2854 example.com. MC0CFQCMSWxVehgOQLoYclB9PIAbNP229AIUeH0vNNGJhjnZiqgIOKvs1EhzqAo= ;{id = 2854}
 ENTRY_END
 
 ENTRY_BEGIN
@@ -137,13 +162,10 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR AA NOERROR
 SECTION QUESTION
-www.example.com. IN A
+foo.www.example.com. IN A
 SECTION ANSWER
-; nothing here, not even NSECs
-SECTION AUTHORITY
-example.com.	IN NS	ns.example.com.
-example.com.    3600    IN      RRSIG   NS 3 2 3600 20070926134150 20070829134150 2854 example.com. MC0CFQCN+qHdJxoI/2tNKwsb08pra/G7aAIUAWA5sDdJTbrXA1/3OaesGBAO3sI= ;{id = 2854}
-SECTION ADDITIONAL
+foo.www.example.com. IN A 1.2.3.4
+; unsigned, no delegation.
 ENTRY_END
 
 ; DS query
@@ -154,42 +176,86 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 www.example.com. IN DS
 SECTION ANSWER
-www.example.com. IN CNAME zzz.example.com.
-www.example.com.	3600	IN	RRSIG	CNAME 3 2 3600 20070926134150 20070829134150 2854 example.com. AERsv3PiBObAEhZ/dKyamie0sjvYLn7YaEKgv9ExB14KKLgWvzCaOWo= ;{id = 2854}
-;*.example.com. IN CNAME zzz.example.com.
-;*.example.com.	3600	IN	RRSIG	CNAME 3 2 3600 20070926134150 20070829134150 2854 example.com. AERsv3PiBObAEhZ/dKyamie0sjvYLn7YaEKgv9ExB14KKLgWvzCaOWo= ;{id = 2854}
-
 SECTION AUTHORITY
-*.example.com. IN NSEC zzz.example.com. CNAME RRSIG NSEC
-*.example.com.	3600	IN	RRSIG	NSEC 3 2 3600 20070926134150 20070829134150 2854 example.com. AJxl2TXciyhbKqSakVNtjlt8Bbkco02zpl5RlY88iqVmSa6ts+/guU4= ;{id = 2854}
-zzz.example.com. IN NSEC *.zzz.example.com. A RRSIG NSEC
-zzz.example.com.	3600	IN	RRSIG	NSEC 3 3 3600 20070926134150 20070829134150 2854 example.com. ACtgx/h0YfGEK79zg4G16jB/0oRWH0nxrMzUc/4hCY3oprsP8DrdjqU= ;{id = 2854}
+; NSEC3 here: 1 0 1 1234
+; www.example.com. -> h8c0nvkuibedn7ia997iegdl7h0i6h8b.
+h8c0nvkuibedn7ia997iegdl7h0i6h8b.example.com. IN NSEC3 1 0 1 1234 h8c0nvkuibedn7ia997iegdl7h0i6h8c TXT
+h8c0nvkuibedn7ia997iegdl7h0i6h8b.example.com.	3600	IN	RRSIG	NSEC3 3 3 3600 20070926134150 20070829134150 2854 example.com. AH+bPQZST3COwJ1vSe05N7E5BM2GmXzJUKsiWwXKrmm/XjYKSxSuNPE=
+
+;www.example.com. IN NSEC zzz.example.com. RRSIG NSEC
+;www.example.com.	3600	IN	RRSIG	NSEC 3 3 3600 20070926134150 20070829134150 2854 example.com. AA9Dm626WvHXHPQXJkVyjyTqJ/dCHfZgt6PWCn9gd8ZmPxyl3STW3iI=
 example.com. IN SOA alfa.ns.example.com.cz. hostmaster.example.com. 2010030800 10800 86400 604800 86400
 example.com.	3600	IN	RRSIG	SOA 3 2 3600 20070926134150 20070829134150 2854 example.com. ADsxLOHjxFzwFmwIiGOubqD9nKWAp4RccRIXQ0+EAUGfSDZMCB0ZiFA= ;{id = 2854}
 SECTION ADDITIONAL
 ENTRY_END
 
+; DS query for foo.www.example.com returns the referral without record.
 ENTRY_BEGIN
 MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR AA NOERROR
 SECTION QUESTION
-zzz.example.com. IN DS
+foo.www.example.com. IN DS
 SECTION ANSWER
 SECTION AUTHORITY
-zzz.example.com. IN NSEC *.zzz.example.com. A RRSIG NSEC
-zzz.example.com.	3600	IN	RRSIG	NSEC 3 3 3600 20070926134150 20070829134150 2854 example.com. ACtgx/h0YfGEK79zg4G16jB/0oRWH0nxrMzUc/4hCY3oprsP8DrdjqU= ;{id = 2854}
+mipf0g23547qunto04vboegh9vadsrpo.example.com. IN NSEC3 1 0 1 1234  mipf0g23547qunto04vboegh9vadsrpq TXT
+mipf0g23547qunto04vboegh9vadsrpo.example.com.	3600	IN	RRSIG	NSEC3 3 3 3600 20070926134150 20070829134150 2854 example.com. ADc6JrdKuTmIJe4sAjpKZSUZKdHdfhmREk2F5A5cftU9053b0/3ILQM=
+
 example.com. IN SOA alfa.ns.example.com.cz. hostmaster.example.com. 2010030800 10800 86400 604800 86400
 example.com.	3600	IN	RRSIG	SOA 3 2 3600 20070926134150 20070829134150 2854 example.com. ADsxLOHjxFzwFmwIiGOubqD9nKWAp4RccRIXQ0+EAUGfSDZMCB0ZiFA= ;{id = 2854}
+
+
+;www.example.com. IN NS ns3.example.com.
+;h8c0nvkuibedn7ia997iegdl7h0i6h8b.example.com. IN NSEC3 1 0 1 1234 h8c0nvkuibedn7ia997iegdl7h0i6h8c TXT
+;h8c0nvkuibedn7ia997iegdl7h0i6h8b.example.com.	3600	IN	RRSIG	NSEC3 3 3 3600 20070926134150 20070829134150 2854 example.com. AH+bPQZST3COwJ1vSe05N7E5BM2GmXzJUKsiWwXKrmm/XjYKSxSuNPE=
+;SECTION ADDITIONAL
+;ns3.example.com. IN A 1.2.3.5
+
+
+; NSEC3 here: 1 0 1 1234
+; www.example.com. -> h8c0nvkuibedn7ia997iegdl7h0i6h8b.
+; *.www.example.com. -> cg2lpgpr8k7ck69h7bqu3od9pkht2o79.
+; foo.www.example.com. -> mipf0g23547qunto04vboegh9vadsrpo.
+
+;h8c0nvkuibedn7ia997iegdl7h0i6h8b.example.com. IN NSEC3 1 0 1 1234 h8c0nvkuibedn7ia997iegdl7h0i6h8c TXT
+;h8c0nvkuibedn7ia997iegdl7h0i6h8b.example.com.	3600	IN	RRSIG	NSEC3 3 3 3600 20070926134150 20070829134150 2854 example.com. AH+bPQZST3COwJ1vSe05N7E5BM2GmXzJUKsiWwXKrmm/XjYKSxSuNPE=
+;cg2lpgpr8k7ck69h7bqu3od9pkht2o78.example.com. IN NSEC3 1 0 1 1234 cg2lpgpr8k7ck69h7bqu3od9pkht2o89 TXT
+;cg2lpgpr8k7ck69h7bqu3od9pkht2o78.example.com.	3600	IN	RRSIG	NSEC3 3 3 3600 20070926134150 20070829134150 2854 example.com. ACzxBHMyDB5tTrXijboPSsB0ws1lJe3/B62QNAMcZv7l9DYNDEDKsXY=
+;mipf0g23547qunto04vboegh9vadsrph.example.com. IN NSEC3 1 0 1 1234 mipf0g23547qunto04vboegh9vadsrpp TXT
+;mipf0g23547qunto04vboegh9vadsrph.example.com.	3600	IN	RRSIG	NSEC3 3 3 3600 20070926134150 20070829134150 2854 example.com. AG2B7lrIVtBgg+WIt0yNYekGDBKkY7xkKfI0GLQ8q3brGy/+jubxba0=
+
+;www.example.com. IN NSEC zzz.example.com. RRSIG NSEC
+;www.example.com.	3600	IN	RRSIG	NSEC 3 3 3600 20070926134150 20070829134150 2854 example.com. AA9Dm626WvHXHPQXJkVyjyTqJ/dCHfZgt6PWCn9gd8ZmPxyl3STW3iI=
+
+;example.com. IN SOA alfa.ns.example.com.cz. hostmaster.example.com. 2010030800 10800 86400 604800 86400
+;example.com.	3600	IN	RRSIG	SOA 3 2 3600 20070926134150 20070829134150 2854 example.com. ADsxLOHjxFzwFmwIiGOubqD9nKWAp4RccRIXQ0+EAUGfSDZMCB0ZiFA= ;{id = 2854}
+SECTION ADDITIONAL
+ENTRY_END
+
+RANGE_END
+
+; ns3.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.5
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+foo.www.example.com. IN DS
+SECTION ANSWER
+SECTION AUTHORITY
+foo.www.example.com. IN SOA alfa.ns.example.com.cz. hostmaster.example.com. 2010030800 10800 86400 604800 86400
 SECTION ADDITIONAL
 ENTRY_END
 RANGE_END
+
 
 STEP 1 QUERY
 ENTRY_BEGIN
 REPLY RD DO
 SECTION QUESTION
-www.example.com. IN A
+foo.www.example.com. IN A
 ENTRY_END
 
 ; recursion happens here.
@@ -198,7 +264,7 @@ ENTRY_BEGIN
 MATCH all
 REPLY QR RD RA DO SERVFAIL
 SECTION QUESTION
-www.example.com. IN A
+foo.www.example.com. IN A
 SECTION ANSWER
 ENTRY_END
 

@@ -6,6 +6,10 @@ server:
 	harden-referral-path: no
 	access-control: 127.0.0.1 allow_snoop
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
+	fake-sha1: yes
+	trust-anchor-signaling: no
+	minimal-responses: no
 
 stub-zone:
 	name: "."
@@ -157,7 +161,7 @@ ENTRY_END
 STEP 6 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
-REPLY QR RA AD NOERROR
+REPLY QR RA AD DO NOERROR
 SECTION QUESTION
 bla.example.com. IN A
 SECTION ANSWER

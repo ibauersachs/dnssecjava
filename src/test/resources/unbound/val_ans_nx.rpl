@@ -4,6 +4,9 @@ server:
 	trust-anchor: "example.com.    3600    IN      DS      2854 3 1 46e4ffc6e9a4793b488954bd3f0cc6af0dfb201b"
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
+	fake-sha1: yes
+	trust-anchor-signaling: no
 
 stub-zone:
 	name: "."
@@ -146,12 +149,12 @@ MATCH opcode qtype qname
 ADJUST copy_id
 REPLY QR NOERROR
 SECTION QUESTION
-0.0.194.example.com. IN DS
+328.0.0.194.example.com. IN A
 SECTION ANSWER
-0.0.194.example.com.    3600    IN      DS      30899 RSASHA1 1 aa46f0717075d9750ac3596c659a2e326b33c28c
-0.0.194.example.com.    3600    IN      RRSIG   DS 3 5 3600 20070926135752 20070829135752 2854 example.com. MCwCFC9GIqtp/103hktw6bPpD83gr+0iAhQ8yev2yUaR9l64rYBUYTJqOoTKdw== ;{id = 2854}
 SECTION AUTHORITY
 0.0.194.example.com. IN NS ns.sub.example.com.
+0.0.194.example.com.    3600    IN      DS      30899 RSASHA1 1 aa46f0717075d9750ac3596c659a2e326b33c28c
+0.0.194.example.com.    3600    IN      RRSIG   DS 3 5 3600 20070926135752 20070829135752 2854 example.com. MCwCFC9GIqtp/103hktw6bPpD83gr+0iAhQ8yev2yUaR9l64rYBUYTJqOoTKdw== ;{id = 2854}
 SECTION ADDITIONAL
 ns.sub.example.com. IN A 1.2.3.6
 ENTRY_END
@@ -233,7 +236,7 @@ ENTRY_END
 STEP 10 CHECK_ANSWER
 ENTRY_BEGIN
 MATCH all
-REPLY QR RD RA AD NOERROR
+REPLY QR RD RA AD DO NOERROR
 SECTION QUESTION
 328.0.0.194.example.com. IN A
 SECTION ANSWER

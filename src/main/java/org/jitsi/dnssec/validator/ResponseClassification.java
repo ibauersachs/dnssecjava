@@ -68,5 +68,8 @@ public enum ResponseClassification {
     CNAME_NODATA,
 
     /** A response with CNAMES that points into the void. */
-    CNAME_NAMEERROR;
+    CNAME_NAMEERROR,
+
+    /** A referral, from cache with a nonRD query. */
+    REFERRAL;
 }

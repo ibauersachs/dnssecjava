@@ -624,6 +624,7 @@ public class ValidatingResolver implements Resolver {
         List<SRRset> nsec3s = new ArrayList<SRRset>(0);
         Name nsec3Signer = null;
         SRRset keyRrset;
+        int previousClosestEncloseLabels = 0;
 
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
             KeyEntry ke = this.prepareFindKey(set);
@@ -644,9 +645,13 @@ public class ValidatingResolver implements Resolver {
                     hasValidNSEC = true;
                 }
 
-                if (ValUtils.nsecProvesNoWC(nsec, qname, set.getSignerName())) {
-                    hasValidWCNSEC = true;
+                int closestEncloserLabels = ValUtils.closestEncloser(qname, nsec).labels();
+                if (closestEncloserLabels > previousClosestEncloseLabels
+                        || (closestEncloserLabels == previousClosestEncloseLabels && !hasValidWCNSEC)) {
+                    hasValidWCNSEC = ValUtils.nsecProvesNoWC(nsec, qname, set.getSignerName());
                 }
+
+                previousClosestEncloseLabels = closestEncloserLabels;
             }
 
             if (set.getType() == Type.NSEC3) {

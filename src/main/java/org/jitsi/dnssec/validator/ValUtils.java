@@ -545,15 +545,11 @@ public class ValUtils {
      * @return true if the NSEC proves the condition.
      */
     public static boolean nsecProvesNoWC(NSECRecord nsec, Name qname, Name signerName) {
-        int qnameLabels = qname.labels();
         Name ce = closestEncloser(qname, nsec);
-        int ceLabels = ce.labels();
-
-        for (int i = qnameLabels - ceLabels; i > 0; i--) {
-            Name wcName = qname.wild(i);
-            if (nsecProvesNameError(nsec, wcName, signerName)) {
-                return true;
-            }
+        int labelsToStrip = qname.labels() - ce.labels();
+        if (labelsToStrip > 0) {
+            Name wcName = qname.wild(labelsToStrip);
+            return nsecProvesNameError(nsec, wcName, signerName);
         }
 
         return false;

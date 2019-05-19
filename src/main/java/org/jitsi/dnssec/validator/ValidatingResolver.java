@@ -689,6 +689,15 @@ public class ValidatingResolver implements Resolver {
             hasValidWCNSEC = true;
         }
 
+        // Be lenient with RCODE in NSEC NameError responses
+        if (!hasValidNSEC || !hasValidWCNSEC) {
+            this.validateNodataResponse(request, response);
+            if (response.getStatus() == SecurityStatus.SECURE) {
+                response.getHeader().setRcode(Rcode.NOERROR);
+                return;
+            }
+        }
+
         // If the message fails to prove either condition, it is bogus.
         if (!hasValidNSEC) {
             response.setBogus(R.get("failed.nxdomain.exists", response.getQuestion().getName()));

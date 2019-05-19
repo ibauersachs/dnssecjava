@@ -504,6 +504,11 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
+    public void val_nodata_entnx() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
     public void val_nodata_entwc() throws ParseException, IOException {
         runUnboundTest();
     }

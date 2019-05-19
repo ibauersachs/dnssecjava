@@ -514,6 +514,11 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
+    public void val_nodata_failwc() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
     public void val_nodata_hasdata() throws ParseException, IOException {
         runUnboundTest();
     }
@@ -695,6 +700,11 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_nx() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_nx_failwc() throws ParseException, IOException {
         runUnboundTest();
     }
 

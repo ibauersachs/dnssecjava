@@ -341,9 +341,9 @@ public class ValidatingResolver implements Resolver {
                 boolean wcNsecOk = false;
                 for (SRRset set : nsecs) {
                     NSECRecord nsec = (NSECRecord)set.first();
-                    if (ValUtils.nsecProvesNameError(nsec, wc.getKey(), set.getSignerName())) {
+                    if (ValUtils.nsecProvesNameError(set, nsec, wc.getKey())) {
                         try {
-                            Name nsecWc = ValUtils.nsecWildcard(wc.getKey(), nsec);
+                            Name nsecWc = ValUtils.nsecWildcard(wc.getKey(), set, nsec);
                             if (wc.getValue().equals(nsecWc)) {
                                 wcNsecOk = true;
                                 break;
@@ -532,13 +532,13 @@ public class ValidatingResolver implements Resolver {
             // This needs to handle the empty non-terminal (ENT) NODATA case.
             if (set.getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)set.first();
-                ndp = ValUtils.nsecProvesNodata(nsec, qname, qtype);
+                ndp = ValUtils.nsecProvesNodata(set, nsec, qname, qtype);
                 if (ndp.result) {
                     hasValidNSEC = true;
                 }
 
-                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
-                    ce = ValUtils.closestEncloser(qname, nsec);
+                if (ValUtils.nsecProvesNameError(set, nsec, qname)) {
+                    ce = ValUtils.closestEncloser(qname, set.getName(), nsec.getNext());
                 }
             }
 
@@ -641,14 +641,15 @@ public class ValidatingResolver implements Resolver {
 
             if (set.getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)set.first();
-                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
+                if (ValUtils.nsecProvesNameError(set, nsec, qname)) {
                     hasValidNSEC = true;
                 }
 
-                int closestEncloserLabels = ValUtils.closestEncloser(qname, nsec).labels();
+                Name next = nsec.getNext();
+                int closestEncloserLabels = ValUtils.closestEncloser(qname, set.getName(), next).labels();
                 if (closestEncloserLabels > previousClosestEncloseLabels
                         || (closestEncloserLabels == previousClosestEncloseLabels && !hasValidWCNSEC)) {
-                    hasValidWCNSEC = ValUtils.nsecProvesNoWC(nsec, qname, set.getSignerName());
+                    hasValidWCNSEC = ValUtils.nsecProvesNoWC(set, nsec, qname);
                 }
 
                 previousClosestEncloseLabels = closestEncloserLabels;

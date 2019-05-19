@@ -56,6 +56,7 @@ import org.xbill.DNS.Record;
  */
 public class SRRset extends RRset {
     private SecurityStatus securityStatus;
+    private Name ownerName;
 
     /** Create a new, blank SRRset. */
     public SRRset() {
@@ -113,5 +114,18 @@ public class SRRset extends RRset {
         }
 
         return null;
+    }
+
+    @Override
+    public Name getName() {
+        return this.ownerName == null ? super.getName() : this.ownerName;
+    }
+
+    /**
+     * Set the name of the records.
+     * @param ownerName the {@link Name} to override the original name with.
+     */
+    public void setName(Name ownerName) {
+        this.ownerName = ownerName;
     }
 }

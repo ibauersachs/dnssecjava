@@ -5,7 +5,7 @@
     <packaging>bundle</packaging>
     <version>1.1.4-SNAPSHOT</version>
     <name>dnssecjava</name>
-    <url>https://jitsi.org/dnssec</url>
+    <url>https://github.com/ibauersachs/dnssecjava</url>
 
     <properties>
         <powermock.version>1.6.6</powermock.version>

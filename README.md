@@ -29,6 +29,12 @@ The Unbound prototype was stripped from all unnecessary parts, heavily
 modified, complemented with more than 300 unit test and found bugs were fixed.
 
 ### Released versions
+* 1.2.0:
+  - Fix CVE-2017-15105
+  - Add config option `org.jitsi.dnssec.harden_algo_downgrade`
+  - Fix handling of ENT in NSEC3 zones
+  - Fix returning YXDOMAIN RCode
+  - Requires dnsjava 2.1.9 for proper (EC)DSA signature validation
 * 1.1.3:
   - Replace jmockit with PowerMockito due to ever changing API (and there's a Debian package for PowerMockito)
   - Use fixed versions for the dependencies

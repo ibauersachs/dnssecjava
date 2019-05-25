@@ -5,6 +5,7 @@ A DNSSEC validating stub resolver for Java.
 [![Build Status](https://travis-ci.org/ibauersachs/dnssecjava.svg?branch=master)](https://travis-ci.org/ibauersachs/dnssecjava)
 [![Coverage Status](https://coveralls.io/repos/ibauersachs/dnssecjava/badge.svg)](https://coveralls.io/r/ibauersachs/dnssecjava)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jitsi/dnssecjava/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.jitsi%22%20AND%20a%3A%22dnssecjava%22)
+[![Javadocs](http://javadoc.io/badge/org.jitsi/dnssecjava.svg)](https://javadoc.io/doc/org.jitsi/dnssecjava)
 
 Is this library safe to use?
 ---------------------------

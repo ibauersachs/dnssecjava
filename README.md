@@ -5,6 +5,7 @@ A DNSSEC validating stub resolver for Java.
 [![Build Status](https://travis-ci.org/ibauersachs/dnssecjava.svg?branch=master)](https://travis-ci.org/ibauersachs/dnssecjava)
 [![Coverage Status](https://coveralls.io/repos/ibauersachs/dnssecjava/badge.svg)](https://coveralls.io/r/ibauersachs/dnssecjava)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jitsi/dnssecjava/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.jitsi%22%20AND%20a%3A%22dnssecjava%22)
+[![Javadocs](http://javadoc.io/badge/org.jitsi/dnssecjava.svg)](https://javadoc.io/doc/org.jitsi/dnssecjava)
 
 Is this library safe to use?
 ---------------------------
@@ -28,6 +29,12 @@ The Unbound prototype was stripped from all unnecessary parts, heavily
 modified, complemented with more than 300 unit test and found bugs were fixed.
 
 ### Released versions
+* 1.2.0:
+  - Fix CVE-2017-15105
+  - Add config option `org.jitsi.dnssec.harden_algo_downgrade`
+  - Fix handling of ENT in NSEC3 zones
+  - Fix returning YXDOMAIN RCode
+  - Requires dnsjava 2.1.9 for proper (EC)DSA signature validation
 * 1.1.3:
   - Replace jmockit with PowerMockito due to ever changing API (and there's a Debian package for PowerMockito)
   - Use fixed versions for the dependencies

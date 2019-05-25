@@ -46,7 +46,8 @@ public class TestNormallyUnreachableCode {
     public void testVerifyWithoutSignaturesIsBogus() {
         DnsSecVerifier verifier = new DnsSecVerifier();
         ARecord record = new ARecord(Name.root, DClass.IN, 120, localhost);
-        RRset set = new RRset(record);
+        SRRset set = new SRRset();
+        set.addRR(record);
         RRset keys = new RRset();
         SecurityStatus result = verifier.verify(set, keys);
         assertEquals(SecurityStatus.BOGUS, result);

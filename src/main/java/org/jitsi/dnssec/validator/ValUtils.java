@@ -91,6 +91,34 @@ public class ValUtils {
     }
 
     /**
+     * Set the owner name of NSEC RRsets to the canonical name, i.e. the name
+     * that is <b>not</b> expanded from a wildcard label.
+     * @param set The RRset to canonicalize.
+     * @param sig The signature that validated this RRset.
+     */
+    public static void setCanonicalNsecOwner(SRRset set, RRSIGRecord sig) {
+        if (set.getType() != Type.NSEC) {
+            return;
+        }
+
+        Record nsec = set.first();
+        int fqdnLabelCount = nsec.getName().labels() - 1; // don't count the root label
+        if (nsec.getName().isWild()) {
+            --fqdnLabelCount; // don't count the wildcard label
+        }
+
+        if (sig.getLabels() == fqdnLabelCount) {
+            set.setName(nsec.getName());
+        }
+        else if (sig.getLabels() < fqdnLabelCount) {
+            set.setName(nsec.getName().wild(sig.getSigner().labels() - sig.getLabels()));
+        }
+        else {
+            throw new IllegalArgumentException("invalid nsec record");
+        }
+    }
+
+    /**
      * Initialize the module. The recognized configuration value are
      * <ul>
      *     <li>{@link #DIGEST_PREFERENCE}</li>
@@ -445,13 +473,14 @@ public class ValUtils {
      * {@link NSECRecord#getNext()}).
      * 
      * @param domain The name for which the closest encloser is queried.
-     * @param nsec The covering {@link NSECRecord} to check.
+     * @param owner The beginning of the covering {@link Name} to check. 
+     * @param next The end of the covering {@link Name} to check.
      * @return The closest encloser name of <code>domain</code> as defined by
-     *         <code>nsec</code>.
+     *         {@code owner} and {@code next}.
      */
-    public static Name closestEncloser(Name domain, NSECRecord nsec) {
-        Name n1 = longestCommonName(domain, nsec.getName());
-        Name n2 = longestCommonName(domain, nsec.getNext());
+    public static Name closestEncloser(Name domain, Name owner, Name next) {
+        Name n1 = longestCommonName(domain, owner);
+        Name n2 = longestCommonName(domain, next);
 
         return (n1.labels() > n2.labels()) ? n1 : n2;
     }
@@ -462,14 +491,15 @@ public class ValUtils {
      * 
      * @param domain The name for which the wildcard closest encloser is
      *            demanded.
+     * @param set The RRset containing {@code nsec} to check.
      * @param nsec The covering NSEC that defines the encloser.
      * @return The wildcard closest encloser name of <code>domain</code> as
      *         defined by <code>nsec</code>.
      * @throws NameTooLongException If adding the wildcard label to the closest
      *             encloser results in an invalid name.
      */
-    public static Name nsecWildcard(Name domain, NSECRecord nsec) throws NameTooLongException {
-        Name origin = closestEncloser(domain, nsec);
+    public static Name nsecWildcard(Name domain, SRRset set, NSECRecord nsec) throws NameTooLongException {
+        Name origin = closestEncloser(domain, set.getName(), nsec.getNext());
         return Name.concatenate(WILDCARD, origin);
     }
 
@@ -477,13 +507,13 @@ public class ValUtils {
      * Determine if the given NSEC proves a NameError (NXDOMAIN) for a given
      * qname.
      * 
+     * @param set The RRset that contains the NSEC.
      * @param nsec The NSEC to check.
      * @param qname The qname to check against.
-     * @param signerName The signer of the NSEC RRset.
      * @return true if the NSEC proves the condition.
      */
-    public static boolean nsecProvesNameError(NSECRecord nsec, Name qname, Name signerName) {
-        Name owner = nsec.getName();
+    public static boolean nsecProvesNameError(SRRset set, NSECRecord nsec, Name qname) {
+        Name owner = set.getName();
         Name next = nsec.getNext();
 
         // If NSEC owner == qname, then this NSEC proves that qname exists.
@@ -492,7 +522,7 @@ public class ValUtils {
         }
 
         // deny overreaching NSECs
-        if (!next.subdomain(signerName)) {
+        if (!next.subdomain(set.getSignerName())) {
             return false;
         }
 
@@ -539,21 +569,17 @@ public class ValUtils {
      * Determine if a NSEC record proves the non-existence of a wildcard that
      * could have produced qname.
      * 
-     * @param nsec The nsec to check.
+     * @param set The RRset of the NSEC record.
+     * @param nsec The nsec record to check.
      * @param qname The qname to check against.
-     * @param signerName The signer of the NSEC RRset.
      * @return true if the NSEC proves the condition.
      */
-    public static boolean nsecProvesNoWC(NSECRecord nsec, Name qname, Name signerName) {
-        int qnameLabels = qname.labels();
-        Name ce = closestEncloser(qname, nsec);
-        int ceLabels = ce.labels();
-
-        for (int i = qnameLabels - ceLabels; i > 0; i--) {
-            Name wcName = qname.wild(i);
-            if (nsecProvesNameError(nsec, wcName, signerName)) {
-                return true;
-            }
+    public static boolean nsecProvesNoWC(SRRset set, NSECRecord nsec, Name qname) {
+        Name ce = closestEncloser(qname, set.getName(), nsec.getNext());
+        int labelsToStrip = qname.labels() - ce.labels();
+        if (labelsToStrip > 0) {
+            Name wcName = qname.wild(labelsToStrip);
+            return nsecProvesNameError(set, nsec, wcName);
         }
 
         return false;
@@ -561,7 +587,7 @@ public class ValUtils {
 
     /**
      * Container for responses of
-     * {@link ValUtils#nsecProvesNodata(NSECRecord, Name, int)}.
+     * {@link ValUtils#nsecProvesNodata(SRRset, NSECRecord, Name, int)}.
      */
     public static class NsecProvesNodataResponse {
         boolean result;
@@ -575,14 +601,15 @@ public class ValUtils {
      * must still be provided proof that qname did not directly exist and that
      * the wildcard is, in fact, *.closest_encloser.
      * 
+     * @param set The RRset of the NSEC record.
      * @param nsec The NSEC to check
      * @param qname The query name to check against.
      * @param qtype The query type to check against.
      * @return true if the NSEC proves the condition.
      */
-    public static NsecProvesNodataResponse nsecProvesNodata(NSECRecord nsec, Name qname, int qtype) {
+    public static NsecProvesNodataResponse nsecProvesNodata(SRRset set, NSECRecord nsec, Name qname, int qtype) {
         NsecProvesNodataResponse result = new NsecProvesNodataResponse();
-        if (!nsec.getName().equals(qname)) {
+        if (!set.getName().equals(qname)) {
             // empty-non-terminal checking.
             // Done before wildcard, because this is an exact match,
             // and would prevent a wildcard from matching.
@@ -590,7 +617,7 @@ public class ValUtils {
             // If the nsec is proving that qname is an ENT, the nsec owner will
             // be less than qname, and the next name will be a child domain of
             // the qname.
-            if (strictSubdomain(nsec.getNext(), qname) && nsec.getName().compareTo(qname) < 0) {
+            if (strictSubdomain(nsec.getNext(), qname) && set.getName().compareTo(qname) < 0) {
                 result.result = true;
                 return result;
             }
@@ -600,9 +627,9 @@ public class ValUtils {
             // have generated qname from the wildcard and b) the type map does
             // not contain qtype. Note that this does NOT prove that this
             // wildcard was the applicable wildcard.
-            if (nsec.getName().isWild()) {
+            if (set.getName().isWild()) {
                 // the is the purported closest encloser.
-                Name ce = new Name(nsec.getName(), 1);
+                Name ce = new Name(set.getName(), 1);
 
                 // The qname must be a strict subdomain of the closest encloser,
                 // and the qtype must be absent from the type map.
@@ -720,7 +747,7 @@ public class ValUtils {
             }
 
             NSECRecord nsec = (NSECRecord)set.first();
-            ndp = ValUtils.nsecProvesNodata(nsec, qname, Type.DS);
+            ndp = ValUtils.nsecProvesNodata(set, nsec, qname, Type.DS);
             if (ndp.result) {
                 hasValidNSEC = true;
                 if (ndp.wc != null && nsec.getName().isWild()) {
@@ -728,8 +755,8 @@ public class ValUtils {
                 }
             }
 
-            if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
-                ce = closestEncloser(qname, nsec);
+            if (ValUtils.nsecProvesNameError(set, nsec, qname)) {
+                ce = closestEncloser(qname, set.getName(), nsec.getNext());
             }
         }
 

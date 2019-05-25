@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,7 @@ import org.xbill.DNS.DNSSEC;
 import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.RRSIGRecord;
 import org.xbill.DNS.RRset;
+import org.xbill.DNS.Type;
 
 /**
  * A class for performing basic DNSSEC verification. The DNSJAVA package
@@ -112,8 +114,8 @@ public class DnsSecVerifier {
      *         could not be completed (usually because the public key was not
      *         available).
      */
-    private SecurityStatus verifySignature(RRset rrset, RRSIGRecord sigrec,
-            RRset keyRrset) {
+    private SecurityStatus verifySignature(SRRset rrset, RRSIGRecord sigrec,
+                                           RRset keyRrset) {
         List<DNSKEYRecord> keys = this.findKey(keyRrset, sigrec);
         if (keys == null) {
             logger.trace("could not find appropriate key");
@@ -130,10 +132,11 @@ public class DnsSecVerifier {
                 }
 
                 DNSSEC.verify(rrset, sigrec, key);
+                ValUtils.setCanonicalNsecOwner(rrset, sigrec);
                 return SecurityStatus.SECURE;
             }
             catch (DNSSECException e) {
-                logger.error("Failed to validate RRset", e);
+                logger.error("Failed to validate RRset {}/{}", rrset.getName(), Type.string(rrset.getType()), e);
                 status = SecurityStatus.BOGUS;
             }
         }
@@ -151,7 +154,7 @@ public class DnsSecVerifier {
      * @return SecurityStatus.SECURE if the rrest verified positively,
      *         SecurityStatus.BOGUS otherwise.
      */
-    public SecurityStatus verify(RRset rrset, RRset keyRrset) {
+    public SecurityStatus verify(SRRset rrset, RRset keyRrset) {
         Iterator<?> i = rrset.sigs();
         if (!i.hasNext()) {
             logger.info("RRset failed to verify due to lack of signatures");

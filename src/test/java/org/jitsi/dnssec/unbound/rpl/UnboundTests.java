@@ -18,15 +18,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.TestBase;
+import org.junit.Ignore;
 import org.jitsi.dnssec.validator.ValUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -184,50 +186,47 @@ public class UnboundTests extends TestBase {
         return next;
     }
 
-    public static void main(String[] srgs) throws ParseException, IOException {
-        String[] ignored = new String[] { "val_faildnskey_ok.rpl", // tests an
-                                                                   // unbound
-                                                                   // specific
-                                                                   // config
-                                                                   // option
-                "val_nsec3_nods_negcache.rpl", // we don't do negative caching
-                "val_unsecds_negcache.rpl", // "
-                "val_negcache_dssoa.rpl", // "
-                "val_nsec3_b3_optout_negcache.rpl", // "
-                "val_dsnsec.rpl", // "
-                "val_refer_unsignadd.rpl", // more cache stuff
-                "val_referglue.rpl", // "
-                "val_noadwhennodo.rpl", // irrelevant - if we wouldn't want AD,
-                                        // we wouldn't be using this stuff
-                "val_fwdds.rpl", // irrelevant, we're not a recursive resolver
-                "val_referd.rpl", // NSEC records missing for validation, tests
-                                  // caching stuff
-                "val_stubds.rpl", // tests unbound specific config (stub zones)
-                "val_cnametonsec.rpl", // incomplete CNAME answer
-                "val_cnametooptin.rpl", // incomplete CNAME answer
-                "val_cnametoinsecure.rpl", // incomplete CNAME answer
-                "val_nsec3_optout_cache.rpl", // more cache stuff
-                "val_ds_gost.rpl", // we don't support GOST (RFC5933)
-                "val_ds_gost_downgrade.rpl", // no GOST
-                "val_unsecds_qtypeds.rpl", // tests the iterative resolver
-                "val_anchor_nx.rpl", // tests caching of NX from a parent
-                                     // resolver
-                "val_anchor_nx_nosig.rpl", // "
-        };
-        List<String> ignoredList = Arrays.asList(ignored);
+    public static void xmain(String[] xargs) {
+        Map<String, String> ignored = new HashMap<String, String>(){{
+            put("val_faildnskey_ok.rpl", "tests an unbound specific config option");
+            put("val_nsec3_nods_negcache.rpl", "we don't do negative caching");
+            put("val_unsecds_negcache.rpl", "we don't do negative caching");
+            put("val_negcache_dssoa.rpl", "we don't do negative caching");
+            put("val_negcache_nodata.rpl", "aggressive NSEC is not supported");
+            put("val_negcache_nxdomain.rpl", "aggressive NSEC is not supported");
+            put("val_nsec3_b3_optout_negcache.rpl", "we don't do negative caching");
+            put("val_dsnsec.rpl", "we don't do negative caching");
+            put("val_refer_unsignadd.rpl", "we don't do negative caching");
+            put("val_referglue.rpl", "we don't do negative caching");
+            put("val_noadwhennodo.rpl", "irrelevant - if we wouldn't want AD, we wouldn't be using this stuff");
+            put("val_fwdds.rpl", "irrelevant, we're not a recursive resolver");
+            put("val_referd.rpl", "NSEC records missing for validation, tests caching stuff");
+            put("val_stubds.rpl", "tests unbound specific config (stub zones)");
+            put("val_cnametonsec.rpl", "incomplete CNAME answer");
+            put("val_cnametooptin.rpl", "incomplete CNAME answer");
+            put("val_cnametoinsecure.rpl", "incomplete CNAME answer");
+            put("val_nsec3_optout_cache.rpl", "more cache stuff");
+            put("val_ds_gost.rpl", "we don't support GOST (RFC5933)");
+            put("val_ds_gost_downgrade.rpl", "we don't support GOST (RFC5933)");
+            put("val_unsecds_qtypeds.rpl", "tests the iterative resolver");
+            put("val_anchor_nx.rpl", "tests caching of NX from a parent resolver");
+            put("val_anchor_nx_nosig.rpl", "tests caching of NX from a parent resolver");
+            put("val_negcache_nta.rpl", "tests unbound option domain-insecure, not available here");
+        }};
 
         for (String f : new File("./src/test/resources/unbound").list()) {
-            if (ignoredList.contains(f)) {
-                continue;
+            String comment = ignored.get(f);
+            if (comment != null) {
+                System.out.println("    @Ignore(\"" + comment + "\")");
             }
 
             System.out.println("    @Test");
             System.out.println("    public void " + f.split("\\.")[0] + "() throws ParseException, IOException {");
             System.out.println("        runUnboundTest();");
             System.out.println("    }");
+            System.out.println();
         }
     }
-
     @Test
     public void val_adbit() throws ParseException, IOException {
         runUnboundTest();
@@ -235,6 +234,18 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_adcopy() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("tests caching of NX from a parent resolver")
+    @Test
+    public void val_anchor_nx() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("tests caching of NX from a parent resolver")
+    @Test
+    public void val_anchor_nx_nosig() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -308,6 +319,12 @@ public class UnboundTests extends TestBase {
         runUnboundTest();
     }
 
+    @Ignore("incomplete CNAME answer")
+    @Test
+    public void val_cnametoinsecure() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
     @Test
     public void val_cnametonodata() throws ParseException, IOException {
         runUnboundTest();
@@ -318,8 +335,20 @@ public class UnboundTests extends TestBase {
         runUnboundTest();
     }
 
+    @Ignore("incomplete CNAME answer")
+    @Test
+    public void val_cnametonsec() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
     @Test
     public void val_cnametonx() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("incomplete CNAME answer")
+    @Test
+    public void val_cnametooptin() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -393,6 +422,12 @@ public class UnboundTests extends TestBase {
         runUnboundTest();
     }
 
+    @Ignore("we don't do negative caching")
+    @Test
+    public void val_dsnsec() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
     @Test
     public void val_ds_afterprime() throws ParseException, IOException {
         runUnboundTest();
@@ -410,6 +445,18 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_ds_cnamesubbogus() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("we don't support GOST (RFC5933)")
+    @Test
+    public void val_ds_gost() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("we don't support GOST (RFC5933)")
+    @Test
+    public void val_ds_gost_downgrade() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -443,6 +490,18 @@ public class UnboundTests extends TestBase {
         runUnboundTest();
     }
 
+    @Ignore("tests an unbound specific config option")
+    @Test
+    public void val_faildnskey_ok() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("irrelevant, we're not a recursive resolver")
+    @Test
+    public void val_fwdds() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
     @Test
     public void val_keyprefetch() throws ParseException, IOException {
         runUnboundTest();
@@ -460,6 +519,36 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_negcache_ds() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("we don't do negative caching")
+    @Test
+    public void val_negcache_dssoa() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("aggressive NSEC is not supported")
+    @Test
+    public void val_negcache_nodata() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("tests unbound option domain-insecure, not available here")
+    @Test
+    public void val_negcache_nta() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("aggressive NSEC is not supported")
+    @Test
+    public void val_negcache_nxdomain() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("irrelevant - if we wouldn't want AD, we wouldn't be using this stuff")
+    @Test
+    public void val_noadwhennodo() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -484,7 +573,7 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
-    public void val_nodatawc_wrongdeleg() throws ParseException, IOException {
+    public void val_nodatawc_one() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -494,12 +583,17 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
-    public void val_nodatawc_one() throws ParseException, IOException {
+    public void val_nodatawc_wrongdeleg() throws ParseException, IOException {
         runUnboundTest();
     }
 
     @Test
     public void val_nodata_ent() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_nodata_entnx() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -510,6 +604,11 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_nodata_failsig() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_nodata_failwc() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -570,6 +669,12 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_nsec3_b3_optout() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("we don't do negative caching")
+    @Test
+    public void val_nsec3_b3_optout_negcache() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -673,6 +778,12 @@ public class UnboundTests extends TestBase {
         runUnboundTest();
     }
 
+    @Ignore("we don't do negative caching")
+    @Test
+    public void val_nsec3_nods_negcache() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
     @Test
     public void val_nsec3_nods_soa() throws ParseException, IOException {
         runUnboundTest();
@@ -680,6 +791,12 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_nsec3_optout_ad() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("more cache stuff")
+    @Test
+    public void val_nsec3_optout_cache() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -695,6 +812,11 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_nx() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_nx_failwc() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -788,6 +910,24 @@ public class UnboundTests extends TestBase {
         runUnboundTest();
     }
 
+    @Ignore("NSEC records missing for validation, tests caching stuff")
+    @Test
+    public void val_referd() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("we don't do negative caching")
+    @Test
+    public void val_referglue() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("we don't do negative caching")
+    @Test
+    public void val_refer_unsignadd() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
     @Test
     public void val_rrsig() throws ParseException, IOException {
         runUnboundTest();
@@ -800,6 +940,12 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_secds_nosig() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("tests unbound specific config (stub zones)")
+    @Test
+    public void val_stubds() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -819,7 +965,17 @@ public class UnboundTests extends TestBase {
     }
 
     @Test
+    public void val_ta_algo_dnskey_dp() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
     public void val_ta_algo_missing() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Test
+    public void val_ta_algo_missing_dp() throws ParseException, IOException {
         runUnboundTest();
     }
 
@@ -845,6 +1001,18 @@ public class UnboundTests extends TestBase {
 
     @Test
     public void val_unsecds() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("we don't do negative caching")
+    @Test
+    public void val_unsecds_negcache() throws ParseException, IOException {
+        runUnboundTest();
+    }
+
+    @Ignore("tests the iterative resolver")
+    @Test
+    public void val_unsecds_qtypeds() throws ParseException, IOException {
         runUnboundTest();
     }
 

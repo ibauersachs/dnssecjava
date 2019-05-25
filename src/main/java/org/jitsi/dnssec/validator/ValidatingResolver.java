@@ -341,9 +341,9 @@ public class ValidatingResolver implements Resolver {
                 boolean wcNsecOk = false;
                 for (SRRset set : nsecs) {
                     NSECRecord nsec = (NSECRecord)set.first();
-                    if (ValUtils.nsecProvesNameError(nsec, wc.getKey(), set.getSignerName())) {
+                    if (ValUtils.nsecProvesNameError(set, nsec, wc.getKey())) {
                         try {
-                            Name nsecWc = ValUtils.nsecWildcard(wc.getKey(), nsec);
+                            Name nsecWc = ValUtils.nsecWildcard(wc.getKey(), set, nsec);
                             if (wc.getValue().equals(nsecWc)) {
                                 wcNsecOk = true;
                                 break;
@@ -532,13 +532,13 @@ public class ValidatingResolver implements Resolver {
             // This needs to handle the empty non-terminal (ENT) NODATA case.
             if (set.getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)set.first();
-                ndp = ValUtils.nsecProvesNodata(nsec, qname, qtype);
+                ndp = ValUtils.nsecProvesNodata(set, nsec, qname, qtype);
                 if (ndp.result) {
                     hasValidNSEC = true;
                 }
 
-                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
-                    ce = ValUtils.closestEncloser(qname, nsec);
+                if (ValUtils.nsecProvesNameError(set, nsec, qname)) {
+                    ce = ValUtils.closestEncloser(qname, set.getName(), nsec.getNext());
                 }
             }
 
@@ -624,6 +624,7 @@ public class ValidatingResolver implements Resolver {
         List<SRRset> nsec3s = new ArrayList<SRRset>(0);
         Name nsec3Signer = null;
         SRRset keyRrset;
+        int previousClosestEncloseLabels = 0;
 
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
             KeyEntry ke = this.prepareFindKey(set);
@@ -640,13 +641,18 @@ public class ValidatingResolver implements Resolver {
 
             if (set.getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)set.first();
-                if (ValUtils.nsecProvesNameError(nsec, qname, set.getSignerName())) {
+                if (ValUtils.nsecProvesNameError(set, nsec, qname)) {
                     hasValidNSEC = true;
                 }
 
-                if (ValUtils.nsecProvesNoWC(nsec, qname, set.getSignerName())) {
-                    hasValidWCNSEC = true;
+                Name next = nsec.getNext();
+                int closestEncloserLabels = ValUtils.closestEncloser(qname, set.getName(), next).labels();
+                if (closestEncloserLabels > previousClosestEncloseLabels
+                        || (closestEncloserLabels == previousClosestEncloseLabels && !hasValidWCNSEC)) {
+                    hasValidWCNSEC = ValUtils.nsecProvesNoWC(set, nsec, qname);
                 }
+
+                previousClosestEncloseLabels = closestEncloserLabels;
             }
 
             if (set.getType() == Type.NSEC3) {
@@ -681,6 +687,15 @@ public class ValidatingResolver implements Resolver {
             // wildcard part of the proof.
             hasValidNSEC = true;
             hasValidWCNSEC = true;
+        }
+
+        // Be lenient with RCODE in NSEC NameError responses
+        if (!hasValidNSEC || !hasValidWCNSEC) {
+            this.validateNodataResponse(request, response);
+            if (response.getStatus() == SecurityStatus.SECURE) {
+                response.getHeader().setRcode(Rcode.NOERROR);
+                return;
+            }
         }
 
         // If the message fails to prove either condition, it is bogus.
@@ -1144,7 +1159,7 @@ public class ValidatingResolver implements Resolver {
                 // For now, in the absence of any other API information, we
                 // return SERVFAIL.
                 int code = response.getHeader().getRcode();
-                if (code == Rcode.NOERROR || code == Rcode.NXDOMAIN || code == Rcode.YXDOMAIN) {
+                if (code == Rcode.NOERROR || code == Rcode.NXDOMAIN) {
                     code = Rcode.SERVFAIL;
                 }
 

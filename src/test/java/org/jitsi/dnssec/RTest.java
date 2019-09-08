@@ -20,7 +20,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.util.ResourceBundle;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 

@@ -51,9 +51,6 @@ Code Coverage / Bugs
   - Test validating against a non-Bind9 head solver
   - Rate limit queries to be able to validate against Google's public resolvers
 
-- JaCoCo/EclEmma doesn't work with jmockit enabled at the same time without
-  specifying -javaagent:jmockit-1.14.jar as a VM argument.
-
 Unit Tests
 ----------
 - <del>The tests currently rely on an online connection to a recursive server and

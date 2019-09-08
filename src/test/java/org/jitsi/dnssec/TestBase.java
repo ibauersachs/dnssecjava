@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.LogManager;
 
 import org.jitsi.dnssec.validator.ValidatingResolver;
 import org.joda.time.DateTime;
@@ -79,15 +78,6 @@ public abstract class TestBase {
     protected final static String localhost = "127.0.0.1";
     protected ValidatingResolver resolver;
     protected String testName;
-
-    static {
-        try {
-            LogManager.getLogManager().readConfiguration(TestBase.class.getResourceAsStream("logging.properties"));
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Rule
     public TestRule watcher = new TestWatcher() {

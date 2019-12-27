@@ -14,6 +14,7 @@ import static org.junit.Assert.*;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Instant;
 
 import org.jitsi.dnssec.validator.DnsSecVerifier;
 import org.jitsi.dnssec.validator.ResponseClassification;
@@ -21,6 +22,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DClass;
+import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.OPTRecord;
@@ -49,7 +51,7 @@ public class TestNormallyUnreachableCode {
         SRRset set = new SRRset();
         set.addRR(record);
         RRset keys = new RRset();
-        SecurityStatus result = verifier.verify(set, keys);
+        SecurityStatus result = verifier.verify(set, keys, Instant.now());
         assertEquals(SecurityStatus.BOGUS, result);
     }
 

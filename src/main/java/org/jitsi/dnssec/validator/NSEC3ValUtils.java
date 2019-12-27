@@ -45,7 +45,6 @@ import java.security.interfaces.DSAPublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -63,6 +62,7 @@ import org.xbill.DNS.NSEC3Record;
 import org.xbill.DNS.NSEC3Record.Flags;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.NameTooLongException;
+import org.xbill.DNS.Record;
 import org.xbill.DNS.TextParseException;
 import org.xbill.DNS.Type;
 import org.xbill.DNS.utils.base32;
@@ -375,8 +375,8 @@ final class NSEC3ValUtils {
         // for now, we return the maximum iterations based simply on the key
         // algorithms that may have been used to sign the NSEC3 RRsets.
         try {
-            for (Iterator<?> i = dnskeyRrset.rrs(); i.hasNext();) {
-                DNSKEYRecord dnskey = (DNSKEYRecord)i.next();
+            for (Record r : dnskeyRrset.rrs()) {
+                DNSKEYRecord dnskey = (DNSKEYRecord)r;
                 int keysize;
                 switch (dnskey.getAlgorithm()) {
                     case Algorithm.RSAMD5:
@@ -432,10 +432,8 @@ final class NSEC3ValUtils {
         Map<Name, NSEC3Record> foundNsecs = new HashMap<>();
         ByteArrayComparator comp = new ByteArrayComparator();
         for (SRRset set : nsec3s) {
-            @SuppressWarnings("unchecked")
-            Iterator<NSEC3Record> it = (Iterator<NSEC3Record>)set.rrs();
-            while (it.hasNext()) {
-                NSEC3Record current = it.next();
+            for (Record r : set.rrs()) {
+                NSEC3Record current = (NSEC3Record)r;
                 Name key = new Name(current.getName(), 1);
                 NSEC3Record previous = foundNsecs.get(key);
                 if (previous != null) {

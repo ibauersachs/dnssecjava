@@ -14,6 +14,7 @@ import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.time.Instant;
 import java.util.Date;
 
 import org.junit.Ignore;
@@ -149,7 +150,8 @@ public class TestInvalid extends TestBase {
         Message message = new Message();
         message.addRecord(Record.newRecord(query, Type.A, DClass.IN), Section.QUESTION);
         message.addRecord(new ARecord(query, Type.A, DClass.IN, InetAddress.getByName(localhost)), Section.ANSWER);
-        message.addRecord(new RRSIGRecord(query, DClass.IN, 0, Type.A, Algorithm.RSASHA256, 5, new Date(System.currentTimeMillis() + 5000), new Date(System.currentTimeMillis() - 5000), 1234, Name.fromString("ingotronic.ch."), new byte[] { 1, 2, 3 }), Section.ANSWER);
+        Instant now = Instant.now();
+        message.addRecord(new RRSIGRecord(query, DClass.IN, 0, Type.A, Algorithm.RSASHA256, 5, now.plusSeconds(5), now.minusSeconds(5), 1234, Name.fromString("ingotronic.ch."), new byte[] { 1, 2, 3 }), Section.ANSWER);
         add("www.ingotronic.ch./A", message);
 
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));

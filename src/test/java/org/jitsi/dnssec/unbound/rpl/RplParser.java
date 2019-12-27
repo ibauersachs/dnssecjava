@@ -18,6 +18,11 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.text.ParseException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -25,8 +30,6 @@ import java.util.TreeMap;
 
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.SecurityStatus;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DNSSEC;
@@ -113,7 +116,12 @@ public class RplParser {
                         rpl.trustAnchors.add(rrset);
                     }
                     else if (line.matches("\\s*val-override-date:.*")) {
-                        rpl.date = DateTime.parse(line.substring(line.indexOf("\"") + 1, line.length() - 2), DateTimeFormat.forPattern("yyyyMMddHHmmss").withZoneUTC());
+                        String date = line.substring(line.indexOf("\"") + 1, line.length() - 1);
+                        DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                                .appendPattern("yyyyMMddHHmmss")
+                                .toFormatter()
+                                .withZone(ZoneId.of("UTC"));
+                        rpl.date = LocalDateTime.parse(date, formatter).toInstant(ZoneOffset.UTC);
                     }
                     else if (line.matches("\\s*val-nsec3-keysize-iterations:.*")) {
                         String[] data = line.substring(line.indexOf("\"") + 1, line.length() - 1).split("\\s");

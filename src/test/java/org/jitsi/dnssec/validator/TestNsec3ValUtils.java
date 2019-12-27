@@ -28,6 +28,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
+import org.xbill.DNS.RRSIGRecord;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
@@ -87,12 +88,12 @@ public class TestNsec3ValUtils extends TestBase {
         // hash(n=9.nsec3.ingotronic.ch.,it=10,s=1234)=6jl2t4i2bb7eilloi8mdhbf3uqjgvu4s
         Message cem = resolver.send(createMessage("9.nsec3.ingotronic.ch./A"));
         Record delegationNsec = null;
-        Record delegationNsecSig = null;
+        RRSIGRecord delegationNsecSig = null;
         for (RRset set : cem.getSectionRRsets(Section.AUTHORITY)) {
             // hash(n=sub.nsec3.ingotronic.ch.,it=10,s=1234)=5RFQOLI81S6LKQTUG5HLI19UVJNKUL3H
             if (set.getName().toString().startsWith("5RFQOLI81S6LKQTUG5HLI19UVJNKUL3H")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }

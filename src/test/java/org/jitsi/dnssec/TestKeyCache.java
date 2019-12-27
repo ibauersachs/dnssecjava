@@ -14,8 +14,6 @@ import static org.junit.Assert.*;
 
 import java.util.Properties;
 
-import org.jitsi.dnssec.SRRset;
-import org.jitsi.dnssec.SecurityStatus;
 import org.jitsi.dnssec.validator.KeyCache;
 import org.jitsi.dnssec.validator.KeyEntry;
 import org.junit.Test;
@@ -23,7 +21,6 @@ import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DSRecord;
 import org.xbill.DNS.Name;
-import org.xbill.DNS.RRset;
 import org.xbill.DNS.TextParseException;
 
 public class TestKeyCache {
@@ -97,18 +94,18 @@ public class TestKeyCache {
         KeyCache kc = new KeyCache();
 
         DNSKEYRecord rA = new DNSKEYRecord(Name.fromString("a."), DClass.IN, 60, 0, 0, 0, new byte[]{0});
-        SRRset setA = new SRRset(new RRset(rA));
+        SRRset setA = new SRRset(rA);
         setA.setSecurityStatus(SecurityStatus.SECURE);
         KeyEntry nkeA = KeyEntry.newKeyEntry(setA);
         kc.store(nkeA);
 
         DSRecord rB = new DSRecord(Name.fromString("b."), DClass.IN, 60, 0, 0, 0, new byte[]{0});
-        SRRset setB = new SRRset(new RRset(rB));
+        SRRset setB = new SRRset(rB);
         KeyEntry nkeB = KeyEntry.newKeyEntry(setB);
         kc.store(nkeB);
 
         DNSKEYRecord rC = new DNSKEYRecord(Name.fromString("c."), DClass.IN, 60, 0, 0, 0, new byte[]{0});
-        SRRset setC = new SRRset(new RRset(rC));
+        SRRset setC = new SRRset(rC);
         KeyEntry nkeC = KeyEntry.newKeyEntry(setC);
         kc.store(nkeC);
 

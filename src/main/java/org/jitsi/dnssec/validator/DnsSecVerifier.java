@@ -40,8 +40,8 @@
 
 package org.jitsi.dnssec.validator;
 
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import org.jitsi.dnssec.SRRset;
@@ -53,6 +53,7 @@ import org.xbill.DNS.DNSSEC;
 import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.RRSIGRecord;
 import org.xbill.DNS.RRset;
+import org.xbill.DNS.Record;
 import org.xbill.DNS.Type;
 
 /**
@@ -84,11 +85,11 @@ public class DnsSecVerifier {
 
         int keyid = signature.getFootprint();
         int alg = signature.getAlgorithm();
-        List<DNSKEYRecord> res = new ArrayList<DNSKEYRecord>(dnskeyRrset.size());
-        for (Iterator<?> i = dnskeyRrset.rrs(); i.hasNext();) {
-            DNSKEYRecord r = (DNSKEYRecord)i.next();
-            if (r.getAlgorithm() == alg && r.getFootprint() == keyid) {
-                res.add(r);
+        List<DNSKEYRecord> res = new ArrayList<>(dnskeyRrset.size());
+        for (Record r : dnskeyRrset.rrs()) {
+            DNSKEYRecord dnskey = (DNSKEYRecord)r;
+            if (dnskey.getAlgorithm() == alg && dnskey.getFootprint() == keyid) {
+                res.add(dnskey);
             }
         }
 
@@ -106,6 +107,7 @@ public class DnsSecVerifier {
      * @param rrset The RRset to verify.
      * @param sigrec The signature record that signs the RRset.
      * @param keyRrset The keys used to create the signature record.
+     * @param date The date against which to verify the signature.
      * 
      * @return {@link SecurityStatus#SECURE} if the signature verified,
      *         {@link SecurityStatus#BOGUS} if it did not verify (for any
@@ -114,7 +116,7 @@ public class DnsSecVerifier {
      *         available).
      */
     private SecurityStatus verifySignature(SRRset rrset, RRSIGRecord sigrec,
-                                           RRset keyRrset) {
+                                           RRset keyRrset, Instant date) {
         List<DNSKEYRecord> keys = this.findKey(keyRrset, sigrec);
         if (keys == null) {
             logger.trace("could not find appropriate key");
@@ -130,7 +132,7 @@ public class DnsSecVerifier {
                     continue;
                 }
 
-                DNSSEC.verify(rrset, sigrec, key);
+                DNSSEC.verify(rrset, sigrec, key, date);
                 ValUtils.setCanonicalNsecOwner(rrset, sigrec);
                 return SecurityStatus.SECURE;
             }
@@ -150,19 +152,19 @@ public class DnsSecVerifier {
      * 
      * @param rrset The RRset to verify.
      * @param keyRrset The keys to verify the signatures in the RRset to check.
+     * @param date The date against which to verify the rrset.
      * @return SecurityStatus.SECURE if the rrest verified positively,
      *         SecurityStatus.BOGUS otherwise.
      */
-    public SecurityStatus verify(SRRset rrset, RRset keyRrset) {
-        Iterator<?> i = rrset.sigs();
-        if (!i.hasNext()) {
+    public SecurityStatus verify(SRRset rrset, RRset keyRrset, Instant date) {
+        List<RRSIGRecord> sigs = rrset.sigs();
+        if (sigs.isEmpty()) {
             logger.info("RRset failed to verify due to lack of signatures");
             return SecurityStatus.BOGUS;
         }
 
-        while (i.hasNext()) {
-            RRSIGRecord sigrec = (RRSIGRecord)i.next();
-            SecurityStatus res = this.verifySignature(rrset, sigrec, keyRrset);
+        for (RRSIGRecord sigrec : sigs) {
+            SecurityStatus res = this.verifySignature(rrset, sigrec, keyRrset, date);
             if (res == SecurityStatus.SECURE) {
                 return res;
             }
@@ -179,25 +181,24 @@ public class DnsSecVerifier {
      * 
      * @param rrset The rrset to verify.
      * @param dnskey The DNSKEY to verify with.
+     * @param date The date against which to verify the rrset.
      * @return SecurityStatus.SECURE if the rrset verified, BOGUS otherwise.
      */
-    public SecurityStatus verify(RRset rrset, DNSKEYRecord dnskey) {
-        Iterator<?> i = rrset.sigs();
-        if (!i.hasNext()) {
+    public SecurityStatus verify(RRset rrset, DNSKEYRecord dnskey, Instant date) {
+        List<RRSIGRecord> sigs = rrset.sigs();
+        if (sigs.isEmpty()) {
             logger.info("RRset failed to verify due to lack of signatures");
             return SecurityStatus.BOGUS;
         }
 
-        while (i.hasNext()) {
-            RRSIGRecord sigrec = (RRSIGRecord)i.next();
-
+        for (RRSIGRecord sigrec : sigs) {
             // Skip RRSIGs that do not match our given key's footprint.
             if (sigrec.getFootprint() != dnskey.getFootprint()) {
                 continue;
             }
 
             try {
-                DNSSEC.verify(rrset, sigrec, dnskey);
+                DNSSEC.verify(rrset, sigrec, dnskey, date);
                 return SecurityStatus.SECURE;
             }
             catch (DNSSECException e) {

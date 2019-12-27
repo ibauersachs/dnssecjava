@@ -41,7 +41,7 @@
 package org.jitsi.dnssec;
 
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -52,6 +52,7 @@ import org.xbill.DNS.Header;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.OPTRecord;
+import org.xbill.DNS.RRSIGRecord;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
@@ -65,7 +66,6 @@ import org.xbill.DNS.Type;
  */
 public class SMessage {
     private static final Logger logger = LoggerFactory.getLogger(SMessage.class);
-    private static final SRRset[] EMPTY_SRRSET_ARRAY = new SRRset[0];
     private static final int NUM_SECTIONS = 3;
     private static final int MAX_FLAGS = 16;
     private static final int EXTENDED_FLAGS_BIT_OFFSET = 4;
@@ -111,10 +111,8 @@ public class SMessage {
         this.oPTRecord = m.getOPT();
 
         for (int i = Section.ANSWER; i <= Section.ADDITIONAL; i++) {
-            RRset[] rrsets = m.getSectionRRsets(i);
-
-            for (int j = 0; j < rrsets.length; j++) {
-                this.addRRset(new SRRset(rrsets[j]), i);
+            for (RRset rrset : m.getSectionRRsets(i)) {
+                this.addRRset(new SRRset(rrset), i);
             }
         }
     }
@@ -178,11 +176,11 @@ public class SMessage {
      * @param qtype Filter the results for these record types.
      * @return Signed RRsets for the queried section.
      */
-    public SRRset[] getSectionRRsets(int section, int qtype) {
+    public List<SRRset> getSectionRRsets(int section, int qtype) {
         List<SRRset> slist = this.getSectionRRsets(section);
 
         if (slist.size() == 0) {
-            return EMPTY_SRRSET_ARRAY;
+            return Collections.emptyList();
         }
 
         List<SRRset> result = new ArrayList<>(slist.size());
@@ -192,7 +190,7 @@ public class SMessage {
             }
         }
 
-        return result.toArray(EMPTY_SRRSET_ARRAY);
+        return result;
     }
 
     /**
@@ -292,12 +290,12 @@ public class SMessage {
         for (int sec = Section.ANSWER; sec <= Section.ADDITIONAL; sec++) {
             List<SRRset> slist = this.getSectionRRsets(sec);
             for (SRRset rrset : slist) {
-                for (Iterator<?> j = rrset.rrs(); j.hasNext();) {
-                    m.addRecord((Record)j.next(), sec);
+                for (Record j : rrset.rrs()) {
+                    m.addRecord(j, sec);
                 }
 
-                for (Iterator<?> j = rrset.sigs(); j.hasNext();) {
-                    m.addRecord((Record)j.next(), sec);
+                for (RRSIGRecord j : rrset.sigs()) {
+                    m.addRecord(j, sec);
                 }
             }
         }

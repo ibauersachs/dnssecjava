@@ -18,15 +18,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
-import java.util.Date;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.jitsi.dnssec.validator.ValidatingResolver;
-import org.joda.time.DateTime;
-import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -35,9 +35,6 @@ import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
-import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
@@ -57,7 +54,8 @@ import org.xbill.DNS.SimpleResolver;
 import org.xbill.DNS.TXTRecord;
 import org.xbill.DNS.Type;
 
-import static org.powermock.api.mockito.PowerMockito.whenNew;
+import static org.mockito.Mockito.mock;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({DNSSEC.class, TestInvalid.class})
@@ -70,13 +68,13 @@ public abstract class TestBase {
     private boolean unboundTest = false;
     private boolean alwaysOffline = false;
 
-    private Map<String, Message> queryResponsePairs = new HashMap<String, Message>();
+    private Map<String, Message> queryResponsePairs = new HashMap<>();
     private MessageReader messageReader = new MessageReader();
     private FileWriter w;
-    private BufferedReader r;
 
     protected final static String localhost = "127.0.0.1";
     protected ValidatingResolver resolver;
+    protected Clock resolverClock;
     protected String testName;
 
     @Rule
@@ -85,6 +83,7 @@ public abstract class TestBase {
         protected void starting(Description description) {
             unboundTest = false;
             testName = description.getMethodName();
+            resolverClock = mock(Clock.class);
 
             try {
                 // do not record or process unbound unit tests offline
@@ -94,13 +93,14 @@ public abstract class TestBase {
                     return;
                 }
 
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
                 String filename = "/recordings/" + description.getClassName().replace(".", "_") + "/" + testName;
                 File f = new File("./src/test/resources" + filename);
                 if ((record || !f.exists()) && !alwaysOffline) {
                     f.getParentFile().getParentFile().mkdir();
                     f.getParentFile().mkdir();
                     w = new FileWriter(f.getAbsoluteFile());
-                    w.write("#Date: " + new DateTime().toString(ISODateTimeFormat.dateTimeNoMillis()));
+                    w.write("#Date: " + ZonedDateTime.now().format(formatter));
                     w.write("\n");
                 }
                 else if (offline || partialOffline || alwaysOffline) {
@@ -111,15 +111,9 @@ public abstract class TestBase {
 
                     InputStream stream = getClass().getResourceAsStream(filename);
                     if (stream != null) {
-                        r = new BufferedReader(new InputStreamReader(stream));
-                        long millis = DateTime.parse(r.readLine().substring("#Date: ".length()), ISODateTimeFormat.dateTimeNoMillis()).getMillis();
-                        whenNew(Date.class).withNoArguments().thenReturn(new Date(millis));
-                        whenNew(Date.class).withArguments(Mockito.anyLong()).thenAnswer(new Answer<Date>(){
-                            @Override
-                            public Date answer(InvocationOnMock invocationOnMock) throws Throwable {
-                                return new Date((Long)invocationOnMock.getArguments()[0]);
-                            }
-                        });
+                        BufferedReader r = new BufferedReader(new InputStreamReader(stream));
+                        String date = r.readLine().substring("#Date: ".length());
+                        when(resolverClock.instant()).thenReturn(ZonedDateTime.parse(date, formatter).toInstant());
 
                         Message m;
                         while ((m = messageReader.readMessage(r)) != null) {
@@ -179,7 +173,7 @@ public abstract class TestBase {
 
                 return networkResult;
             }
-        });
+        }, resolverClock);
 
         resolver.loadTrustAnchors(getClass().getResourceAsStream("/trust_anchors"));
     }
@@ -227,13 +221,10 @@ public abstract class TestBase {
         return messageReader.readMessage(new StringReader(message));
     }
 
-    @SuppressWarnings("unchecked")
     protected String firstA(Message response) {
-        RRset[] sectionRRsets = response.getSectionRRsets(Section.ANSWER);
-        if (sectionRRsets.length > 0) {
-            Iterator<Record> rrs = sectionRRsets[0].rrs();
-            while (rrs.hasNext()) {
-                Record r = rrs.next();
+        List<RRset> sectionRRsets = response.getSectionRRsets(Section.ANSWER);
+        if (!sectionRRsets.isEmpty()) {
+            for (Record r : sectionRRsets.get(0).rrs()) {
                 if (r.getType() == Type.A) {
                     return ((ARecord)r).getAddress().getHostAddress();
                 }
@@ -247,8 +238,7 @@ public abstract class TestBase {
         for (RRset set : m.getSectionRRsets(Section.ADDITIONAL)) {
             if (set.getName().equals(Name.root) && set.getType() == Type.TXT && set.getDClass() == ValidatingResolver.VALIDATION_REASON_QCLASS) {
                 StringBuilder sb = new StringBuilder();
-                @SuppressWarnings("unchecked")
-                List<String> strings = (List<String>)((TXTRecord)set.first()).getStrings();
+                List<String> strings = ((TXTRecord)set.first()).getStrings();
                 for (String part : strings){
                     sb.append(part);
                 }
@@ -261,8 +251,7 @@ public abstract class TestBase {
     }
 
     protected boolean isEmptyAnswer(Message response) {
-        RRset[] sectionRRsets = response.getSectionRRsets(Section.ANSWER);
-        return sectionRRsets.length == 0;
+        return response.getSectionRRsets(Section.ANSWER).isEmpty();
     }
 
     private String key(Name n, int t) {
@@ -281,7 +270,7 @@ public abstract class TestBase {
         try {
             InputStream in = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8));
             Master m = new Master(in, Name.root);
-            return m._nextRecord();
+            return m.nextRecord();
         }
         catch (IOException e) {
             throw new RuntimeException(e);

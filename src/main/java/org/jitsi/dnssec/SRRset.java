@@ -40,7 +40,7 @@
 
 package org.jitsi.dnssec;
 
-import java.util.Iterator;
+import java.util.List;
 
 import org.xbill.DNS.Name;
 import org.xbill.DNS.RRSIGRecord;
@@ -52,7 +52,6 @@ import org.xbill.DNS.Record;
  * security status.
  * 
  * @author davidb
- * @version $Revision: 286 $
  */
 public class SRRset extends RRset {
     private SecurityStatus securityStatus;
@@ -64,22 +63,21 @@ public class SRRset extends RRset {
         this.securityStatus = SecurityStatus.UNCHECKED;
     }
 
+    /** Create a new SRRset with one record. */
+    public SRRset(Record r) {
+        super(r);
+        this.securityStatus = SecurityStatus.UNCHECKED;
+    }
+
     /**
-     * Create a new SRRset from an existing RRset. This SRRset will contain that
-     * same internal Record objects as the original RRset.
+     * Create a new SRRset from an existing RRset. This SRRset will contain the
+     * same internal {@link Record} objects as the original RRset.
      * 
      * @param r The RRset to copy.
      */
     public SRRset(RRset r) {
-        this();
-
-        for (Iterator<?> i = r.rrs(); i.hasNext();) {
-            addRR((Record)i.next());
-        }
-
-        for (Iterator<?> i = r.sigs(); i.hasNext();) {
-            addRR((Record)i.next());
-        }
+        super(r);
+        this.securityStatus = SecurityStatus.UNCHECKED;
     }
 
     /**
@@ -108,9 +106,9 @@ public class SRRset extends RRset {
      * @return The "signer" name for this SRRset, if signed, or null if not.
      */
     public Name getSignerName() {
-        Iterator<?> sigs = sigs();
-        if (sigs.hasNext()) {
-            return ((RRSIGRecord)sigs.next()).getSigner();
+        List<RRSIGRecord> sigs = sigs();
+        if (!sigs.isEmpty()) {
+            return sigs.get(0).getSigner();
         }
 
         return null;

@@ -12,14 +12,12 @@ package org.jitsi.dnssec;
 
 import static org.junit.Assert.*;
 
-import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.validator.TrustAnchorStore;
 import org.junit.Test;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DSRecord;
 import org.xbill.DNS.Name;
-import org.xbill.DNS.RRset;
 import org.xbill.DNS.TXTRecord;
 import org.xbill.DNS.TextParseException;
 
@@ -33,7 +31,7 @@ public class TestTrustAnchorStore {
 
     @Test
     public void testKeyWhenNameUnderAnchorDS() throws TextParseException {
-        SRRset set = new SRRset(new RRset(new DSRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0})));
+        SRRset set = new SRRset(new DSRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0}));
         TrustAnchorStore tas = new TrustAnchorStore();
         tas.store(set);
         SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
@@ -42,7 +40,7 @@ public class TestTrustAnchorStore {
 
     @Test
     public void testKeyWhenNameUnderAnchorDNSKEY() throws TextParseException {
-        SRRset set = new SRRset(new RRset(new DNSKEYRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0})));
+        SRRset set = new SRRset(new DNSKEYRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0}));
         TrustAnchorStore tas = new TrustAnchorStore();
         tas.store(set);
         SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
@@ -51,14 +49,14 @@ public class TestTrustAnchorStore {
 
     @Test(expected = IllegalArgumentException.class)
     public void testInvalidAnchorRecord() throws TextParseException {
-        SRRset set = new SRRset(new RRset(new TXTRecord(Name.fromString("bla."), DClass.IN, 0, "root")));
+        SRRset set = new SRRset(new TXTRecord(Name.fromString("bla."), DClass.IN, 0, "root"));
         TrustAnchorStore tas = new TrustAnchorStore();
         tas.store(set);
     }
 
     @Test
     public void testClear() throws TextParseException {
-        SRRset set = new SRRset(new RRset(new DNSKEYRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0})));
+        SRRset set = new SRRset(new DNSKEYRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0}));
         TrustAnchorStore tas = new TrustAnchorStore();
         tas.store(set);
         SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);

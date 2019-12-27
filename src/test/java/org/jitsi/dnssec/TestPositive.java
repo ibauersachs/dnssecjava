@@ -47,7 +47,7 @@ public class TestPositive extends TestBase {
         Message m = resolver.send(createMessage("www.ingotronic.ch./A"));
         Message message = createMessage("www.ingotronic.ch./MX");
         for (int i = 1; i < Section.ADDITIONAL; i++) {
-            for (Record r: m.getSectionArray(i)) {
+            for (Record r: m.getSection(i)) {
                 message.addRecord(r, i);
             }
         }

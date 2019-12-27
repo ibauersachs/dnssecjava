@@ -46,7 +46,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
             if (set.getName().toString().startsWith("sub.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -71,7 +71,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
             if (set.getName().toString().startsWith("sub.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -104,7 +104,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
             if (set.getName().toString().startsWith("z.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -129,7 +129,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
             if (set.getName().toString().startsWith("z.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -154,7 +154,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
             if (set.getName().toString().startsWith("z.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -192,13 +192,13 @@ public class TestValUtils extends TestBase {
     }
 
     @Test
-    public void testNsecProvesNoDS() throws IOException {
+    public void testNsecProvesNoDS() {
         SecurityStatus s = ValUtils.nsecProvesNoDS(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.SOA, Type.NS }), Name.root);
         assertEquals("Root NSEC SOA and without DS must be secure", SecurityStatus.SECURE, s);
     }
 
     @Test
-    public void testNsecProvesNoDSWithDSPresentForRoot() throws IOException {
+    public void testNsecProvesNoDSWithDSPresentForRoot() {
         SecurityStatus s = ValUtils.nsecProvesNoDS(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.SOA, Type.NS, Type.DS }), Name.root);
         assertEquals("Root NSEC with DS must be bogus", SecurityStatus.BOGUS, s);
     }
@@ -218,7 +218,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
             if (set.getName().toString().startsWith("alias.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -243,7 +243,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
             if (set.getName().toString().startsWith("www.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -268,7 +268,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
             if (set.getName().toString().startsWith("csigned.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -293,7 +293,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
             if (set.getName().toString().startsWith("*.c.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -318,7 +318,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
             if (set.getName().toString().startsWith("*.cwv.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -343,7 +343,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
             if (set.getName().toString().startsWith("*.c.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -368,7 +368,7 @@ public class TestValUtils extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
             if (set.getName().toString().startsWith("sub.ingotronic.ch")) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -391,20 +391,6 @@ public class TestValUtils extends TestBase {
         m.addRecord(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.A }), Section.AUTHORITY);
         SMessage sm = new SMessage(m);
         boolean result = new ValUtils().hasSignedNsecs(sm);
-        assertFalse(result);
-    }
-
-    @Test
-    public void testAtLeastOneSupportedAlgorithmWithOnlyNonDSRecords() {
-        RRset set = new RRset(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.A }));
-        boolean result = ValUtils.atLeastOneSupportedAlgorithm(set);
-        assertFalse(result);
-    }
-
-    @Test
-    public void testAtLeastOneDigestSupportedWithOnlyNonDSRecords() {
-        RRset set = new RRset(new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] { Type.A }));
-        boolean result = ValUtils.atLeastOneDigestSupported(set);
         assertFalse(result);
     }
 }

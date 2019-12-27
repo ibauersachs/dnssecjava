@@ -16,8 +16,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 
-import org.jitsi.dnssec.SMessage;
-import org.jitsi.dnssec.SRRset;
 import org.junit.Test;
 import org.xbill.DNS.AAAARecord;
 import org.xbill.DNS.ARecord;
@@ -64,8 +62,8 @@ public class TestSMessage {
     @Test()
     public void testGetEmptySectionByType() {
         SMessage m = new SMessage(0, null);
-        SRRset[] sets = m.getSectionRRsets(Section.ANSWER, Type.A);
-        assertEquals(0, sets.length);
+        List<SRRset> sets = m.getSectionRRsets(Section.ANSWER, Type.A);
+        assertEquals(0, sets.size());
     }
     @Test()
     public void testGetSectionByType() throws UnknownHostException {
@@ -75,9 +73,9 @@ public class TestSMessage {
         Record r2 = new AAAARecord(Name.root, DClass.IN, 0, InetAddress.getByAddress(new byte[]{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}));
         m.addRecord(r2, Section.ANSWER);
         SMessage sm = new SMessage(m);
-        SRRset[] result = sm.getSectionRRsets(Section.ANSWER, Type.A);
-        assertEquals(1, result.length);
-        assertEquals(Type.A, result[0].getType());
+        List<SRRset> result = sm.getSectionRRsets(Section.ANSWER, Type.A);
+        assertEquals(1, result.size());
+        assertEquals(Type.A, result.get(0).getType());
     }
 
     @Test()

@@ -242,6 +242,49 @@ public class ValUtils {
     }
 
     /**
+     * Given a response, determine the name of the "signer". This is primarily
+     * to determine if the response is, in fact, signed at all, and, if so, what
+     * is the name of the most pertinent keyset.
+     *
+     * @param request The request that generated the response.
+     * @param m The response to analyze.
+     * @return a signer name, if the response is signed (even partially), or
+     *         null if the response isn't signed.
+     */
+    public Name findSigner(Message request, SMessage m) {
+        ResponseClassification subtype = classifyResponse(request, m);
+        switch (subtype) {
+            case POSITIVE:
+            case CNAME:
+            case CNAME_NODATA:
+            case CNAME_NAMEERROR:
+            case ANY:
+                // Check to see if the ANSWER section RRset
+                Name qname = request.getQuestion().getName();
+                for (SRRset rrset : m.getSectionRRsets(Section.ANSWER)) {
+                    if (rrset.getName().equals(qname)) {
+                        return rrset.getSignerName();
+                    }
+                }
+
+                return null;
+            case NAMEERROR:
+            case NODATA:
+                // Check to see if the AUTH section NSEC record(s) have rrsigs
+                for (SRRset rrset : m.getSectionRRsets(Section.AUTHORITY)) {
+                    if (rrset.getType() == Type.NSEC || rrset.getType() == Type.NSEC3) {
+                        return rrset.getSignerName();
+                    }
+                }
+
+                return null;
+            default:
+                logger.debug("Could not find signer name for unknown type response.");
+                return null;
+        }
+    }
+
+    /**
      * Given a DS rrset and a DNSKEY rrset, match the DS to a DNSKEY and verify
      * the DNSKEY rrset with that key.
      * 
@@ -544,27 +587,20 @@ public class ValUtils {
         if (owner.equals(next)) {
             // this nsec is the only nsec: zone.name NSEC zone.name
             // it disproves everything else but only for subdomains of that zone
-            if (strictSubdomain(qname, next)) {
-                return true;
-            }
+            return strictSubdomain(qname, next);
         }
         else if (owner.compareTo(next) > 0) {
             // this is the last nsec, ....(bigger) NSEC zonename(smaller)
             // the names after the last (owner) name do not exist
             // there are no names before the zone name in the zone
             // but the qname must be a subdomain of the zone name(next).
-            if (owner.compareTo(qname) < 0 && strictSubdomain(qname, next)) {
-                return true;
-            }
+            return owner.compareTo(qname) < 0 && strictSubdomain(qname, next);
         }
         else {
             // regular NSEC, (smaller) NSEC (larger)
-            if (owner.compareTo(qname) < 0 && qname.compareTo(next) < 0) {
-                return true;
-            }
+            return owner.compareTo(qname) < 0 && qname.compareTo(next) < 0;
         }
 
-        return false;
     }
 
     /**

@@ -520,6 +520,37 @@ public class ValidatingResolver implements Resolver {
             }
         }
 
+        Name lookupName = request.getQuestion().getName();
+        Name signerName = this.valUtils.findSigner(request, response);
+        if (signerName != null && !lookupName.subdomain(signerName)) {
+            logger.debug("Signer name {} is not a parent of {}, omitted", signerName, lookupName);
+            signerName = null;
+        }
+
+        if (signerName == null) {
+            logger.debug("No signer name, using {}", lookupName);
+            signerName = lookupName;
+        }
+
+        SRRset questionRRset = new SRRset(request.getQuestion());
+        KeyEntry keMain = this.prepareFindKey(questionRRset, signerName);
+        if (!this.processKeyValidate(response, signerName, keMain)) {
+            return;
+        }
+
+        // Unsigned responses must be underneath a "null" key entry
+        if (keMain.isNull()) {
+            logger.debug("Verified that {} response is INSECURE", signerName != null ? "" : "unsigned ");
+            response.setStatus(SecurityStatus.INSECURE);
+            return;
+        }
+
+        if (keMain.isBad()) {
+            logger.debug("Could not establish a chain of trust to keys for {}", keMain.getName());
+            response.setBogus(R.get("failed.xxx"));
+            return;
+        }
+
         // If true, then the NODATA has been proven.
         boolean hasValidNSEC = false;
 
@@ -657,6 +688,8 @@ public class ValidatingResolver implements Resolver {
                 return;
             }
 
+            // If we encounter an NSEC record, try to use it to prove NODATA.
+            // This needs to handle the empty non-terminal (ENT) NODATA case.
             if (set.getType() == Type.NSEC) {
                 NSECRecord nsec = (NSECRecord)set.first();
                 if (ValUtils.nsecProvesNameError(set, nsec, qname)) {
@@ -754,18 +787,23 @@ public class ValidatingResolver implements Resolver {
     }
 
     private KeyEntry prepareFindKey(SRRset rrset) {
-        FindKeyState state = new FindKeyState();
-        state.signerName = rrset.getSignerName();
-        state.qclass = rrset.getDClass();
-
-        if (state.signerName == null) {
-            state.signerName = rrset.getName();
+        Name signerName = rrset.getSignerName();
+        if (signerName == null) {
+            signerName = rrset.getName();
         }
+
+        return this.prepareFindKey(rrset, signerName);
+    }
+
+    private KeyEntry prepareFindKey(SRRset rrset, Name signerName) {
+        FindKeyState state = new FindKeyState();
+        state.signerName = signerName;
+        state.qclass = rrset.getDClass();
 
         SRRset trustAnchorRRset = this.trustAnchors.find(state.signerName, rrset.getDClass());
         if (trustAnchorRRset == null) {
             // response isn't under a trust anchor, so we cannot validate.
-            return KeyEntry.newNullKeyEntry(rrset.getSignerName(), rrset.getDClass(), DEFAULT_TA_BAD_KEY_TTL);
+            return KeyEntry.newNullKeyEntry(state.signerName, rrset.getDClass(), DEFAULT_TA_BAD_KEY_TTL);
         }
 
         state.keyEntry = this.keyCache.find(state.signerName, rrset.getDClass());
@@ -850,14 +888,14 @@ public class ValidatingResolver implements Resolver {
      * 
      * @param response The DS response.
      * @param request The DS request.
-     * @param keyRrset The current DNSKEY rrset from the forEvent state.
+     * @param state The current DNSKEY rrset from the forEvent state.
      * 
      * @return A KeyEntry, bad if the DS response fails to validate, null if the
      *         DS response indicated an end to secure space, good if the DS
      *         validated. It returns null if the DS response indicated that the
      *         request wasn't a delegation point.
      */
-    private KeyEntry dsResponseToKE(SMessage response, Message request, SRRset keyRrset) {
+    private KeyEntry dsResponseToKE(Message request, SMessage response, FindKeyState state) {
         Name qname = request.getQuestion().getName();
         int qclass = request.getQuestion().getDClass();
 
@@ -870,7 +908,7 @@ public class ValidatingResolver implements Resolver {
                 // Verify only returns BOGUS or SECURE. If the rrset is bogus,
                 // then we are done.
                 SRRset dsRrset = response.findAnswerRRset(qname, Type.DS, qclass);
-                status = this.valUtils.verifySRRset(dsRrset, keyRrset, this.clock.instant());
+                status = this.valUtils.verifySRRset(dsRrset, state.keyEntry.getRRset(), this.clock.instant());
                 if (status != SecurityStatus.SECURE) {
                     bogusKE.setBadReason(R.get("failed.ds"));
                     return bogusKE;
@@ -884,13 +922,15 @@ public class ValidatingResolver implements Resolver {
 
                 // Otherwise, we return the positive response.
                 logger.trace("DS rrset was good.");
-                return KeyEntry.newKeyEntry(dsRrset);
+                state.dsRRset = dsRrset;
+                state.currentDSKeyName = new Name(dsRrset.getName(), 1);
+                return KeyEntry.newKeyEntry(state.keyEntry.getRRset());
 
             case CNAME:
                 // Verify only returns BOGUS or SECURE. If the rrset is bogus,
                 // then we are done.
                 SRRset cnameRrset = response.findAnswerRRset(qname, Type.CNAME, qclass);
-                status = this.valUtils.verifySRRset(cnameRrset, keyRrset, this.clock.instant());
+                status = this.valUtils.verifySRRset(cnameRrset, state.keyEntry.getRRset(), this.clock.instant());
                 if (status == SecurityStatus.SECURE) {
                     return null;
                 }
@@ -900,7 +940,7 @@ public class ValidatingResolver implements Resolver {
 
             case NODATA:
             case NAMEERROR:
-                return this.dsReponseToKeForNodata(response, request, keyRrset);
+                return this.dsReponseToKeForNodata(response, request, state.keyEntry.getRRset());
 
             default:
                 // We've encountered an unhandled classification for this
@@ -1014,16 +1054,12 @@ public class ValidatingResolver implements Resolver {
         state.emptyDSName = null;
         state.dsRRset = null;
 
-        KeyEntry dsKE = this.dsResponseToKE(response, request, state.keyEntry.getRRset());
+        KeyEntry dsKE = this.dsResponseToKE(request, response, state);
         if (dsKE == null) {
             // DS response indicated that we aren't on a delegation point.
             state.emptyDSName = qname;
         }
-        else if (dsKE.isGood()) {
-            state.dsRRset = dsKE.getRRset();
-            state.currentDSKeyName = new Name(dsKE.getRRset().getName(), 1);
-        }
-        else {
+        else if (!dsKE.isGood()) {
             // The reason for the DS to be not good (that is, either bad
             // or null) should have been logged by dsResponseToKE.
             state.keyEntry = dsKE;

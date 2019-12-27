@@ -64,7 +64,7 @@ public class TrustAnchorStore {
      * Creates a new instance of this class.
      */
     public TrustAnchorStore() {
-        this.map = new HashMap<String, SRRset>();
+        this.map = new HashMap<>();
     }
 
     /**

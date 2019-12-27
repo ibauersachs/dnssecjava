@@ -46,7 +46,7 @@ import org.xbill.DNS.Type;
  */
 public class RplParser {
     private final InputStream data;
-    private List<String> algoStrings = new ArrayList<String>();
+    private List<String> algoStrings = new ArrayList<>();
 
     private enum ParseState {
         Zero, Server, ENTRY_BEGIN, STEP_QUERY, STEP_CHECK_ANSWER
@@ -82,8 +82,8 @@ public class RplParser {
                     }
                     else if (line.startsWith("SCENARIO_BEGIN")) {
                         rpl.scenario = line.substring(line.indexOf(" "));
-                        rpl.replays = new LinkedList<Message>();
-                        rpl.checks = new TreeMap<Integer, Check>();
+                        rpl.replays = new LinkedList<>();
+                        rpl.checks = new TreeMap<>();
                     }
                     else if (line.startsWith("ENTRY_BEGIN")) {
                         state = ParseState.ENTRY_BEGIN;
@@ -121,7 +121,7 @@ public class RplParser {
                             throw new ParseException("val-nsec3-keysize-iterations invalid", 0);
                         }
 
-                        rpl.nsec3iterations = new TreeMap<Integer, Integer>();
+                        rpl.nsec3iterations = new TreeMap<>();
                         for (int i = 0; i < data.length; i += 2) {
                             rpl.nsec3iterations.put(Integer.parseInt(data[i]), Integer.parseInt(data[i + 1]));
                         }

@@ -86,7 +86,7 @@ final class NSEC3ValUtils {
     NSEC3ValUtils() {
         // see RFC5155#10.3 for the max iteration count
         // CHECKSTYLE:OFF
-        this.maxIterations = new TreeMap<Integer, Integer>();
+        this.maxIterations = new TreeMap<>();
         this.maxIterations.put(1024, 150);
         this.maxIterations.put(2048, 500);
         this.maxIterations.put(4096, 2500);
@@ -126,7 +126,7 @@ final class NSEC3ValUtils {
      * This is just a simple class to encapsulate the response to a closest
      * encloser proof.
      */
-    private final class CEResponse {
+    private static final class CEResponse {
         private Name closestEncloser;
         private NSEC3Record ceNsec3;
         private NSEC3Record ncNsec3;
@@ -215,10 +215,7 @@ final class NSEC3ValUtils {
                     return nsec3;
                 }
             }
-            catch (NoSuchAlgorithmException e) {
-                logger.debug("Unrecognized NSEC3 in set:" + set, e);
-            }
-            catch (TextParseException e) {
+            catch (NoSuchAlgorithmException | TextParseException e) {
                 logger.debug("Unrecognized NSEC3 in set:" + set, e);
             }
         }
@@ -432,7 +429,7 @@ final class NSEC3ValUtils {
      * @return true if all of the NSEC3s can be legally ignored, false if not.
      */
     public boolean allNSEC3sIgnoreable(List<SRRset> nsec3s, KeyCache dnskeyRrset) {
-        Map<Name, NSEC3Record> foundNsecs = new HashMap<Name, NSEC3Record>();
+        Map<Name, NSEC3Record> foundNsecs = new HashMap<>();
         ByteArrayComparator comp = new ByteArrayComparator();
         for (SRRset set : nsec3s) {
             @SuppressWarnings("unchecked")

@@ -175,7 +175,7 @@ public class ValidatingResolver implements Resolver {
     public void loadTrustAnchors(InputStream data) throws IOException {
         // First read in the whole trust anchor file.
         Master master = new Master(data, Name.root, 0);
-        List<Record> records = new ArrayList<Record>();
+        List<Record> records = new ArrayList<>();
         Record mr;
 
         while ((mr = master.nextRecord()) != null) {
@@ -286,9 +286,9 @@ public class ValidatingResolver implements Resolver {
     private void validatePositiveResponse(Message request, SMessage response) {
         int qtype = request.getQuestion().getType();
 
-        Map<Name, Name> wcs = new HashMap<Name, Name>(1);
-        List<SRRset> nsec3s = new ArrayList<SRRset>(0);
-        List<SRRset> nsecs = new ArrayList<SRRset>(0);
+        Map<Name, Name> wcs = new HashMap<>(1);
+        List<SRRset> nsec3s = new ArrayList<>(0);
+        List<SRRset> nsecs = new ArrayList<>(0);
 
         if (!this.validateAnswerAndGetWildcards(response, qtype, wcs)) {
             return;
@@ -438,7 +438,7 @@ public class ValidatingResolver implements Resolver {
             // Check to see if the rrset is the result of a wildcard expansion.
             // If so, an additional check will need to be made in the authority
             // section.
-            Name wc = null;
+            Name wc;
             try {
                 wc = ValUtils.rrsetWildcard(set);
             }
@@ -510,7 +510,7 @@ public class ValidatingResolver implements Resolver {
         NsecProvesNodataResponse ndp = new NsecProvesNodataResponse();
 
         // A collection of NSEC3 RRs found in the authority section.
-        List<SRRset> nsec3s = new ArrayList<SRRset>(0);
+        List<SRRset> nsec3s = new ArrayList<>(0);
 
         // The RRSIG signer field for the NSEC3 RRs.
         Name nsec3Signer = null;
@@ -581,7 +581,7 @@ public class ValidatingResolver implements Resolver {
             return;
         }
 
-        logger.trace("sucessfully validated NODATA response.");
+        logger.trace("successfully validated NODATA response");
         response.setStatus(SecurityStatus.SECURE);
     }
 
@@ -621,7 +621,7 @@ public class ValidatingResolver implements Resolver {
         // In addition, the NSEC record(s) must prove the NXDOMAIN condition.
         boolean hasValidNSEC = false;
         boolean hasValidWCNSEC = false;
-        List<SRRset> nsec3s = new ArrayList<SRRset>(0);
+        List<SRRset> nsec3s = new ArrayList<>(0);
         Name nsec3Signer = null;
         SRRset keyRrset;
         int previousClosestEncloseLabels = 0;
@@ -1180,6 +1180,7 @@ public class ValidatingResolver implements Resolver {
     }
 
     // Resolver-interface implementation --------------------------------------
+
     /**
      * Forwards the data to the head resolver passed at construction time.
      * 

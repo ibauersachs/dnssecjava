@@ -279,7 +279,7 @@ public abstract class TestBase {
 
     protected Record toRecord(String data){
         try {
-            InputStream in = new ByteArrayInputStream(data.getBytes("UTF-8"));
+            InputStream in = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8));
             Master m = new Master(in, Name.root);
             return m._nextRecord();
         }

@@ -71,9 +71,9 @@ public class UnboundTests extends TestBase {
         }
 
         // merge xNAME queries into one
-        List<Message> copy = new ArrayList<Message>(rpl.replays.size());
+        List<Message> copy = new ArrayList<>(rpl.replays.size());
         copy.addAll(rpl.replays);
-        List<Name> copiedTargets = new ArrayList<Name>(5);
+        List<Name> copiedTargets = new ArrayList<>(5);
         for (Message m : copy) {
             Name target = null;
             for (RRset s : m.getSectionRRsets(Section.ANSWER)) {
@@ -111,7 +111,7 @@ public class UnboundTests extends TestBase {
         }
 
         // promote any DS records in auth. sections to real queries
-        copy = new ArrayList<Message>(rpl.replays.size());
+        copy = new ArrayList<>(rpl.replays.size());
         copy.addAll(rpl.replays);
         for (Message m : copy) {
             for (RRset s : m.getSectionRRsets(Section.AUTHORITY)) {

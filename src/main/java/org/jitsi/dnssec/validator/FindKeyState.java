@@ -65,7 +65,7 @@ class FindKeyState {
     Name signerName;
 
     /**
-     * The query class if the key to find.
+     * The query class of the key to find.
      */
     int qclass;
 

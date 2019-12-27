@@ -147,7 +147,7 @@ public class SMessage {
         this.checkSectionValidity(section);
 
         if (this.sections[section - 1] == null) {
-            this.sections[section - 1] = new LinkedList<SRRset>();
+            this.sections[section - 1] = new LinkedList<>();
         }
 
         return this.sections[section - 1];
@@ -185,7 +185,7 @@ public class SMessage {
             return EMPTY_SRRSET_ARRAY;
         }
 
-        List<SRRset> result = new ArrayList<SRRset>(slist.size());
+        List<SRRset> result = new ArrayList<>(slist.size());
         for (SRRset rrset : slist) {
             if (rrset.getType() == qtype) {
                 result.add(rrset);

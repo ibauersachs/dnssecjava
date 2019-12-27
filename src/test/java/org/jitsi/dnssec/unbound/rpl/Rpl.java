@@ -20,7 +20,7 @@ import org.joda.time.DateTime;
 import org.xbill.DNS.Message;
 
 public class Rpl {
-    public List<SRRset> trustAnchors = new ArrayList<SRRset>(1);
+    public List<SRRset> trustAnchors = new ArrayList<>(1);
     public DateTime date;
     public String scenario;
     public List<Message> replays;

@@ -61,7 +61,6 @@ import org.xbill.DNS.Type;
  * finer control over the validation process.
  * 
  * @author davidb
- * @version $Revision: 361 $
  */
 public class DnsSecVerifier {
     private static final Logger logger = LoggerFactory.getLogger(DnsSecVerifier.class);

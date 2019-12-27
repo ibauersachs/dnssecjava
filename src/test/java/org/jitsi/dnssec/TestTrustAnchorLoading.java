@@ -20,7 +20,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.util.Iterator;
 import java.util.Properties;
 
 import org.junit.Test;
@@ -31,6 +30,7 @@ import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
+import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
@@ -73,10 +73,7 @@ public class TestTrustAnchorLoading extends TestBase {
         OutputStreamWriter osw = new OutputStreamWriter(bos);
         for (RRset set : keys.getSectionRRsets(Section.ANSWER)) {
             if (set.getType() == Type.DNSKEY) {
-                @SuppressWarnings("unchecked")
-                Iterator<DNSKEYRecord> it = set.rrs();
-                while (it.hasNext()) {
-                    DNSKEYRecord r = it.next();
+                for (Record r : set.rrs()) {
                     osw.write(r.toString());
                     osw.write('\n');
                 }

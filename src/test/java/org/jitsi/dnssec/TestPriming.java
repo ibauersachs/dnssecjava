@@ -29,7 +29,6 @@ import org.powermock.reflect.Whitebox;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC;
-import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
@@ -68,7 +67,7 @@ public class TestPriming extends TestBase {
     }
 
     @Test
-    public void testDnskeyPrimeResponseWithInvalidSignatureIsBad() throws IOException, NumberFormatException, DNSSECException {
+    public void testDnskeyPrimeResponseWithInvalidSignatureIsBad() throws IOException, NumberFormatException {
         Message m = resolver.send(createMessage("./DNSKEY"));
         Message message = messageFromString(m.toString().replaceAll("(.*\\sRRSIG\\sDNSKEY\\s(\\d+\\s+){6}.*\\.)(.*)", "$1 YXNkZg=="));
         add("./DNSKEY", message);
@@ -96,7 +95,7 @@ public class TestPriming extends TestBase {
 
     @Test
     @PrepareMocks("prepareTestDnskeyPrimeResponseWithMismatchedAlgorithmIsBad")
-    public void testDnskeyPrimeResponseWithMismatchedAlgorithmIsBad() throws IOException, NumberFormatException, DNSSECException {
+    public void testDnskeyPrimeResponseWithMismatchedAlgorithmIsBad() throws IOException, NumberFormatException {
         Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
         assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
         assertEquals(Rcode.SERVFAIL, response.getRcode());
@@ -153,7 +152,7 @@ public class TestPriming extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.AUTHORITY)) {
             if (set.getName().toString().startsWith("sub.ingotronic.ch") && set.getType() == Type.NSEC) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }
@@ -190,7 +189,7 @@ public class TestPriming extends TestBase {
         for (RRset set : nsec.getSectionRRsets(Section.ANSWER)) {
             if (set.getName().toString().startsWith("alias.ingotronic.ch") && set.getType() == Type.NSEC) {
                 delegationNsec = set.first();
-                delegationNsecSig = (Record)set.sigs().next();
+                delegationNsecSig = set.sigs().get(0);
                 break;
             }
         }

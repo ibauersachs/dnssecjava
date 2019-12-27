@@ -11,12 +11,14 @@
 package org.jitsi.dnssec.unbound.rpl;
 
 import static org.junit.Assert.assertEquals;
+import static org.powermock.api.mockito.PowerMockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.ParseException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -40,6 +42,7 @@ import org.xbill.DNS.DNSSEC;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
+import org.xbill.DNS.RRSIGRecord;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
@@ -118,14 +121,12 @@ public class UnboundTests extends TestBase {
                 if (s.getType() == Type.DS) {
                     Message ds = new Message();
                     ds.addRecord(Record.newRecord(s.getName(), s.getType(), s.getDClass()), Section.QUESTION);
-                    Iterator<?> rrs = s.rrs();
-                    while (rrs.hasNext()) {
-                        ds.addRecord((Record)rrs.next(), Section.ANSWER);
+                    for (Record rr : s.rrs()) {
+                        ds.addRecord(rr, Section.ANSWER);
                     }
 
-                    Iterator<?> sigs = s.sigs();
-                    while (sigs.hasNext()) {
-                        ds.addRecord((Record)sigs.next(), Section.ANSWER);
+                    for (RRSIGRecord sig : s.sigs()) {
+                        ds.addRecord(sig, Section.ANSWER);
                     }
 
                     rpl.replays.add(ds);
@@ -140,8 +141,7 @@ public class UnboundTests extends TestBase {
 
         if (rpl.date != null) {
             try {
-                Date d = new Date(rpl.date.getMillis());
-                whenNew(Date.class).withNoArguments().thenReturn(d);
+                when(resolverClock.instant()).thenReturn(rpl.date);
             }
             catch (Exception e) {
                 throw new RuntimeException(e);
@@ -167,7 +167,7 @@ public class UnboundTests extends TestBase {
     private Name add(Message target, Message source) {
         Name next = null;
         target.getHeader().setRcode(source.getRcode());
-        for (Record r : source.getSectionArray(Section.ANSWER)) {
+        for (Record r : source.getSection(Section.ANSWER)) {
             target.addRecord(r, Section.ANSWER);
             if (r.getType() == Type.CNAME) {
                 next = ((CNAMERecord)r).getTarget();
@@ -177,7 +177,7 @@ public class UnboundTests extends TestBase {
             }
         }
 
-        for (Record r : source.getSectionArray(Section.AUTHORITY)) {
+        for (Record r : source.getSection(Section.AUTHORITY)) {
             if (r.getType() != Type.NS) {
                 target.addRecord(r, Section.AUTHORITY);
             }

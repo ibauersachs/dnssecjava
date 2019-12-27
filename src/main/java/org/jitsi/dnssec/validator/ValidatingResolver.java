@@ -44,7 +44,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,6 +54,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CompletionStage;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +66,7 @@ import org.jitsi.dnssec.validator.ValUtils.NsecProvesNodataResponse;
 import org.xbill.DNS.CNAMERecord;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNAMERecord;
+import org.xbill.DNS.EDNSOption;
 import org.xbill.DNS.ExtendedFlags;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Header;
@@ -75,7 +78,6 @@ import org.xbill.DNS.NameTooLongException;
 import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Resolver;
-import org.xbill.DNS.ResolverListener;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.TSIG;
 import org.xbill.DNS.TXTRecord;
@@ -126,14 +128,31 @@ public class ValidatingResolver implements Resolver {
     private Resolver headResolver;
 
     /**
+     * The clock used to validate messages.
+     */
+    private final Clock clock;
+
+    /**
      * Creates a new instance of this class.
      * 
      * @param headResolver The resolver to which queries for DS, DNSKEY and
      *            referring CNAME records are sent.
      */
     public ValidatingResolver(Resolver headResolver) {
+        this(headResolver, Clock.systemUTC());
+    }
+
+    /**
+     * Creates a new instance of this class.
+     *
+     * @param headResolver The resolver to which queries for DS, DNSKEY and
+     *                     referring CNAME records are sent.
+     * @param clock        the Clock to validate messages.
+     */
+    public ValidatingResolver(Resolver headResolver, Clock clock) {
         this.headResolver = headResolver;
-        headResolver.setEDNS(0, 0, ExtendedFlags.DO, null);
+        this.clock = clock;
+        headResolver.setEDNS(0, 0, ExtendedFlags.DO);
         headResolver.setIgnoreTruncation(false);
 
         this.keyCache = new KeyCache();
@@ -143,6 +162,7 @@ public class ValidatingResolver implements Resolver {
     }
 
     // ---------------- Module Initialization -------------------
+
     /**
      * Initialize the module. The only recognized configuration value is
      * <tt>org.jitsi.dnssec.trust_anchor_file</tt>.
@@ -171,7 +191,6 @@ public class ValidatingResolver implements Resolver {
      * @param data The trust anchor data.
      * @throws IOException when the trust anchor data could not be read.
      */
-    @SuppressWarnings("unchecked")
     public void loadTrustAnchors(InputStream data) throws IOException {
         // First read in the whole trust anchor file.
         Master master = new Master(data, Name.root, 0);
@@ -252,7 +271,7 @@ public class ValidatingResolver implements Resolver {
         while (authRrsetIterator.hasNext()) {
             SRRset rrset = authRrsetIterator.next();
             if (rrset.getType() == Type.NS) {
-                if (!rrset.sigs().hasNext()) {
+                if (rrset.sigs().isEmpty()) {
                     logger.trace("Removing spurious unsigned NS record (likely inserted by forwarder) {}/{}/{}",
                             rrset.getName(),
                             Type.string(rrset.getType()),
@@ -313,7 +332,7 @@ public class ValidatingResolver implements Resolver {
                 }
 
                 keyRrset = ke.getRRset();
-                SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
+                SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset, this.clock.instant());
                 // If anything in the authority section fails to be secure, we
                 // have a bad message.
                 if (status != SecurityStatus.SECURE) {
@@ -428,7 +447,7 @@ public class ValidatingResolver implements Resolver {
                 return false;
             }
 
-            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset());
+            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset(), this.clock.instant());
             // If the answer rrset failed to validate, then this message is BAD
             if (status != SecurityStatus.SECURE) {
                 response.setBogus(R.get("failed.answer.positive", set));
@@ -522,7 +541,7 @@ public class ValidatingResolver implements Resolver {
                 return;
             }
 
-            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset());
+            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset(), this.clock.instant());
             if (status != SecurityStatus.SECURE) {
                 response.setBogus(R.get("failed.authority.nodata", set));
                 return;
@@ -623,7 +642,6 @@ public class ValidatingResolver implements Resolver {
         boolean hasValidWCNSEC = false;
         List<SRRset> nsec3s = new ArrayList<>(0);
         Name nsec3Signer = null;
-        SRRset keyRrset;
         int previousClosestEncloseLabels = 0;
 
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY)) {
@@ -632,8 +650,7 @@ public class ValidatingResolver implements Resolver {
                 return;
             }
 
-            keyRrset = ke.getRRset();
-            SecurityStatus status = this.valUtils.verifySRRset(set, keyRrset);
+            SecurityStatus status = this.valUtils.verifySRRset(set, ke.getRRset(), this.clock.instant());
             if (status != SecurityStatus.SECURE) {
                 response.setBogus(R.get("failed.nxdomain.authority", set));
                 return;
@@ -719,7 +736,7 @@ public class ValidatingResolver implements Resolver {
         logger.trace("sending request: <" + q.getName() + "/" + Type.string(q.getType()) + "/" + DClass.string(q.getDClass()) + ">");
 
         // Send the request along by using a local copy of the request
-        Message localRequest = (Message)request.clone();
+        Message localRequest = request.clone();
         localRequest.getHeader().setFlag(Flags.CD);
         try {
             Message resp = this.headResolver.send(localRequest);
@@ -727,10 +744,6 @@ public class ValidatingResolver implements Resolver {
         }
         catch (SocketTimeoutException e) {
             logger.error("Query timed out, returning fail", e);
-            return ValidatingResolver.errorMessage(localRequest, Rcode.SERVFAIL);
-        }
-        catch (UnknownHostException e) {
-            logger.error("failed to send query", e);
             return ValidatingResolver.errorMessage(localRequest, Rcode.SERVFAIL);
         }
         catch (IOException e) {
@@ -856,7 +869,7 @@ public class ValidatingResolver implements Resolver {
                 // Verify only returns BOGUS or SECURE. If the rrset is bogus,
                 // then we are done.
                 SRRset dsRrset = response.findAnswerRRset(qname, Type.DS, qclass);
-                status = this.valUtils.verifySRRset(dsRrset, keyRrset);
+                status = this.valUtils.verifySRRset(dsRrset, keyRrset, this.clock.instant());
                 if (status != SecurityStatus.SECURE) {
                     bogusKE.setBadReason(R.get("failed.ds"));
                     return bogusKE;
@@ -876,7 +889,7 @@ public class ValidatingResolver implements Resolver {
                 // Verify only returns BOGUS or SECURE. If the rrset is bogus,
                 // then we are done.
                 SRRset cnameRrset = response.findAnswerRRset(qname, Type.CNAME, qclass);
-                status = this.valUtils.verifySRRset(cnameRrset, keyRrset);
+                status = this.valUtils.verifySRRset(cnameRrset, keyRrset, this.clock.instant());
                 if (status == SecurityStatus.SECURE) {
                     return null;
                 }
@@ -920,7 +933,7 @@ public class ValidatingResolver implements Resolver {
         }
 
         // Try to prove absence of the DS with NSEC
-        JustifiedSecStatus status = this.valUtils.nsecProvesNodataDsReply(request, response, keyRrset);
+        JustifiedSecStatus status = this.valUtils.nsecProvesNodataDsReply(request, response, keyRrset, this.clock.instant());
         switch (status.status) {
             case SECURE:
                 KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, DEFAULT_TA_BAD_KEY_TTL);
@@ -937,14 +950,14 @@ public class ValidatingResolver implements Resolver {
         }
 
         // Or it could be using NSEC3.
-        SRRset[] nsec3Rrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC3);
-        List<SRRset> nsec3s = new ArrayList<SRRset>(0);
+        List<SRRset> nsec3Rrsets = response.getSectionRRsets(Section.AUTHORITY, Type.NSEC3);
+        List<SRRset> nsec3s = new ArrayList<>(0);
         Name nsec3Signer = null;
         long nsec3TTL = -1;
-        if (nsec3Rrsets.length > 0) {
+        if (!nsec3Rrsets.isEmpty()) {
             // Attempt to prove no DS with NSEC3s.
             for (SRRset nsec3set : nsec3Rrsets) {
-                SecurityStatus sstatus = this.valUtils.verifySRRset(nsec3set, keyRrset);
+                SecurityStatus sstatus = this.valUtils.verifySRRset(nsec3set, keyRrset, this.clock.instant());
                 if (sstatus != SecurityStatus.SECURE) {
                     // We could just fail here as there is an invalid rrset, but
                     // skipping doesn't matter because we might not need it or
@@ -1036,7 +1049,7 @@ public class ValidatingResolver implements Resolver {
             return;
         }
 
-        state.keyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, state.dsRRset, DEFAULT_TA_BAD_KEY_TTL);
+        state.keyEntry = this.valUtils.verifyNewDNSKEYs(dnskeyRrset, state.dsRRset, DEFAULT_TA_BAD_KEY_TTL, this.clock.instant());
 
         // If the key entry isBad or isNull, then we can move on to the next
         // state.
@@ -1211,18 +1224,10 @@ public class ValidatingResolver implements Resolver {
     }
 
     /**
-     * This is a no-op, EDNS is always set to level 0.
-     * 
-     * @param level unused
-     */
-    public void setEDNS(int level) {
-    }
-
-    /**
      * The method is forwarded to the resolver, but always ensure that the level
      * is 0 and the flags contains DO.
      * 
-     * @param level unused, always set to 0.
+     * @param version The EDNS level to use. 0 indicates EDNS0.
      * @param payloadSize The maximum DNS packet size that this host is capable
      *            of receiving over UDP. If 0 is specified, the default (1280)
      *            is used.
@@ -1232,8 +1237,12 @@ public class ValidatingResolver implements Resolver {
      *            List of OPTRecord.Option elements.
      * @see org.xbill.DNS.Resolver#setEDNS(int, int, int, java.util.List)
      */
-    public void setEDNS(int level, int payloadSize, int flags, @SuppressWarnings("rawtypes") List options) {
-        this.headResolver.setEDNS(0, payloadSize, flags | ExtendedFlags.DO, options);
+    public void setEDNS(int version, int payloadSize, int flags, List<EDNSOption> options) {
+        if (version == -1) {
+            throw new IllegalArgumentException("EDNS cannot be disabled");
+        }
+
+        this.headResolver.setEDNS(version, payloadSize, flags | ExtendedFlags.DO, options);
     }
 
     /**
@@ -1246,27 +1255,9 @@ public class ValidatingResolver implements Resolver {
         this.headResolver.setTSIGKey(key);
     }
 
-    /**
-     * Sets the amount of time to wait for a response before giving up. This
-     * applies only to the head resolver, the time for an actual query to the
-     * validating resolver IS higher.
-     * 
-     * @param secs The number of seconds to wait.
-     * @param msecs The number of milliseconds to wait.
-     */
-    public void setTimeout(int secs, int msecs) {
-        this.headResolver.setTimeout(secs, msecs);
-    }
-
-    /**
-     * Sets the amount of time to wait for a response before giving up. This
-     * applies only to the head resolver, the time for an actual query to the
-     * validating resolver IS higher.
-     * 
-     * @param secs The number of seconds to wait.
-     */
-    public void setTimeout(int secs) {
-        this.headResolver.setTimeout(secs);
+    @Override
+    public void setTimeout(Duration duration) {
+        this.headResolver.setTimeout(duration);
     }
 
     /**
@@ -1275,9 +1266,8 @@ public class ValidatingResolver implements Resolver {
      * 
      * @param query The query to send.
      * @return The validated response message.
-     * @throws IOException An error occurred while sending or receiving.
      */
-    public Message send(Message query) throws IOException {
+    public Message send(Message query) {
         SMessage response = this.sendRequest(query);
         response.getHeader().unsetFlag(Flags.AD);
 
@@ -1290,7 +1280,7 @@ public class ValidatingResolver implements Resolver {
         // signatures on signatures. Negative answers CAN be validated.
         Message rrsigResponse = response.getMessage();
         if (query.getQuestion().getType() == Type.RRSIG && rrsigResponse.getHeader().getRcode() == Rcode.NOERROR
-                && rrsigResponse.getSectionRRsets(Section.ANSWER).length > 0) {
+                && !rrsigResponse.getSectionRRsets(Section.ANSWER).isEmpty()) {
             rrsigResponse.getHeader().unsetFlag(Flags.AD);
             return rrsigResponse;
         }
@@ -1316,12 +1306,10 @@ public class ValidatingResolver implements Resolver {
     /**
      * Not implemented.
      * 
-     * @param query The query to send
-     * @param listener The object containing the callbacks.
-     * @return An identifier, which is also a parameter in the callback
-     * @throws UnsupportedOperationException Always
+     * @param query The query to send.
+     * @return A future that completes when the query is finished.
      */
-    public Object sendAsync(Message query, ResolverListener listener) {
+    public CompletionStage<Message> sendAsync(Message query) {
         throw new UnsupportedOperationException("Not implemented");
     }
 

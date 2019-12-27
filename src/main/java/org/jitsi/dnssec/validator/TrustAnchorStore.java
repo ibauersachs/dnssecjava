@@ -41,7 +41,6 @@
 package org.jitsi.dnssec.validator;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import org.jitsi.dnssec.SRRset;
@@ -80,11 +79,10 @@ public class TrustAnchorStore {
 
         if (rrset.getType() == Type.DNSKEY) {
             SRRset temp = new SRRset();
-            Iterator<?> it = rrset.rrs();
-            while (it.hasNext()) {
-                DNSKEYRecord key = (DNSKEYRecord)it.next();
-                DSRecord r = new DSRecord(key.getName(), key.getDClass(), key.getTTL(), DSRecord.Digest.SHA384, key);
-                temp.addRR(r);
+            for (Record r : rrset.rrs()) {
+                DNSKEYRecord key = (DNSKEYRecord)r;
+                DSRecord ds = new DSRecord(key.getName(), key.getDClass(), key.getTTL(), DSRecord.Digest.SHA384, key);
+                temp.addRR(ds);
             }
 
             rrset = temp;
@@ -94,10 +92,7 @@ public class TrustAnchorStore {
         rrset.setSecurityStatus(SecurityStatus.SECURE);
         SRRset previous = this.map.put(k, rrset);
         if (previous != null) {
-            Iterator<?> rrs = previous.rrs();
-            while (rrs.hasNext()) {
-                rrset.addRR((Record)rrs.next());
-            }
+            previous.rrs().forEach(rrset::addRR);
         }
     }
 

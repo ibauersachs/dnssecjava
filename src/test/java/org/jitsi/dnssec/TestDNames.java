@@ -12,11 +12,11 @@ package org.jitsi.dnssec;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.util.Iterator;
 
 import org.junit.Test;
 import org.xbill.DNS.DClass;
@@ -25,6 +25,7 @@ import org.xbill.DNS.Flags;
 import org.xbill.DNS.Lookup;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
+import org.xbill.DNS.RRSIGRecord;
 import org.xbill.DNS.RRset;
 import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
@@ -95,7 +96,7 @@ public class TestDNames extends TestBase {
         Lookup l = new Lookup("www.isc.ingotronic.ch");
         l.setResolver(resolver);
         Record[] results = l.run();
-        assertTrue(results != null);
+        assertNotNull(results);
         assertTrue(results.length >= 1);
     }
 
@@ -127,7 +128,6 @@ public class TestDNames extends TestBase {
         assertEquals("failed.synthesize.toolong", getReason(response));
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     public void testDNameInNsecIsUnderstood_Rfc6672_5_3_4_1() throws IOException {
         Message nsecs = resolver.send(createMessage("alias.ingotronic.ch./NS"));
@@ -142,13 +142,12 @@ public class TestDNames extends TestBase {
         Message message = new Message();
         message.getHeader().setRcode(Rcode.NXDOMAIN);
         message.addRecord(Record.newRecord(Name.fromString("www.alias.ingotronic.ch."), Type.A, DClass.IN), Section.QUESTION);
-        Iterator<Record> rrs = nsecSet.rrs();
-        while (rrs.hasNext()) {
-            message.addRecord(rrs.next(), Section.AUTHORITY);
+        for (Record r : nsecSet.rrs()) {
+            message.addRecord(r, Section.AUTHORITY);
         }
-        Iterator<Record> sigs = nsecSet.sigs();
-        while (sigs.hasNext()) {
-            message.addRecord(sigs.next(), Section.AUTHORITY);
+
+        for (RRSIGRecord sig : nsecSet.sigs()) {
+            message.addRecord(sig, Section.AUTHORITY);
         }
 
         add("www.alias.ingotronic.ch./A", message);

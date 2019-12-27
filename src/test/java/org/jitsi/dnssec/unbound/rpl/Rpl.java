@@ -10,18 +10,18 @@
 
 package org.jitsi.dnssec.unbound.rpl;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
 import org.jitsi.dnssec.SRRset;
-import org.joda.time.DateTime;
 import org.xbill.DNS.Message;
 
 public class Rpl {
     public List<SRRset> trustAnchors = new ArrayList<>(1);
-    public DateTime date;
+    public Instant date;
     public String scenario;
     public List<Message> replays;
     public Map<Integer, Check> checks;

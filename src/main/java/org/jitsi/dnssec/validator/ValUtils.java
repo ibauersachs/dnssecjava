@@ -40,7 +40,8 @@
 
 package org.jitsi.dnssec.validator;
 
-import java.util.Iterator;
+import java.time.Instant;
+import java.util.List;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -249,6 +250,7 @@ public class ValUtils {
      * @param dsRrset The DS rrset to match with. This rrset must already be
      *            trusted.
      * @param badKeyTTL The TTL [s] for keys determined to be bad.
+     * @param date The date against which to verify the rrset.
      * 
      * @return a KeyEntry. This will either contain the now trusted dnskey
      *         RRset, a "null" key entry indicating that this DS rrset/DNSKEY
@@ -258,7 +260,7 @@ public class ValUtils {
      *         in a private algorithm scenario: normally this sort of thing is
      *         checked before fetching the matching DNSKEY rrset.
      */
-    public KeyEntry verifyNewDNSKEYs(SRRset dnskeyRrset, SRRset dsRrset, long badKeyTTL) {
+    public KeyEntry verifyNewDNSKEYs(SRRset dnskeyRrset, SRRset dsRrset, long badKeyTTL, Instant date) {
         if (!atLeastOneDigestSupported(dsRrset)) {
             KeyEntry ke = KeyEntry.newNullKeyEntry(dsRrset.getName(), dsRrset.getDClass(), dsRrset.getTTL());
             ke.setBadReason(R.get("failed.ds.nodigest", dsRrset.getName()));
@@ -272,14 +274,14 @@ public class ValUtils {
         }
 
         int favoriteDigestID = this.favoriteDSDigestID(dsRrset);
-        for (Iterator<?> i = dsRrset.rrs(); i.hasNext();) {
-            DSRecord ds = (DSRecord)i.next();
+        for (Record dsr : dsRrset.rrs()) {
+            DSRecord ds = (DSRecord)dsr;
             if (this.digestHardenDowngrade && ds.getDigestID() != favoriteDigestID) {
                 continue;
             }
 
-            DNSKEY: for (Iterator<?> j = dnskeyRrset.rrs(); j.hasNext();) {
-                DNSKEYRecord dnskey = (DNSKEYRecord)j.next();
+            DNSKEY: for (Record dsnkeyr : dnskeyRrset.rrs()) {
+                DNSKEYRecord dnskey = (DNSKEYRecord)dsnkeyr;
 
                 // Skip DNSKEYs that don't match the basic criteria.
                 if (ds.getFootprint() != dnskey.getFootprint() || ds.getAlgorithm() != dnskey.getAlgorithm()) {
@@ -305,7 +307,7 @@ public class ValUtils {
 
                 // Otherwise, we have a match! Make sure that the DNSKEY
                 // verifies *with this key*.
-                SecurityStatus res = this.verifier.verify(dnskeyRrset, dnskey);
+                SecurityStatus res = this.verifier.verify(dnskeyRrset, dnskey, date);
                 if (res == SecurityStatus.SECURE) {
                     logger.trace("DS matched DNSKEY.");
                     dnskeyRrset.setSecurityStatus(SecurityStatus.SECURE);
@@ -337,21 +339,21 @@ public class ValUtils {
     int favoriteDSDigestID(SRRset dsset) {
         if (this.digestPreference == null) {
             int max = 0;
-            for (Iterator<?> rrs = dsset.rrs(); rrs.hasNext();) {
-                DSRecord r = (DSRecord)rrs.next();
-                if (r.getDigestID() > max && isDigestSupported(r.getDigestID()) && isAlgorithmSupported(r.getAlgorithm())) {
-                    max = r.getDigestID();
+            for (Record r : dsset.rrs()) {
+                DSRecord ds = (DSRecord)r;
+                if (ds.getDigestID() > max && isDigestSupported(ds.getDigestID()) && isAlgorithmSupported(ds.getAlgorithm())) {
+                    max = ds.getDigestID();
                 }
             }
 
             return max;
         }
         else {
-            for (int i = 0; i < this.digestPreference.length; i++) {
-                for (Iterator<?> rrs = dsset.rrs(); rrs.hasNext();) {
-                    DSRecord r = (DSRecord)rrs.next();
-                    if (r.getDigestID() == this.digestPreference[i]) {
-                        return r.getDigestID();
+            for (int preference : this.digestPreference) {
+                for (Record r : dsset.rrs()) {
+                    DSRecord ds = (DSRecord)r;
+                    if (ds.getDigestID() == preference) {
+                        return ds.getDigestID();
                     }
                 }
             }
@@ -367,9 +369,10 @@ public class ValUtils {
      * 
      * @param rrset The SRRset to verify.
      * @param keyRrset The set of keys to verify against.
+     * @param date The date against which to verify the rrset.
      * @return The status (BOGUS or SECURE).
      */
-    public SecurityStatus verifySRRset(SRRset rrset, SRRset keyRrset) {
+    public SecurityStatus verifySRRset(SRRset rrset, SRRset keyRrset, Instant date) {
         String rrsetName = rrset.getName() + "/" + Type.string(rrset.getType()) + "/" + DClass.string(rrset.getDClass());
 
         if (rrset.getSecurityStatus() == SecurityStatus.SECURE) {
@@ -377,7 +380,7 @@ public class ValUtils {
             return SecurityStatus.SECURE;
         }
 
-        SecurityStatus status = this.verifier.verify(rrset, keyRrset);
+        SecurityStatus status = this.verifier.verify(rrset, keyRrset, date);
         if (status != SecurityStatus.SECURE) {
             logger.debug("verifySRRset: rrset <" + rrsetName + "> found to be BAD");
             status = SecurityStatus.BOGUS;
@@ -400,13 +403,12 @@ public class ValUtils {
      *         null if not.
      */
     public static Name rrsetWildcard(RRset rrset) {
-        @SuppressWarnings("unchecked")
-        Iterator<RRSIGRecord> it = (Iterator<RRSIGRecord>)rrset.sigs();
-        RRSIGRecord rrsig = it.next();
+        List<RRSIGRecord> sigs = rrset.sigs();
+        RRSIGRecord firstSig = sigs.get(0);
 
         // check rest of signatures have identical label count
-        while (it.hasNext()) {
-            if (it.next().getLabels() != rrsig.getLabels()) {
+        for (int i = 1; i < sigs.size(); i++) {
+            if (sigs.get(i).getLabels() != firstSig.getLabels()) {
                 throw new RuntimeException("failed.wildcard.label_count_mismatch");
             }
         }
@@ -421,7 +423,7 @@ public class ValUtils {
             wn = new Name(wn, 1);
         }
 
-        int labelDiff = (wn.labels() - 1) - rrsig.getLabels();
+        int labelDiff = (wn.labels() - 1) - firstSig.getLabels();
         if (labelDiff > 0) {
             return wn.wild(labelDiff);
         }
@@ -703,9 +705,11 @@ public class ValUtils {
      * @param request The request that generated this response.
      * @param response The response to validate.
      * @param keyRrset The key that validate the NSECs.
+     * @param date The date against which to verify the response.
      * @return The NODATA proof along with the reason of the result.
      */
-    public JustifiedSecStatus nsecProvesNodataDsReply(Message request, SMessage response, SRRset keyRrset) {
+    public JustifiedSecStatus nsecProvesNodataDsReply(Message request, SMessage response,
+                                                      SRRset keyRrset, Instant date) {
         Name qname = request.getQuestion().getName();
         int qclass = request.getQuestion().getDClass();
 
@@ -717,7 +721,7 @@ public class ValUtils {
         SRRset nsecRrset = response.findRRset(qname, Type.NSEC, qclass, Section.AUTHORITY);
         if (nsecRrset != null) {
             // The NSEC must verify, first of all.
-            SecurityStatus status = this.verifySRRset(nsecRrset, keyRrset);
+            SecurityStatus status = this.verifySRRset(nsecRrset, keyRrset, date);
             if (status != SecurityStatus.SECURE) {
                 return new JustifiedSecStatus(SecurityStatus.BOGUS, R.get("failed.ds.nsec"));
             }
@@ -741,12 +745,12 @@ public class ValUtils {
         boolean hasValidNSEC = false;
         NSECRecord wcNsec = null;
         for (SRRset set : response.getSectionRRsets(Section.AUTHORITY, Type.NSEC)) {
-            SecurityStatus status = this.verifySRRset(set, keyRrset);
+            SecurityStatus status = this.verifySRRset(set, keyRrset, date);
             if (status != SecurityStatus.SECURE) {
                 return new JustifiedSecStatus(status, R.get("failed.ds.nsec.ent"));
             }
 
-            NSECRecord nsec = (NSECRecord)set.first();
+            NSECRecord nsec = (NSECRecord)set.rrs().get(0);
             ndp = ValUtils.nsecProvesNodata(set, nsec, qname, Type.DS);
             if (ndp.result) {
                 hasValidNSEC = true;
@@ -789,7 +793,7 @@ public class ValUtils {
     public boolean hasSignedNsecs(SMessage message) {
         for (SRRset set : message.getSectionRRsets(Section.AUTHORITY)) {
             if (set.getType() == Type.NSEC || set.getType() == Type.NSEC3) {
-                if (set.sigs().hasNext()) {
+                if (!set.sigs().isEmpty()) {
                     return true;
                 }
             }
@@ -841,16 +845,12 @@ public class ValUtils {
      *         false otherwise.
      */
     static boolean atLeastOneSupportedAlgorithm(RRset dsRRset) {
-        Iterator<?> it = dsRRset.rrs();
-        while (it.hasNext()) {
-            Record r = (Record)it.next();
-            if (r.getType() == Type.DS) {
-                if (isAlgorithmSupported(((DSRecord)r).getAlgorithm())) {
-                    return true;
-                }
-
-                // do nothing, there could be another DS we understand
+        for (Record r : dsRRset.rrs()) {
+            if (isAlgorithmSupported(((DSRecord)r).getAlgorithm())) {
+                return true;
             }
+
+            // do nothing, there could be another DS we understand
         }
 
         return false;
@@ -889,16 +889,12 @@ public class ValUtils {
      *         algorithm, false otherwise.
      */
     static boolean atLeastOneDigestSupported(RRset dsRRset) {
-        Iterator<?> it = dsRRset.rrs();
-        while (it.hasNext()) {
-            Record r = (Record)it.next();
-            if (r.getType() == Type.DS) {
-                if (isDigestSupported(((DSRecord)r).getDigestID())) {
-                    return true;
-                }
-
-                // do nothing, there could be another DS we understand
+        for (Record r : dsRRset.rrs()) {
+            if (isDigestSupported(((DSRecord)r).getDigestID())) {
+                return true;
             }
+
+            // do nothing, there could be another DS we understand
         }
 
         return false;

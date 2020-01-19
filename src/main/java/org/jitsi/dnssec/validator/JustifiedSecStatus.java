@@ -10,6 +10,7 @@
 
 package org.jitsi.dnssec.validator;
 
+import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SecurityStatus;
 
 /**
@@ -29,5 +30,13 @@ class JustifiedSecStatus {
     JustifiedSecStatus(SecurityStatus status, String reason) {
         this.status = status;
         this.reason = reason;
+    }
+
+    /**
+     * Applies this security status to a response message.
+     * @param response The response to which to apply this status.
+     */
+    void applyToResponse(SMessage response) {
+        response.setStatus(this.status, this.reason);
     }
 }

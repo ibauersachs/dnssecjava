@@ -25,6 +25,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import org.jitsi.dnssec.validator.ValidatingResolver;
 import org.junit.Assert;
@@ -155,23 +157,29 @@ public abstract class TestBase {
     public void setup() throws NumberFormatException, IOException, DNSSECException {
         resolver = new ValidatingResolver(new SimpleResolver("62.192.5.131") {
             @Override
-            public Message send(Message query) throws IOException {
+            public CompletionStage<Message> sendAsync(Message query) {
                 logger.info("---{}", key(query));
                 Message response = queryResponsePairs.get(key(query));
                 if (response != null) {
-                    return response;
+                    return CompletableFuture.completedFuture(response);
                 }
                 else if ((offline && !partialOffline) || unboundTest || alwaysOffline) {
                     Assert.fail("Response for " + key(query) + " not found.");
                 }
 
-                Message networkResult = super.send(query);
-                if (record) {
-                    w.write(networkResult.toString());
-                    w.write("\n\n###############################################\n\n");
+                Message networkResult = null;
+                try {
+                    networkResult = super.send(query);
+                    if (record) {
+                        w.write(networkResult.toString());
+                        w.write("\n\n###############################################\n\n");
+                    }
+                } catch (IOException e) {
+                    CompletableFuture<Message> f = new CompletableFuture<>();
+                    f.completeExceptionally(e);
                 }
 
-                return networkResult;
+                return CompletableFuture.completedFuture(networkResult);
             }
         }, resolverClock);
 

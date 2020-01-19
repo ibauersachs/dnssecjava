@@ -1,6 +1,7 @@
 package org.jitsi.dnssec;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 
 import org.jitsi.dnssec.validator.ValidatingResolver;
 import org.xbill.DNS.*;
@@ -20,6 +21,7 @@ public class ResolveExample {
         // http://data.iana.org/root-anchors/root-anchors.xml
         ValidatingResolver vr = new ValidatingResolver(sr);
         vr.loadTrustAnchors(new ByteArrayInputStream(ROOT.getBytes("ASCII")));
+        vr.loadTrustAnchors(new ByteArrayInputStream(ROOT.getBytes(StandardCharsets.US_ASCII)));
         System.out.println("\n\nValidating resolver:");
         sendAndPrint(vr, "www.dnssec-failed.org.");
         sendAndPrint(vr, "www.isc.org.");

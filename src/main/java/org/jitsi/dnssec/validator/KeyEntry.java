@@ -40,6 +40,8 @@
 
 package org.jitsi.dnssec.validator;
 
+import org.jitsi.dnssec.R;
+import org.jitsi.dnssec.SecurityStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.jitsi.dnssec.SRRset;
@@ -196,5 +198,48 @@ public final class KeyEntry {
     public void setBadReason(String reason) {
         this.badReason = reason;
         logger.debug(this.badReason);
+    }
+
+    /**
+     * Validate if this key instance is valid for the specified name.
+     * @param signerName the name against which this key is validated.
+     * @return A security status indicating if this key is valid, or if not, why.
+     */
+    JustifiedSecStatus validateKeyFor(Name signerName) {
+        // signerName being null is the indicator that this response was
+        // unsigned
+        if (signerName == null) {
+            logger.debug("no signerName");
+            // Unsigned responses must be underneath a "null" key entry.
+            if (this.isNull()) {
+                String reason = this.badReason;
+                if (reason == null) {
+                    reason = R.get("validate.insecure_unsigned");
+                }
+
+                return new JustifiedSecStatus(SecurityStatus.INSECURE, reason);
+            }
+
+            if (this.isGood()) {
+                return new JustifiedSecStatus(SecurityStatus.BOGUS, R.get("validate.bogus.missingsig"));
+            }
+
+            return new JustifiedSecStatus(SecurityStatus.BOGUS, R.get("validate.bogus", this.badReason));
+        }
+
+        if (this.isBad()) {
+            return new JustifiedSecStatus(SecurityStatus.BOGUS, R.get("validate.bogus.badkey", this.name, this.badReason));
+        }
+
+        if (this.isNull()) {
+            String reason = this.badReason;
+            if (reason == null) {
+                reason = R.get("validate.insecure");
+            }
+
+            return new JustifiedSecStatus(SecurityStatus.INSECURE, reason);
+        }
+
+        return null;
     }
 }

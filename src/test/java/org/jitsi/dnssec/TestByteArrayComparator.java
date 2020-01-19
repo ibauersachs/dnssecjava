@@ -16,26 +16,26 @@ import org.jitsi.dnssec.validator.ByteArrayComparator;
 import org.junit.Test;
 
 public class TestByteArrayComparator {
-    private ByteArrayComparator c = new ByteArrayComparator();
-    private byte[] b1 = new byte[] { 0 };
-    private byte[] b2 = new byte[] { 0 };
-    private byte[] b3 = new byte[] { 1 };
-    private byte[] b4 = new byte[] { 1, 0 };
+  private ByteArrayComparator c = new ByteArrayComparator();
+  private byte[] b1 = new byte[] {0};
+  private byte[] b2 = new byte[] {0};
+  private byte[] b3 = new byte[] {1};
+  private byte[] b4 = new byte[] {1, 0};
 
-    @Test
-    public void testEquals() {
-        assertEquals(0, c.compare(b1, b2));
-    }
+  @Test
+  public void testEquals() {
+    assertEquals(0, c.compare(b1, b2));
+  }
 
-    @Test
-    public void testLessThan() {
-        assertEquals(-1, c.compare(b2, b3));
-        assertEquals(-1, c.compare(b1, b4));
-    }
+  @Test
+  public void testLessThan() {
+    assertEquals(-1, c.compare(b2, b3));
+    assertEquals(-1, c.compare(b1, b4));
+  }
 
-    @Test
-    public void testGreaterThan() {
-        assertEquals(1, c.compare(b3, b2));
-        assertEquals(1, c.compare(b4, b1));
-    }
+  @Test
+  public void testGreaterThan() {
+    assertEquals(1, c.compare(b3, b2));
+    assertEquals(1, c.compare(b4, b1));
+  }
 }

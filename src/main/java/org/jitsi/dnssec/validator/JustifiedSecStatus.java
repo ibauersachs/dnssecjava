@@ -13,30 +13,28 @@ package org.jitsi.dnssec.validator;
 import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SecurityStatus;
 
-/**
- * Codes for DNSSEC security statuses along with a reason why the status was
- * determined.
- */
+/** Codes for DNSSEC security statuses along with a reason why the status was determined. */
 class JustifiedSecStatus {
-    SecurityStatus status;
-    String reason;
+  SecurityStatus status;
+  String reason;
 
-    /**
-     * Creates a new instance of this class.
-     * 
-     * @param status The security status.
-     * @param reason The reason why the status was determined.
-     */
-    JustifiedSecStatus(SecurityStatus status, String reason) {
-        this.status = status;
-        this.reason = reason;
-    }
+  /**
+   * Creates a new instance of this class.
+   *
+   * @param status The security status.
+   * @param reason The reason why the status was determined.
+   */
+  JustifiedSecStatus(SecurityStatus status, String reason) {
+    this.status = status;
+    this.reason = reason;
+  }
 
-    /**
-     * Applies this security status to a response message.
-     * @param response The response to which to apply this status.
-     */
-    void applyToResponse(SMessage response) {
-        response.setStatus(this.status, this.reason);
-    }
+  /**
+   * Applies this security status to a response message.
+   *
+   * @param response The response to which to apply this status.
+   */
+  void applyToResponse(SMessage response) {
+    response.setStatus(this.status, this.reason);
+  }
 }

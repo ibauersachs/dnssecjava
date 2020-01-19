@@ -22,46 +22,51 @@ import org.xbill.DNS.TXTRecord;
 import org.xbill.DNS.TextParseException;
 
 public class TestTrustAnchorStore {
-    @Test
-    public void testNullKeyWhenNameNotUnderAnchor() throws TextParseException {
-        TrustAnchorStore tas = new TrustAnchorStore();
-        SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
-        assertNull(anchor);
-    }
+  @Test
+  public void testNullKeyWhenNameNotUnderAnchor() throws TextParseException {
+    TrustAnchorStore tas = new TrustAnchorStore();
+    SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
+    assertNull(anchor);
+  }
 
-    @Test
-    public void testKeyWhenNameUnderAnchorDS() throws TextParseException {
-        SRRset set = new SRRset(new DSRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0}));
-        TrustAnchorStore tas = new TrustAnchorStore();
-        tas.store(set);
-        SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
-        assertEquals(set, anchor);
-    }
+  @Test
+  public void testKeyWhenNameUnderAnchorDS() throws TextParseException {
+    SRRset set =
+        new SRRset(new DSRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[] {0}));
+    TrustAnchorStore tas = new TrustAnchorStore();
+    tas.store(set);
+    SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
+    assertEquals(set, anchor);
+  }
 
-    @Test
-    public void testKeyWhenNameUnderAnchorDNSKEY() throws TextParseException {
-        SRRset set = new SRRset(new DNSKEYRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0}));
-        TrustAnchorStore tas = new TrustAnchorStore();
-        tas.store(set);
-        SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
-        assertEquals(set.getName(), anchor.getName());
-    }
+  @Test
+  public void testKeyWhenNameUnderAnchorDNSKEY() throws TextParseException {
+    SRRset set =
+        new SRRset(
+            new DNSKEYRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[] {0}));
+    TrustAnchorStore tas = new TrustAnchorStore();
+    tas.store(set);
+    SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
+    assertEquals(set.getName(), anchor.getName());
+  }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidAnchorRecord() throws TextParseException {
-        SRRset set = new SRRset(new TXTRecord(Name.fromString("bla."), DClass.IN, 0, "root"));
-        TrustAnchorStore tas = new TrustAnchorStore();
-        tas.store(set);
-    }
+  @Test(expected = IllegalArgumentException.class)
+  public void testInvalidAnchorRecord() throws TextParseException {
+    SRRset set = new SRRset(new TXTRecord(Name.fromString("bla."), DClass.IN, 0, "root"));
+    TrustAnchorStore tas = new TrustAnchorStore();
+    tas.store(set);
+  }
 
-    @Test
-    public void testClear() throws TextParseException {
-        SRRset set = new SRRset(new DNSKEYRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[]{0}));
-        TrustAnchorStore tas = new TrustAnchorStore();
-        tas.store(set);
-        SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
-        assertNotNull(anchor);
-        tas.clear();
-        assertNull(tas.find(Name.fromString("asdf.bla."), DClass.IN));
-    }
+  @Test
+  public void testClear() throws TextParseException {
+    SRRset set =
+        new SRRset(
+            new DNSKEYRecord(Name.fromString("bla."), DClass.IN, 0, 0, 0, 0, new byte[] {0}));
+    TrustAnchorStore tas = new TrustAnchorStore();
+    tas.store(set);
+    SRRset anchor = tas.find(Name.fromString("asdf.bla."), DClass.IN);
+    assertNotNull(anchor);
+    tas.clear();
+    assertNull(tas.find(Name.fromString("asdf.bla."), DClass.IN));
+  }
 }

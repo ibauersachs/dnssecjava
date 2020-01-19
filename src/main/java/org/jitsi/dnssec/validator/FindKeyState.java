@@ -6,16 +6,16 @@
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  * This file is based on work under the following copyright and permission
  * notice:
- * 
+ *
  *     Copyright (c) 2005 VeriSign. All rights reserved.
- * 
+ *
  *     Redistribution and use in source and binary forms, with or without
  *     modification, are permitted provided that the following conditions are
  *     met:
- * 
+ *
  *     1. Redistributions of source code must retain the above copyright
  *        notice, this list of conditions and the following disclaimer.
  *     2. Redistributions in binary form must reproduce the above copyright
@@ -24,7 +24,7 @@
  *     3. The name of the author may not be used to endorse or promote
  *        products derived from this software without specific prior written
  *        permission.
- * 
+ *
  *     THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  *     IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  *     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -43,40 +43,26 @@ package org.jitsi.dnssec.validator;
 import org.jitsi.dnssec.SRRset;
 import org.xbill.DNS.Name;
 
-/**
- * State-object for the key-finding phase.
- */
+/** State-object for the key-finding phase. */
 class FindKeyState {
-    /**
-     * The (initial) DS RRset for the following DNSKEY search and validate
-     * phase.
-     */
-    SRRset dsRRset;
+  /** The (initial) DS RRset for the following DNSKEY search and validate phase. */
+  SRRset dsRRset;
 
-    /**
-     * Iteratively holds the key during the search phase.
-     */
-    KeyEntry keyEntry;
+  /** Iteratively holds the key during the search phase. */
+  KeyEntry keyEntry;
 
-    /**
-     * The name of the key to search. This is taken from the RRSIG's signer name
-     * or the query name if no signer name is available.
-     */
-    Name signerName;
+  /**
+   * The name of the key to search. This is taken from the RRSIG's signer name or the query name if
+   * no signer name is available.
+   */
+  Name signerName;
 
-    /**
-     * The query class of the key to find.
-     */
-    int qclass;
+  /** The query class of the key to find. */
+  int qclass;
 
-    /**
-     * Sets the key name being searched for when a DS response is provably not a
-     * delegation point.
-     */
-    Name emptyDSName;
+  /** Sets the key name being searched for when a DS response is provably not a delegation point. */
+  Name emptyDSName;
 
-    /**
-     * The initial key name when the key search is started from a trust anchor.
-     */
-    Name currentDSKeyName;
+  /** The initial key name when the key search is started from a trust anchor. */
+  Name currentDSKeyName;
 }

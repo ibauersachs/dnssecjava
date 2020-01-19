@@ -13,6 +13,6 @@ package org.jitsi.dnssec.unbound.rpl;
 import org.xbill.DNS.Message;
 
 public class Check {
-    public Message query;
-    public Message response;
+  public Message query;
+  public Message response;
 }

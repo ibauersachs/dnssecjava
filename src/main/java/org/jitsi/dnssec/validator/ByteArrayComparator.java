@@ -6,16 +6,16 @@
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  * This file is based on work under the following copyright and permission
  * notice:
- * 
+ *
  *     Copyright (c) 2005 VeriSign. All rights reserved.
- * 
+ *
  *     Redistribution and use in source and binary forms, with or without
  *     modification, are permitted provided that the following conditions are
  *     met:
- * 
+ *
  *     1. Redistributions of source code must retain the above copyright
  *        notice, this list of conditions and the following disclaimer.
  *     2. Redistributions in binary form must reproduce the above copyright
@@ -24,7 +24,7 @@
  *     3. The name of the author may not be used to endorse or promote
  *        products derived from this software without specific prior written
  *        permission.
- * 
+ *
  *     THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  *     IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  *     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -43,28 +43,27 @@ package org.jitsi.dnssec.validator;
 import java.util.Comparator;
 
 /**
- * This class implements a basic comparator for byte arrays. It is primarily
- * useful for comparing RDATA portions of DNS records in doing DNSSEC canonical
- * ordering.
+ * This class implements a basic comparator for byte arrays. It is primarily useful for comparing
+ * RDATA portions of DNS records in doing DNSSEC canonical ordering.
  */
 public class ByteArrayComparator implements Comparator<Object> {
-    private static final int MAX_BYTE = 0xFF;
+  private static final int MAX_BYTE = 0xFF;
 
-    /** {@inheritDoc} */
-    public int compare(Object o1, Object o2) {
-        byte[] b1 = (byte[])o1;
-        byte[] b2 = (byte[])o2;
+  /** {@inheritDoc} */
+  public int compare(Object o1, Object o2) {
+    byte[] b1 = (byte[]) o1;
+    byte[] b2 = (byte[]) o2;
 
-        if (b1.length != b2.length) {
-            return b1.length - b2.length;
-        }
-
-        for (int i = 0; i < b1.length; i++) {
-            if (b1[i] != b2[i]) {
-                return (b1[i] & MAX_BYTE) - (b2[i] & MAX_BYTE);
-            }
-        }
-
-        return 0;
+    if (b1.length != b2.length) {
+      return b1.length - b2.length;
     }
+
+    for (int i = 0; i < b1.length; i++) {
+      if (b1[i] != b2[i]) {
+        return (b1[i] & MAX_BYTE) - (b2[i] & MAX_BYTE);
+      }
+    }
+
+    return 0;
+  }
 }

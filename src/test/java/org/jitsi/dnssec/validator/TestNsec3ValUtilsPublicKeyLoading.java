@@ -18,7 +18,6 @@ import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.IOException;
 import java.security.PublicKey;
-
 import org.jitsi.dnssec.PrepareMocks;
 import org.jitsi.dnssec.TestBase;
 import org.junit.Test;
@@ -36,34 +35,44 @@ import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Type;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ Type.class })
+@PrepareForTest({Type.class})
 public class TestNsec3ValUtilsPublicKeyLoading extends TestBase {
-    private int invocationCount = 0;
+  private int invocationCount = 0;
 
-    @Test
-    @PrepareMocks("prepareTestPublicKeyLoadingException")
-    public void testPublicKeyLoadingException() throws IOException {
-        Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
-        assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.NOERROR, response.getRcode());
-        assertEquals("failed.nsec3_ignored", getReason(response));
-    }
+  @Test
+  @PrepareMocks("prepareTestPublicKeyLoadingException")
+  public void testPublicKeyLoadingException() throws IOException {
+    Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
+    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertEquals(Rcode.NOERROR, response.getRcode());
+    assertEquals("failed.nsec3_ignored", getReason(response));
+  }
 
-    public void prepareTestPublicKeyLoadingException() throws Exception {
-        DNSKEYRecord proto = spy(Whitebox.invokeConstructor(DNSKEYRecord.class));
-        doAnswer((Answer<DNSKEYRecord>)invocationOnMock -> {
-            DNSKEYRecord dr = spy(Whitebox.invokeConstructor(DNSKEYRecord.class));
-            doAnswer((Answer<PublicKey>)invocation -> {
-                DNSKEYRecord dr1 = (DNSKEYRecord)invocation.getMock();
-                invocationCount++;
-                if (dr1.getName().equals(Name.fromConstantString("nsec3.ingotronic.ch.")) && invocationCount == 11) {
-                    throw Whitebox.invokeConstructor(DNSSEC.DNSSECException.class, "mock-test");
-                }
+  public void prepareTestPublicKeyLoadingException() throws Exception {
+    DNSKEYRecord proto = spy(Whitebox.invokeConstructor(DNSKEYRecord.class));
+    doAnswer(
+            (Answer<DNSKEYRecord>)
+                invocationOnMock -> {
+                  DNSKEYRecord dr = spy(Whitebox.invokeConstructor(DNSKEYRecord.class));
+                  doAnswer(
+                          (Answer<PublicKey>)
+                              invocation -> {
+                                DNSKEYRecord dr1 = (DNSKEYRecord) invocation.getMock();
+                                invocationCount++;
+                                if (dr1.getName()
+                                        .equals(Name.fromConstantString("nsec3.ingotronic.ch."))
+                                    && invocationCount == 11) {
+                                  throw Whitebox.invokeConstructor(
+                                      DNSSEC.DNSSECException.class, "mock-test");
+                                }
 
-                return (PublicKey)invocation.callRealMethod();
-            }).when(dr).getPublicKey();
-            return dr;
-        }).when(proto, "getObject");
-        whenNew(DNSKEYRecord.class).withNoArguments().thenReturn(proto);
-    }
+                                return (PublicKey) invocation.callRealMethod();
+                              })
+                      .when(dr)
+                      .getPublicKey();
+                  return dr;
+                })
+        .when(proto, "getObject");
+    whenNew(DNSKEYRecord.class).withNoArguments().thenReturn(proto);
+  }
 }

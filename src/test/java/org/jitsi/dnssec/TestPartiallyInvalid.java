@@ -15,36 +15,35 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-
 import org.junit.Test;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Rcode;
 
 public class TestPartiallyInvalid extends TestBase {
-    @Test
-    public void testValidExising() throws IOException {
-        Message response = resolver.send(createMessage("www.partial.ingotronic.ch./A"));
-        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.NOERROR, response.getRcode());
-        assertEquals(localhost, firstA(response));
-        assertNull(getReason(response));
-    }
+  @Test
+  public void testValidExising() throws IOException {
+    Message response = resolver.send(createMessage("www.partial.ingotronic.ch./A"));
+    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertEquals(Rcode.NOERROR, response.getRcode());
+    assertEquals(localhost, firstA(response));
+    assertNull(getReason(response));
+  }
 
-    @Test
-    public void testValidExisingNoType() throws IOException {
-        Message response = resolver.send(createMessage("www.partial.ingotronic.ch./MX"));
-        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.NOERROR, response.getRcode());
-        assertTrue(isEmptyAnswer(response));
-        assertNull(getReason(response));
-    }
+  @Test
+  public void testValidExisingNoType() throws IOException {
+    Message response = resolver.send(createMessage("www.partial.ingotronic.ch./MX"));
+    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertEquals(Rcode.NOERROR, response.getRcode());
+    assertTrue(isEmptyAnswer(response));
+    assertNull(getReason(response));
+  }
 
-    @Test
-    public void testValidNonExising() throws IOException {
-        Message response = resolver.send(createMessage("www.gibtsnicht.partial.ingotronic.ch./A"));
-        assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
-        assertEquals(Rcode.NXDOMAIN, response.getRcode());
-        assertNull(getReason(response));
-    }
+  @Test
+  public void testValidNonExising() throws IOException {
+    Message response = resolver.send(createMessage("www.gibtsnicht.partial.ingotronic.ch./A"));
+    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertEquals(Rcode.NXDOMAIN, response.getRcode());
+    assertNull(getReason(response));
+  }
 }

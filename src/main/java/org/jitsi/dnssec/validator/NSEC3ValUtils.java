@@ -360,7 +360,7 @@ final class NSEC3ValUtils {
   }
 
   private boolean validIterations(SRRset nsec, KeyCache keyCache) {
-    SRRset dnskeyRrset = keyCache.find(nsec.getSignerName(), nsec.getDClass()).getRRset();
+    SRRset dnskeyRrset = keyCache.find(nsec.getSignerName(), nsec.getDClass());
     // for now, we return the maximum iterations based simply on the key
     // algorithms that may have been used to sign the NSEC3 RRsets.
     try {

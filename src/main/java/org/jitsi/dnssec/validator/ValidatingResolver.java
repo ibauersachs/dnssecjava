@@ -417,9 +417,7 @@ public class ValidatingResolver implements Resolver {
                 return completedFuture(false);
               }
 
-              SRRset keyRrset = ke.getRRset();
-              SecurityStatus status =
-                  this.valUtils.verifySRRset(set, keyRrset, this.clock.instant());
+              SecurityStatus status = this.valUtils.verifySRRset(set, ke, this.clock.instant());
               // If anything in the authority section fails to be secure, we
               // have a bad message.
               if (status != SecurityStatus.SECURE) {
@@ -466,8 +464,7 @@ public class ValidatingResolver implements Resolver {
                 return completedFuture(false);
               }
 
-              SecurityStatus status =
-                  this.valUtils.verifySRRset(set, ke.getRRset(), this.clock.instant());
+              SecurityStatus status = this.valUtils.verifySRRset(set, ke, this.clock.instant());
               // If the answer rrset failed to validate, then this message is BAD
               if (status != SecurityStatus.SECURE) {
                 response.setBogus(R.get("failed.answer.positive", set));
@@ -667,8 +664,7 @@ public class ValidatingResolver implements Resolver {
                 return this.failedFuture(new Exception(kve.reason));
               }
 
-              SecurityStatus status =
-                  this.valUtils.verifySRRset(set, ke.getRRset(), this.clock.instant());
+              SecurityStatus status = this.valUtils.verifySRRset(set, ke, this.clock.instant());
               if (status != SecurityStatus.SECURE) {
                 response.setBogus(R.get("failed.authority.nodata", set));
                 return this.failedFuture(new Exception("failed.authority.nodata"));
@@ -828,8 +824,7 @@ public class ValidatingResolver implements Resolver {
                 return this.failedFuture(new Exception(kve.reason));
               }
 
-              SecurityStatus status =
-                  this.valUtils.verifySRRset(set, ke.getRRset(), this.clock.instant());
+              SecurityStatus status = this.valUtils.verifySRRset(set, ke, this.clock.instant());
               if (status != SecurityStatus.SECURE) {
                 response.setBogus(R.get("failed.nxdomain.authority", set));
                 return this.failedFuture(new Exception("failed.nxdomain.authority"));
@@ -869,8 +864,7 @@ public class ValidatingResolver implements Resolver {
     if (trustAnchorRRset == null) {
       // response isn't under a trust anchor, so we cannot validate.
       KeyEntry ke =
-          KeyEntry.newNullKeyEntry(
-              rrset.getSignerName(), rrset.getDClass(), DEFAULT_TA_BAD_KEY_TTL);
+          KeyEntry.newNullKeyEntry(state.signerName, rrset.getDClass(), DEFAULT_TA_BAD_KEY_TTL);
       return completedFuture(ke);
     }
 
@@ -1126,13 +1120,13 @@ public class ValidatingResolver implements Resolver {
     state.emptyDSName = null;
     state.dsRRset = null;
 
-    KeyEntry dsKE = this.dsResponseToKE(response, request, state.keyEntry.getRRset());
+    KeyEntry dsKE = this.dsResponseToKE(response, request, state.keyEntry);
     if (dsKE == null) {
       // DS response indicated that we aren't on a delegation point.
       state.emptyDSName = qname;
     } else if (dsKE.isGood()) {
-      state.dsRRset = dsKE.getRRset();
-      state.currentDSKeyName = new Name(dsKE.getRRset().getName(), 1);
+      state.dsRRset = dsKE;
+      state.currentDSKeyName = new Name(dsKE.getName(), 1);
     } else {
       // The reason for the DS to be not good (that is, either bad
       // or null) should have been logged by dsResponseToKE.

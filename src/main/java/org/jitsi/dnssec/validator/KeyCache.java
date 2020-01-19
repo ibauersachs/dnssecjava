@@ -45,7 +45,6 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
-import org.jitsi.dnssec.SecurityStatus;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.Type;
 
@@ -138,27 +137,23 @@ public class KeyCache {
   }
 
   /**
-   * Store a {@link KeyEntry} in the cache. The entry will be ignored if it's rrset isn't a DNSKEY
-   * rrset or if it doesn't have the SECURE security status.
+   * Store a {@link KeyEntry} in the cache. The entry will be ignored if it isn't a DNSKEY rrset, if
+   * it doesn't have the SECURE security status, or if it isn't a null-Key.
    *
    * @param ke The key entry to cache.
-   * @return The passed {@link KeyEntry} to allow method chaining.
    */
-  public KeyEntry store(KeyEntry ke) {
-    if (ke.getRRset() != null) {
-      if (ke.getRRset().getType() != Type.DNSKEY) {
-        return ke;
-      }
+  public void store(KeyEntry ke) {
+    if (!ke.isGood() && !ke.isNull()) {
+      return;
+    }
 
-      if (ke.getRRset().getSecurityStatus() != SecurityStatus.SECURE) {
-        return ke;
-      }
+    if (ke.getType() != Type.DNSKEY) {
+      return;
     }
 
     String k = this.key(ke.getName(), ke.getDClass());
     CacheEntry ce = new CacheEntry(ke, this.maxTtl);
     this.cache.put(k, ce);
-    return ke;
   }
 
   private String key(Name n, int dclass) {

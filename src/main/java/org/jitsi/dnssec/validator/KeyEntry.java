@@ -46,17 +46,15 @@ import org.jitsi.dnssec.SecurityStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xbill.DNS.Name;
+import org.xbill.DNS.Record;
+import org.xbill.DNS.Type;
 
 /** DNSKEY cache entry for a given {@link Name}, with or without actual keys. */
-public final class KeyEntry {
+public final class KeyEntry extends SRRset {
   private static final Logger logger = LoggerFactory.getLogger(KeyEntry.class);
 
-  private SRRset rrset;
-  private Name name;
-  private int dclass;
-  private long ttl;
-  private boolean isBad = false;
   private String badReason;
+  private boolean isEmpty;
 
   /**
    * Create a new, positive key entry.
@@ -64,18 +62,15 @@ public final class KeyEntry {
    * @param rrset The set of records to cache.
    */
   private KeyEntry(SRRset rrset) {
-    this.rrset = rrset;
-    this.name = rrset.getName();
-    this.dclass = rrset.getDClass();
-    this.ttl = rrset.getTTL();
+    super(rrset);
   }
 
   private KeyEntry(Name name, int dclass, long ttl, boolean isBad) {
-    this.rrset = null;
-    this.name = name;
-    this.dclass = dclass;
-    this.ttl = ttl;
-    this.isBad = isBad;
+    super(new SRRset(Record.newRecord(name, Type.DNSKEY, dclass, ttl)));
+    this.isEmpty = true;
+    if (isBad) {
+      setSecurityStatus(SecurityStatus.BOGUS);
+    }
   }
 
   /**
@@ -114,48 +109,12 @@ public final class KeyEntry {
   }
 
   /**
-   * Gets the DNSKEYs for the cached key entry. Can be <code>null</code>.
-   *
-   * @return The DNSKEYs for the cached key entry. Can be <code>null</code>.
-   */
-  public SRRset getRRset() {
-    return this.rrset;
-  }
-
-  /**
-   * Gets the name of the cache entry.
-   *
-   * @return The name of the cache entry.
-   */
-  public Name getName() {
-    return this.name;
-  }
-
-  /**
-   * Gets the DNS class.
-   *
-   * @return The DNS class.
-   */
-  public int getDClass() {
-    return this.dclass;
-  }
-
-  /**
-   * Gets the TTL [s].
-   *
-   * @return The TTL [s].
-   */
-  public long getTTL() {
-    return this.ttl;
-  }
-
-  /**
    * Gets an indication if this is a null key, i.e. a proven secure response without keys.
    *
    * @return <code>True</code> is it is null, <code>false</code> otherwise.
    */
   public boolean isNull() {
-    return !this.isBad && this.rrset == null;
+    return this.isEmpty && this.getSecurityStatus() == SecurityStatus.UNCHECKED;
   }
 
   /**
@@ -164,7 +123,7 @@ public final class KeyEntry {
    * @return <code>True</code> is it is bad, <code>false</code> otherwise.
    */
   public boolean isBad() {
-    return this.isBad;
+    return this.isEmpty && this.getSecurityStatus() == SecurityStatus.BOGUS;
   }
 
   /**
@@ -173,16 +132,7 @@ public final class KeyEntry {
    * @return <code>True</code> is it is good, <code>false</code> otherwise.
    */
   public boolean isGood() {
-    return !this.isBad && this.rrset != null;
-  }
-
-  /**
-   * Gets the reason why this key entry is bad.
-   *
-   * @return The reason why this key entry is bad.
-   */
-  public String getBadReason() {
-    return this.badReason;
+    return !this.isEmpty && this.getSecurityStatus() == SecurityStatus.SECURE;
   }
 
   /**
@@ -225,7 +175,7 @@ public final class KeyEntry {
 
     if (this.isBad()) {
       return new JustifiedSecStatus(
-          SecurityStatus.BOGUS, R.get("validate.bogus.badkey", this.name, this.badReason));
+          SecurityStatus.BOGUS, R.get("validate.bogus.badkey", this.getName(), this.badReason));
     }
 
     if (this.isNull()) {

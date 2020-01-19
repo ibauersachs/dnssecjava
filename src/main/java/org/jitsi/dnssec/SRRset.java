@@ -83,6 +83,18 @@ public class SRRset extends RRset {
   }
 
   /**
+   * Create a new SRRset from an existing SRRset. This SRRset will contain the same internal {@link
+   * Record} objects as the original SRRset.
+   *
+   * @param r The RRset to copy.
+   */
+  public SRRset(SRRset r) {
+    super(r);
+    this.securityStatus = r.securityStatus;
+    this.ownerName = r.ownerName;
+  }
+
+  /**
    * Return the current security status (generally: {@link SecurityStatus#UNCHECKED}, {@link
    * SecurityStatus#BOGUS}, or {@link SecurityStatus#SECURE}).
    *

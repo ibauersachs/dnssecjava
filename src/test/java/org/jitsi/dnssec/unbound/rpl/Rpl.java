@@ -29,4 +29,5 @@ public class Rpl {
   public boolean hardenAlgoDowngrade;
   public boolean enableSha1;
   public boolean enableDsa;
+  public boolean loadBouncyCastle;
 }

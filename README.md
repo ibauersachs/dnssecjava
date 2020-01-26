@@ -161,7 +161,8 @@ If this property is not specified, the DS record with the highest [digest ID]
 To stay compliant with the RFCs, the mandatory digest IDs must be listed in
 this property.
 
-The GOST digest is not (yet) implemented.
+The GOST digest requires [BouncyCastle](https://www.bouncycastle.org/java.html)
+on the classpath.
 
 ### org.jitsi.dnssec.harden\_algo\_downgrade
 Prevent algorithm downgrade when multiple algorithms are advertised in a zones

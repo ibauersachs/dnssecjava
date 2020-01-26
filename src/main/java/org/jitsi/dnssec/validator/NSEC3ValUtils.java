@@ -387,6 +387,9 @@ final class NSEC3ValUtils {
                     .getField()
                     .getFieldSize();
             break;
+          case Algorithm.ECC_GOST:
+            keysize = 512;
+            break;
           default:
             return false;
         }

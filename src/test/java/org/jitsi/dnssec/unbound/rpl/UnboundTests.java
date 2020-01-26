@@ -16,6 +16,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.Security;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.TestBase;
 import org.jitsi.dnssec.validator.ValUtils;
@@ -74,6 +76,10 @@ public class UnboundTests extends TestBase {
       config.put(
           ValUtils.ALGORITHM_ENABLED + "." + DNSSEC.Algorithm.DSA_NSEC3_SHA1,
           Boolean.TRUE.toString());
+    }
+
+    if (rpl.loadBouncyCastle) {
+      Security.addProvider(new BouncyCastleProvider());
     }
 
     for (Message m : rpl.replays) {
@@ -217,8 +223,6 @@ public class UnboundTests extends TestBase {
             put("val_cnametooptin.rpl", "incomplete CNAME answer");
             put("val_cnametoinsecure.rpl", "incomplete CNAME answer");
             put("val_nsec3_optout_cache.rpl", "more cache stuff");
-            put("val_ds_gost.rpl", "we don't support GOST (RFC5933)");
-            put("val_ds_gost_downgrade.rpl", "we don't support GOST (RFC5933)");
             put("val_unsecds_qtypeds.rpl", "tests the iterative resolver");
             put("val_anchor_nx.rpl", "tests caching of NX from a parent resolver");
             put("val_anchor_nx_nosig.rpl", "tests caching of NX from a parent resolver");
@@ -462,13 +466,11 @@ public class UnboundTests extends TestBase {
     runUnboundTest();
   }
 
-  @Ignore("we don't support GOST (RFC5933)")
   @Test
   public void val_ds_gost() throws ParseException, IOException {
     runUnboundTest();
   }
 
-  @Ignore("we don't support GOST (RFC5933)")
   @Test
   public void val_ds_gost_downgrade() throws ParseException, IOException {
     runUnboundTest();

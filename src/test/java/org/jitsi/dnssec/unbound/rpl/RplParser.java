@@ -137,6 +137,8 @@ public class RplParser {
             rpl.enableSha1 = "yes".equalsIgnoreCase(line.split(":")[1].trim());
           } else if (line.matches("\\s*fake-dsa:.*")) {
             rpl.enableDsa = "yes".equalsIgnoreCase(line.split(":")[1].trim());
+          } else if (line.matches("\\s*bouncycastle:.*")) {
+            rpl.loadBouncyCastle = "yes".equalsIgnoreCase(line.split(":")[1].trim());
           } else if (line.startsWith("CONFIG_END")) {
             state = ParseState.Zero;
           }

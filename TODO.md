@@ -31,7 +31,7 @@ Code Coverage / Bugs
   - NXDOMAIN when a NSEC would prove that a wildcard exists
   - Exceptions thrown by the head resolver
   - Bogus/Insecure handling of CNAME answer to DS query
-  - Async calling of the validator
+  - <del>Async calling of the validator
   - <del>Passthrough without validation if the CD flag is set
   - Various cases in dsReponseToKeForNodata
   - <del>longestCommonName

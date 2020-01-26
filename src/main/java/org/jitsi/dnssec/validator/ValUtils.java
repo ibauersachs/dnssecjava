@@ -40,6 +40,7 @@
 
 package org.jitsi.dnssec.validator;
 
+import java.security.Security;
 import java.time.Instant;
 import java.util.List;
 import java.util.Properties;
@@ -85,6 +86,7 @@ public class ValUtils {
   private int[] digestPreference = null;
   private Properties config = null;
   private boolean digestHardenDowngrade = true;
+  private boolean hasGost;
 
   /** Creates a new instance of this class. */
   public ValUtils() {
@@ -131,6 +133,7 @@ public class ValUtils {
    * @param config The configuration data for this module.
    */
   public void init(Properties config) {
+    hasGost = Security.getProviders("MessageDigest.GOST3411") != null;
     this.config = config;
     String dp = config.getProperty(DIGEST_PREFERENCE);
     if (dp != null) {
@@ -873,6 +876,16 @@ public class ValUtils {
         }
 
         return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
+      case Algorithm.ECC_GOST:
+        if (!hasGost) {
+          return false;
+        }
+
+        if (config == null) {
+          return true;
+        }
+
+        return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
       default:
         return false;
     }
@@ -908,6 +921,16 @@ public class ValUtils {
       case Digest.SHA1:
       case Digest.SHA256:
       case Digest.SHA384:
+        if (config == null) {
+          return true;
+        }
+
+        return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
+      case Digest.GOST3411:
+        if (!hasGost) {
+          return false;
+        }
+
         if (config == null) {
           return true;
         }

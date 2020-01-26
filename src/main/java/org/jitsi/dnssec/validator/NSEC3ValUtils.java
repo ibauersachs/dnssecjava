@@ -390,6 +390,12 @@ final class NSEC3ValUtils {
           case Algorithm.ECC_GOST:
             keysize = 512;
             break;
+          case Algorithm.ED25519:
+            keysize = 256;
+            break;
+          case Algorithm.ED448:
+            keysize = 456;
+            break;
           default:
             return false;
         }

@@ -87,10 +87,15 @@ public class ValUtils {
   private Properties config = null;
   private boolean digestHardenDowngrade = true;
   private boolean hasGost;
+  private boolean hasEd25519;
+  private boolean hasEd448;
 
   /** Creates a new instance of this class. */
   public ValUtils() {
     this.verifier = new DnsSecVerifier();
+    hasGost = Security.getProviders("MessageDigest.GOST3411") != null;
+    hasEd25519 = Security.getProviders("KeyFactory.Ed25519") != null;
+    hasEd448 = Security.getProviders("KeyFactory.Ed448") != null;
   }
 
   /**
@@ -134,6 +139,8 @@ public class ValUtils {
    */
   public void init(Properties config) {
     hasGost = Security.getProviders("MessageDigest.GOST3411") != null;
+    hasEd25519 = Security.getProviders("KeyFactory.Ed25519") != null;
+    hasEd448 = Security.getProviders("KeyFactory.Ed448") != null;
     this.config = config;
     String dp = config.getProperty(DIGEST_PREFERENCE);
     if (dp != null) {
@@ -871,21 +878,13 @@ public class ValUtils {
       case Algorithm.RSASHA512:
       case Algorithm.ECDSAP256SHA256:
       case Algorithm.ECDSAP384SHA384:
-        if (config == null) {
-          return true;
-        }
-
-        return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
+        return propertyOrTrueWithPrecondition(configKey, true);
       case Algorithm.ECC_GOST:
-        if (!hasGost) {
-          return false;
-        }
-
-        if (config == null) {
-          return true;
-        }
-
-        return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
+        return propertyOrTrueWithPrecondition(configKey, hasGost);
+      case Algorithm.ED25519:
+        return propertyOrTrueWithPrecondition(configKey, hasEd25519);
+      case Algorithm.ED448:
+        return propertyOrTrueWithPrecondition(configKey, hasEd448);
       default:
         return false;
     }
@@ -927,17 +926,21 @@ public class ValUtils {
 
         return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
       case Digest.GOST3411:
-        if (!hasGost) {
-          return false;
-        }
-
-        if (config == null) {
-          return true;
-        }
-
-        return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
+        return propertyOrTrueWithPrecondition(configKey, hasGost);
       default:
         return false;
     }
+  }
+
+  private boolean propertyOrTrueWithPrecondition(String configKey, boolean precondition) {
+    if (!precondition) {
+      return false;
+    }
+
+    if (config == null) {
+      return true;
+    }
+
+    return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
   }
 }

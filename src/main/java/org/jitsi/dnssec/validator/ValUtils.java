@@ -72,7 +72,9 @@ import org.xbill.DNS.Type;
  */
 public class ValUtils {
   public static final String DIGEST_PREFERENCE = "org.jitsi.dnssec.digest_preference";
+  public static final String DIGEST_ENABLED = "org.jitsi.dnssec.digest";
   public static final String DIGEST_HARDEN_DOWNGRADE = "org.jitsi.dnssec.harden_algo_downgrade";
+  public static final String ALGORITHM_ENABLED = "org.jitsi.dnssec.algorithm";
 
   private static final Logger logger = LoggerFactory.getLogger(ValUtils.class);
   private static final Name WILDCARD = Name.fromConstantString("*");
@@ -81,6 +83,7 @@ public class ValUtils {
   private DnsSecVerifier verifier;
 
   private int[] digestPreference = null;
+  private Properties config = null;
   private boolean digestHardenDowngrade = true;
 
   /** Creates a new instance of this class. */
@@ -116,18 +119,19 @@ public class ValUtils {
   }
 
   /**
-   * Initialize the module. The recognized configuration value are
+   * Initialize the module. The recognized configuration values are:
    *
    * <ul>
    *   <li>{@link #DIGEST_PREFERENCE}
    *   <li>{@link #DIGEST_HARDEN_DOWNGRADE}
+   *   <li>{@link #DIGEST_ENABLED}
+   *   <li>{@link #ALGORITHM_ENABLED}
    * </ul>
-   *
-   * .
    *
    * @param config The configuration data for this module.
    */
   public void init(Properties config) {
+    this.config = config;
     String dp = config.getProperty(DIGEST_PREFERENCE);
     if (dp != null) {
       String[] dpdata = dp.split(",");
@@ -135,7 +139,8 @@ public class ValUtils {
       for (int i = 0; i < dpdata.length; i++) {
         this.digestPreference[i] = Integer.parseInt(dpdata[i]);
         if (!isDigestSupported(this.digestPreference[i])) {
-          throw new IllegalArgumentException("Unsupported digest ID in digest preferences");
+          throw new IllegalArgumentException(
+              "Unsupported or disabled digest ID in digest preferences");
         }
       }
     }
@@ -827,7 +832,7 @@ public class ValUtils {
    * @param dsRRset The RR set to search in.
    * @return True when at least one DS record uses a supported algorithm, false otherwise.
    */
-  static boolean atLeastOneSupportedAlgorithm(RRset dsRRset) {
+  boolean atLeastOneSupportedAlgorithm(RRset dsRRset) {
     for (Record r : dsRRset.rrs()) {
       if (isAlgorithmSupported(((DSRecord) r).getAlgorithm())) {
         return true;
@@ -845,19 +850,29 @@ public class ValUtils {
    * @param alg The algorithm to check.
    * @return True when the algorithm is supported, false otherwise.
    */
-  static boolean isAlgorithmSupported(int alg) {
+  boolean isAlgorithmSupported(int alg) {
+    String configKey = ALGORITHM_ENABLED + "." + alg;
     switch (alg) {
       case Algorithm.RSAMD5:
-        return false; // obsoleted by rfc6944
+        return false; // obsoleted by rfc6725
       case Algorithm.DSA:
       case Algorithm.DSA_NSEC3_SHA1:
+        if (config == null) {
+          return false;
+        }
+
+        return Boolean.parseBoolean(config.getProperty(configKey, Boolean.FALSE.toString()));
       case Algorithm.RSASHA1:
       case Algorithm.RSA_NSEC3_SHA1:
       case Algorithm.RSASHA256:
       case Algorithm.RSASHA512:
       case Algorithm.ECDSAP256SHA256:
       case Algorithm.ECDSAP384SHA384:
-        return true;
+        if (config == null) {
+          return true;
+        }
+
+        return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
       default:
         return false;
     }
@@ -869,7 +884,7 @@ public class ValUtils {
    * @param dsRRset The RR set to search in.
    * @return True when at least one DS record uses a supported digest algorithm, false otherwise.
    */
-  static boolean atLeastOneDigestSupported(RRset dsRRset) {
+  boolean atLeastOneDigestSupported(RRset dsRRset) {
     for (Record r : dsRRset.rrs()) {
       if (isDigestSupported(((DSRecord) r).getDigestID())) {
         return true;
@@ -887,12 +902,17 @@ public class ValUtils {
    * @param digestID the algorithm to check.
    * @return True when the digest algorithm is supported, false otherwise.
    */
-  static boolean isDigestSupported(int digestID) {
+  boolean isDigestSupported(int digestID) {
+    String configKey = DIGEST_ENABLED + "." + digestID;
     switch (digestID) {
       case Digest.SHA1:
       case Digest.SHA256:
       case Digest.SHA384:
-        return true;
+        if (config == null) {
+          return true;
+        }
+
+        return Boolean.parseBoolean(config.getProperty(configKey, Boolean.TRUE.toString()));
       default:
         return false;
     }

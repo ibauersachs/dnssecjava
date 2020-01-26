@@ -981,7 +981,7 @@ public class ValidatingResolver implements Resolver {
           return bogusKE;
         }
 
-        if (!ValUtils.atLeastOneSupportedAlgorithm(dsRrset)) {
+        if (!valUtils.atLeastOneSupportedAlgorithm(dsRrset)) {
           KeyEntry nullKey = KeyEntry.newNullKeyEntry(qname, qclass, dsRrset.getTTL());
           nullKey.setBadReason(R.get("insecure.ds.noalgorithms", qname));
           return nullKey;

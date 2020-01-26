@@ -34,6 +34,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.xbill.DNS.CNAMERecord;
 import org.xbill.DNS.DNAMERecord;
 import org.xbill.DNS.DNSSEC;
+import org.xbill.DNS.DSRecord;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
@@ -63,6 +64,17 @@ public class UnboundTests extends TestBase {
     }
 
     config.put(ValUtils.DIGEST_HARDEN_DOWNGRADE, Boolean.toString(rpl.hardenAlgoDowngrade));
+
+    if (rpl.enableSha1) {
+      config.put(ValUtils.DIGEST_ENABLED + "." + DSRecord.Digest.SHA1, Boolean.TRUE.toString());
+    }
+
+    if (rpl.enableDsa || rpl.enableSha1) {
+      config.put(ValUtils.ALGORITHM_ENABLED + "." + DNSSEC.Algorithm.DSA, Boolean.TRUE.toString());
+      config.put(
+          ValUtils.ALGORITHM_ENABLED + "." + DNSSEC.Algorithm.DSA_NSEC3_SHA1,
+          Boolean.TRUE.toString());
+    }
 
     for (Message m : rpl.replays) {
       add(m);

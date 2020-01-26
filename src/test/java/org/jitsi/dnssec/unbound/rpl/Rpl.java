@@ -27,4 +27,6 @@ public class Rpl {
   public TreeMap<Integer, Integer> nsec3iterations;
   public String digestPreference;
   public boolean hardenAlgoDowngrade;
+  public boolean enableSha1;
+  public boolean enableDsa;
 }

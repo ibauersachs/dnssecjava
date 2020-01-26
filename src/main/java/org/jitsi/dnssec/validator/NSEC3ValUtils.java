@@ -80,12 +80,10 @@ final class NSEC3ValUtils {
   /** Creates a new instance of this class. */
   NSEC3ValUtils() {
     // see RFC5155#10.3 for the max iteration count
-    // CHECKSTYLE:OFF
     this.maxIterations = new TreeMap<>();
     this.maxIterations.put(1024, 150);
     this.maxIterations.put(2048, 500);
     this.maxIterations.put(4096, 2500);
-    // CHECKSTYLE:ON
   }
 
   /**
@@ -369,7 +367,7 @@ final class NSEC3ValUtils {
         int keysize;
         switch (dnskey.getAlgorithm()) {
           case Algorithm.RSAMD5:
-            return false; // obsoleted by rfc6944
+            return false; // obsoleted by rfc6725
           case Algorithm.RSASHA1:
           case Algorithm.RSASHA256:
           case Algorithm.RSASHA512:

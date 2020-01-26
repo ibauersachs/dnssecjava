@@ -133,6 +133,10 @@ public class RplParser {
             rpl.digestPreference = line.substring(line.indexOf("\"") + 1, line.length() - 1);
           } else if (line.matches("\\s*harden-algo-downgrade:.*")) {
             rpl.hardenAlgoDowngrade = !"no".equalsIgnoreCase(line.split(":")[1].trim());
+          } else if (line.matches("\\s*fake-sha1:.*")) {
+            rpl.enableSha1 = "yes".equalsIgnoreCase(line.split(":")[1].trim());
+          } else if (line.matches("\\s*fake-dsa:.*")) {
+            rpl.enableDsa = "yes".equalsIgnoreCase(line.split(":")[1].trim());
           } else if (line.startsWith("CONFIG_END")) {
             state = ParseState.Zero;
           }

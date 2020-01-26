@@ -5,6 +5,7 @@ server:
 	val-override-date: "20070916134226"
 	target-fetch-policy: "0 0 0 0 0"
 	val-digest-preference: "1,2"
+	fake-dsa: yes
 
 stub-zone:
 	name: "."

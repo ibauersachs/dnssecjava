@@ -140,9 +140,9 @@ Maximum number of entries in the key cache. The default is 1000.
 
 ### org.jitsi.dnssec.nsec3.iterations.N
 Maximum iteration count for the NSEC3 hashing function depending on the key 
-size N. The defaults are:
+size N. The defaults from [RFC5155](https://tools.ietf.org/html/rfc5155#section-10.3) are:
 
-- 1024 bit keys: 512 iterations (i.e. org.jitsi.dnssec.nsec3.iterations.1024=512)
+- 1024 bit keys: 150 iterations (i.e. org.jitsi.dnssec.nsec3.iterations.1024=150)
 - 2048 bit keys: 500 iterations 
 - 4096 bit keys: 2500 iterations 
 
@@ -167,3 +167,11 @@ The GOST digest is not (yet) implemented.
 Prevent algorithm downgrade when multiple algorithms are advertised in a zones
 DS records. If `false`, allows any algorithm to validate the zone.
 Default is `true`.
+
+### org.jitsi.dnssec.digest\_enabled.ID
+Boolean property to enable or disable a DS record digest algorithm.
+See [RFC8624](https://tools.ietf.org/html/rfc8624#section-3.3) for recommended values.
+
+### org.jitsi.dnssec.algorithm\_enabled.ID
+Boolean property to enable or disable a DS/DNSKEY algorithm.
+See [RFC8624](https://tools.ietf.org/html/rfc8624#section-3.1) for recommended values.

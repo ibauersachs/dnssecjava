@@ -1330,6 +1330,11 @@ public class ValidatingResolver implements Resolver {
   }
 
   @Override
+  public Duration getTimeout() {
+    return this.headResolver.getTimeout();
+  }
+
+  @Override
   public void setTimeout(Duration duration) {
     this.headResolver.setTimeout(duration);
   }

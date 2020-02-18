@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import org.jitsi.dnssec.validator.ValidatingResolver;
 import org.junit.Assert;
 import org.junit.Before;
@@ -101,6 +102,7 @@ public abstract class TestBase {
                 "/recordings/" + description.getClassName().replace(".", "_") + "/" + testName;
             File f = new File("./src/test/resources" + filename);
             if ((record || !f.exists()) && !alwaysOffline) {
+              resolverClock = Clock.systemUTC();
               f.getParentFile().getParentFile().mkdir();
               f.getParentFile().mkdir();
               w = new FileWriter(f.getAbsoluteFile());
@@ -136,7 +138,7 @@ public abstract class TestBase {
         @Override
         protected void finished(Description description) {
           try {
-            if (record && w != null) {
+            if (w != null) {
               w.flush();
               w.close();
               w = null;
@@ -157,7 +159,7 @@ public abstract class TestBase {
   public void setup() throws NumberFormatException, IOException, DNSSECException {
     resolver =
         new ValidatingResolver(
-            new SimpleResolver("62.192.5.131") {
+            new SimpleResolver("8.8.4.4") {
               @Override
               public CompletionStage<Message> sendAsync(Message query) {
                 logger.info("---{}", key(query));
@@ -168,16 +170,17 @@ public abstract class TestBase {
                   Assert.fail("Response for " + key(query) + " not found.");
                 }
 
-                Message networkResult = null;
+                Message networkResult;
                 try {
-                  networkResult = super.send(query);
-                  if (record) {
+                  networkResult = super.sendAsync(query).toCompletableFuture().get();
+                  if (w != null) {
                     w.write(networkResult.toString());
                     w.write("\n\n###############################################\n\n");
                   }
-                } catch (IOException e) {
+                } catch (IOException | InterruptedException | ExecutionException e) {
                   CompletableFuture<Message> f = new CompletableFuture<>();
                   f.completeExceptionally(e);
+                  return f;
                 }
 
                 return CompletableFuture.completedFuture(networkResult);
@@ -206,9 +209,7 @@ public abstract class TestBase {
 
     try {
       setup();
-    } catch (NumberFormatException e) {
-      throw new IOException(e);
-    } catch (DNSSECException e) {
+    } catch (NumberFormatException | DNSSECException e) {
       throw new IOException(e);
     }
   }

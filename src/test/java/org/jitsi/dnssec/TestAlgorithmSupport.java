@@ -12,9 +12,13 @@ package org.jitsi.dnssec;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.security.Security;
 import java.util.Properties;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.jitsi.dnssec.validator.ValUtils;
 import org.junit.Test;
 import org.powermock.reflect.Whitebox;
@@ -42,6 +46,30 @@ public class TestAlgorithmSupport extends TestBase {
     assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertEquals("insecure.ds.noalgorithms:eccgost.ingotronic.ch.", getReason(response));
+  }
+
+  @Test
+  public void testEd25519() throws IOException {
+    BouncyCastleProvider bc = new BouncyCastleProvider();
+    Security.addProvider(bc);
+    resolver.init(new Properties());
+    Message response = resolver.send(createMessage("ed25519.nl./A"));
+    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertEquals(Rcode.NOERROR, response.getRcode());
+    assertNull(getReason(response));
+    Security.removeProvider(bc.getName());
+  }
+
+  @Test
+  public void testEd448() throws IOException {
+    BouncyCastleProvider bc = new BouncyCastleProvider();
+    Security.addProvider(bc);
+    resolver.init(new Properties());
+    Message response = resolver.send(createMessage("ed448.nl./A"));
+    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertEquals(Rcode.NOERROR, response.getRcode());
+    assertNull(getReason(response));
+    Security.removeProvider(bc.getName());
   }
 
   @Test

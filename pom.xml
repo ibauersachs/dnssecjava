@@ -8,10 +8,9 @@
     <url>https://github.com/ibauersachs/dnssecjava</url>
 
     <properties>
-        <powermock.version>2.0.2</powermock.version>
+        <powermock.version>2.0.5</powermock.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <checkstyle.config.location>checkstyle.xml</checkstyle.config.location>
         <slf4j.version>1.7.30</slf4j.version>
     </properties>
 
@@ -19,7 +18,7 @@
         <dependency>
             <groupId>dnsjava</groupId>
             <artifactId>dnsjava</artifactId>
-            <version>3.0.0-next.1</version>
+            <version>3.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>

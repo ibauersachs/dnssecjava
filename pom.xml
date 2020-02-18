@@ -8,7 +8,7 @@
     <url>https://github.com/ibauersachs/dnssecjava</url>
 
     <properties>
-        <powermock.version>2.0.2</powermock.version>
+        <powermock.version>2.0.5</powermock.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <slf4j.version>1.7.30</slf4j.version>

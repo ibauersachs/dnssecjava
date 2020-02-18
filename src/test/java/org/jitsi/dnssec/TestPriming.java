@@ -13,18 +13,21 @@ package org.jitsi.dnssec;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.powermock.api.mockito.PowerMockito.doAnswer;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.powermock.api.mockito.PowerMockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.IOException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC;
@@ -38,7 +41,7 @@ import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(DNSKEYRecord.class)
+@PrepareForTest({Record.class, DNSKEYRecord.class})
 public class TestPriming extends TestBase {
   @Test
   public void testDnskeyPrimeResponseWithEmptyAnswerIsBad() throws IOException {
@@ -91,9 +94,26 @@ public class TestPriming extends TestBase {
   }
 
   public void prepareTestDnskeyPrimeResponseWithMismatchedFootprintIsBad() throws Exception {
-    DNSKEYRecord emptyDnskeyRecord = spy(Whitebox.invokeConstructor(DNSKEYRecord.class));
-    when(emptyDnskeyRecord.getFootprint()).thenReturn(-1);
-    whenNew(DNSKEYRecord.class).withNoArguments().thenReturn(emptyDnskeyRecord);
+    spy(Record.class);
+    doAnswer(
+            (Answer<Record>)
+                getEmptyRecordInvocation -> {
+                  Record orig = (Record) getEmptyRecordInvocation.callRealMethod();
+                  if (orig instanceof DNSKEYRecord) {
+                    DNSKEYRecord dr = spy((DNSKEYRecord) orig);
+                    when(dr.getFootprint()).thenReturn(-1);
+                    return dr;
+                  }
+                  return orig;
+                })
+        .when(
+            Record.class,
+            "getEmptyRecord",
+            any(),
+            eq(Type.DNSKEY),
+            eq(DClass.IN),
+            anyLong(),
+            anyBoolean());
   }
 
   @Test
@@ -107,9 +127,26 @@ public class TestPriming extends TestBase {
   }
 
   public void prepareTestDnskeyPrimeResponseWithMismatchedAlgorithmIsBad() throws Exception {
-    DNSKEYRecord emptyDnskeyRecord = spy(Whitebox.invokeConstructor(DNSKEYRecord.class));
-    when(emptyDnskeyRecord.getAlgorithm()).thenReturn(-1);
-    whenNew(DNSKEYRecord.class).withNoArguments().thenReturn(emptyDnskeyRecord);
+    spy(Record.class);
+    doAnswer(
+            (Answer<Record>)
+                getEmptyRecordInvocation -> {
+                  Record orig = (Record) getEmptyRecordInvocation.callRealMethod();
+                  if (orig instanceof DNSKEYRecord) {
+                    DNSKEYRecord dr = spy((DNSKEYRecord) orig);
+                    when(dr.getAlgorithm()).thenReturn(-1);
+                    return dr;
+                  }
+                  return orig;
+                })
+        .when(
+            Record.class,
+            "getEmptyRecord",
+            any(),
+            eq(Type.DNSKEY),
+            eq(DClass.IN),
+            anyLong(),
+            anyBoolean());
   }
 
   @Test

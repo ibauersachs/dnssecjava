@@ -15,7 +15,7 @@ positive response is correct _should_ be safe to use. Most of the
 NXDOMAIN/NODATA responses are safe too, but there are some corner cases that
 have no tests yet.
 
-Unit tests are currently covering over 95% of the code, including 123
+Unit tests are currently covering over 95% of the code, including 133
 from Unbound. Also keep in mind that while most of the code paths are covered
 by unit tests, this does not mean it is performing according to the RFCs or
 that something that should be checked for is really done.
@@ -29,6 +29,11 @@ The Unbound prototype was stripped from all unnecessary parts, heavily
 modified, complemented with more than 300 unit test and found bugs were fixed.
 
 ### Released versions
+* 2.0.0:
+  - Requires Java 8
+  - Disable DSA (3) and DSA-NSEC3-SHA1 (6) algorithms by default (RFC 8624)
+  - Add support for ECC-GOST (12) and EdDSA (15, 16) algorithms, see #21
+  - Add support for async resolving using dnsjava 3, #23
 * 1.2.0:
   - Fix CVE-2017-15105
   - Add config option `org.jitsi.dnssec.harden_algo_downgrade`

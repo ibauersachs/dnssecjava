@@ -11,7 +11,7 @@
 package org.jitsi.dnssec;
 
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.ZonedDateTime;
@@ -39,15 +40,10 @@ import org.junit.Rule;
 import org.junit.rules.TestRule;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DClass;
-import org.xbill.DNS.DNSSEC;
 import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.Master;
 import org.xbill.DNS.Message;
@@ -59,8 +55,6 @@ import org.xbill.DNS.SimpleResolver;
 import org.xbill.DNS.TXTRecord;
 import org.xbill.DNS.Type;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({DNSSEC.class, TestInvalid.class})
 public abstract class TestBase {
   private static final Logger logger = LoggerFactory.getLogger(TestBase.class);
 
@@ -111,7 +105,8 @@ public abstract class TestBase {
             } else if (offline || partialOffline || alwaysOffline) {
               PrepareMocks pm = description.getAnnotation(PrepareMocks.class);
               if (pm != null) {
-                Whitebox.invokeMethod(TestBase.this, pm.value());
+                Method m = TestBase.this.getClass().getMethod(pm.value());
+                m.invoke(TestBase.this);
               }
 
               InputStream stream = getClass().getResourceAsStream(filename);

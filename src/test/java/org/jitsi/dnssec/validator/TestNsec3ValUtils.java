@@ -22,9 +22,6 @@ import org.jitsi.dnssec.AlwaysOffline;
 import org.jitsi.dnssec.TestBase;
 import org.junit.Assume;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.RRSIGRecord;
@@ -33,8 +30,6 @@ import org.xbill.DNS.Rcode;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({NSEC3ValUtils.class})
 public class TestNsec3ValUtils extends TestBase {
   @Test(expected = IllegalArgumentException.class)
   public void testTooLargeIterationCountMustThrow() {

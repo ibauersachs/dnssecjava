@@ -11,7 +11,7 @@
 package org.jitsi.dnssec.unbound.rpl;
 
 import static org.junit.Assert.assertEquals;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,9 +30,6 @@ import org.jitsi.dnssec.TestBase;
 import org.jitsi.dnssec.validator.ValUtils;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.xbill.DNS.CNAMERecord;
 import org.xbill.DNS.DNAMERecord;
 import org.xbill.DNS.DNSSEC;
@@ -47,8 +44,6 @@ import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(DNSSEC.class)
 public class UnboundTests extends TestBase {
   public void runUnboundTest() throws ParseException, IOException {
     InputStream data = getClass().getResourceAsStream("/unbound/" + testName + ".rpl");

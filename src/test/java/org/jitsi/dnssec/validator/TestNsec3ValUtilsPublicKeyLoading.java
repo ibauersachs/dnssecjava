@@ -12,102 +12,80 @@ package org.jitsi.dnssec.validator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.withSettings;
-import static org.powermock.api.mockito.PowerMockito.doAnswer;
-import static org.powermock.api.mockito.PowerMockito.spy;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
-import java.lang.reflect.Modifier;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.security.PublicKey;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.jitsi.dnssec.PrepareMocks;
 import org.jitsi.dnssec.TestBase;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Answers;
-import org.mockito.internal.stubbing.answers.CallsRealMethods;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
-import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
-import org.xbill.DNS.DNSSEC;
+import org.xbill.DNS.DNSSEC.DNSSECException;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
 import org.xbill.DNS.Rcode;
-import org.xbill.DNS.Record;
 import org.xbill.DNS.Type;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(Record.class)
 public class TestNsec3ValUtilsPublicKeyLoading extends TestBase {
-  private int invocationCount = 0;
-
   @Test
   @PrepareMocks("prepareTestPublicKeyLoadingException")
   public void testPublicKeyLoadingException() throws Exception {
-    resolver.setTimeout(Duration.ofDays(1));
-    Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-    assertEquals(Rcode.NOERROR, response.getRcode());
-    assertEquals("failed.nsec3_ignored", getReason(response));
+    try {
+      resolver.setTimeout(Duration.ofDays(1));
+      Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
+      assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+      assertEquals(Rcode.NOERROR, response.getRcode());
+      assertEquals("failed.nsec3_ignored", getReason(response));
+    } finally {
+      Type.register(Type.DNSKEY, Type.string(Type.DNSKEY), () -> spy(DNSKEYRecord.class));
+    }
   }
 
-  public void prepareTestPublicKeyLoadingException() throws Exception {
-    spy(Record.class);
-    doAnswer(
-            (Answer<Record>)
-                getEmptyRecordInvocation -> {
-                  Record orig = (Record) getEmptyRecordInvocation.callRealMethod();
-                  if (orig instanceof DNSKEYRecord) {
-                    DNSKEYRecord dr =
-                        mock(
-                            DNSKEYRecord.class,
-                            withSettings()
-                                .spiedInstance(orig)
-                                .defaultAnswer(
-                                    new CallsRealMethods() {
-                                      @Override
-                                      public Object answer(InvocationOnMock invocation)
-                                          throws Throwable {
-                                        return Modifier.isAbstract(
-                                                invocation.getMethod().getModifiers())
-                                            ? (invocation.getMethod().getName().equals("compareTo")
-                                                ? ((Comparable<?>) orig)
-                                                    .compareTo(invocation.getArgument(0))
-                                                : Answers.RETURNS_DEFAULTS.answer(invocation))
-                                            : invocation.callRealMethod();
-                                      }
-                                    }));
-                    doAnswer(
-                            (Answer<PublicKey>)
-                                getPublicKeyInvocation -> {
-                                  if (invocationCount++ == 5) {
-                                    throw Whitebox.invokeConstructor(
-                                        DNSSEC.DNSSECException.class, "mock-test");
-                                  }
+  public void prepareTestPublicKeyLoadingException() {
+    Name fakeName = Name.fromConstantString("nsec3.ingotronic.ch.");
+    Type.register(
+        Type.DNSKEY,
+        Type.string(Type.DNSKEY),
+        () -> {
+          DNSKEYRecord throwingDnskey = spy(DNSKEYRecord.class);
+          AtomicInteger invocationCount = new AtomicInteger(0);
+          try {
+            doAnswer(
+                    (Answer<PublicKey>)
+                        a -> {
+                          if (((DNSKEYRecord) a.getMock()).getName().equals(fakeName)) {
+                            if (invocationCount.getAndIncrement() == 3) {
+                              throwDnssecException();
+                            }
+                            return (PublicKey) a.callRealMethod();
+                          }
+                          return (PublicKey) a.callRealMethod();
+                        })
+                .when(throwingDnskey)
+                .getPublicKey();
+          } catch (DNSSECException e) {
+            throw new RuntimeException(e);
+          }
+          return throwingDnskey;
+        });
+  }
 
-                                  return (PublicKey) getPublicKeyInvocation.callRealMethod();
-                                })
-                        .when(dr)
-                        .getPublicKey();
-                    return dr;
-                  }
-                  return orig;
-                })
-        .when(
-            Record.class,
-            "getEmptyRecord",
-            eq(Name.fromConstantString("nsec3.ingotronic.ch.")),
-            eq(Type.DNSKEY),
-            eq(DClass.IN),
-            anyLong(),
-            anyBoolean());
+  private void throwDnssecException() throws DNSSECException {
+    try {
+      Constructor<DNSSECException> c = DNSSECException.class.getDeclaredConstructor(String.class);
+      c.setAccessible(true);
+      throw c.newInstance("mock-text");
+    } catch (NoSuchMethodException
+        | IllegalAccessException
+        | InvocationTargetException
+        | InstantiationException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

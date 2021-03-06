@@ -12,25 +12,16 @@ package org.jitsi.dnssec;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.powermock.api.mockito.PowerMockito.doAnswer;
-import static org.powermock.api.mockito.PowerMockito.doReturn;
-import static org.powermock.api.mockito.PowerMockito.spy;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.security.MessageDigestSpi;
+import java.security.Provider;
+import java.security.Security;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
-import org.xbill.DNS.DNSSEC;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Name;
@@ -40,8 +31,6 @@ import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 import org.xbill.DNS.Type;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({Record.class, DNSKEYRecord.class})
 public class TestPriming extends TestBase {
   @Test
   public void testDnskeyPrimeResponseWithEmptyAnswerIsBad() throws IOException {
@@ -87,78 +76,87 @@ public class TestPriming extends TestBase {
   @Test
   @PrepareMocks("prepareTestDnskeyPrimeResponseWithMismatchedFootprintIsBad")
   public void testDnskeyPrimeResponseWithMismatchedFootprintIsBad() throws Exception {
-    Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-    assertEquals(Rcode.SERVFAIL, response.getRcode());
-    assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
+    try {
+      Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
+      assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+      assertEquals(Rcode.SERVFAIL, response.getRcode());
+      assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
+    } finally {
+      Type.register(Type.DNSKEY, Type.string(Type.DNSKEY), () -> spy(DNSKEYRecord.class));
+    }
   }
 
-  public void prepareTestDnskeyPrimeResponseWithMismatchedFootprintIsBad() throws Exception {
-    spy(Record.class);
-    doAnswer(
-            (Answer<Record>)
-                getEmptyRecordInvocation -> {
-                  Record orig = (Record) getEmptyRecordInvocation.callRealMethod();
-                  if (orig instanceof DNSKEYRecord) {
-                    DNSKEYRecord dr = spy((DNSKEYRecord) orig);
-                    when(dr.getFootprint()).thenReturn(-1);
-                    return dr;
-                  }
-                  return orig;
-                })
-        .when(
-            Record.class,
-            "getEmptyRecord",
-            any(),
-            eq(Type.DNSKEY),
-            eq(DClass.IN),
-            anyLong(),
-            anyBoolean());
+  public void prepareTestDnskeyPrimeResponseWithMismatchedFootprintIsBad() {
+    Type.register(
+        Type.DNSKEY,
+        Type.string(Type.DNSKEY),
+        () -> {
+          DNSKEYRecord minus1FootprintDnskey = spy(DNSKEYRecord.class);
+          when(minus1FootprintDnskey.getFootprint()).thenReturn(-1);
+          return minus1FootprintDnskey;
+        });
   }
 
   @Test
   @PrepareMocks("prepareTestDnskeyPrimeResponseWithMismatchedAlgorithmIsBad")
-  public void testDnskeyPrimeResponseWithMismatchedAlgorithmIsBad()
-      throws IOException, NumberFormatException {
-    Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-    assertEquals(Rcode.SERVFAIL, response.getRcode());
-    assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
+  public void testDnskeyPrimeResponseWithMismatchedAlgorithmIsBad() throws Exception {
+    try {
+      Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
+      assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+      assertEquals(Rcode.SERVFAIL, response.getRcode());
+      assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
+    } finally {
+      Type.register(Type.DNSKEY, Type.string(Type.DNSKEY), () -> spy(DNSKEYRecord.class));
+    }
   }
 
-  public void prepareTestDnskeyPrimeResponseWithMismatchedAlgorithmIsBad() throws Exception {
-    spy(Record.class);
-    doAnswer(
-            (Answer<Record>)
-                getEmptyRecordInvocation -> {
-                  Record orig = (Record) getEmptyRecordInvocation.callRealMethod();
-                  if (orig instanceof DNSKEYRecord) {
-                    DNSKEYRecord dr = spy((DNSKEYRecord) orig);
-                    when(dr.getAlgorithm()).thenReturn(-1);
-                    return dr;
-                  }
-                  return orig;
-                })
-        .when(
-            Record.class,
-            "getEmptyRecord",
-            any(),
-            eq(Type.DNSKEY),
-            eq(DClass.IN),
-            anyLong(),
-            anyBoolean());
+  public void prepareTestDnskeyPrimeResponseWithMismatchedAlgorithmIsBad() {
+    Type.register(
+        Type.DNSKEY,
+        Type.string(Type.DNSKEY),
+        () -> {
+          DNSKEYRecord minus1AlgorithmDnskey = spy(DNSKEYRecord.class);
+          when(minus1AlgorithmDnskey.getAlgorithm()).thenReturn(-1);
+          return minus1AlgorithmDnskey;
+        });
+  }
+
+  public static class FakeShaProvider extends Provider {
+    protected FakeShaProvider() {
+      super("FakeShaProvider", 1, "FakeShaProvider");
+      put("MessageDigest.SHA", FakeSha.class.getName());
+      put("MessageDigest.SHA-256", FakeSha.class.getName());
+    }
+
+    public static class FakeSha extends MessageDigestSpi {
+      @Override
+      protected void engineUpdate(byte input) {}
+
+      @Override
+      protected void engineUpdate(byte[] input, int offset, int len) {}
+
+      @Override
+      protected byte[] engineDigest() {
+        return new byte[] {1, 2, 3};
+      }
+
+      @Override
+      protected void engineReset() {}
+    }
   }
 
   @Test
   public void testDnskeyPrimeResponseWithWeirdHashIsBad() throws Exception {
-    spy(DNSSEC.class);
-    doReturn(new byte[] {1, 2, 3})
-        .when(DNSSEC.class, "generateDSDigest", any(DNSKEYRecord.class), anyInt());
-
-    Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
-    assertEquals(Rcode.SERVFAIL, response.getRcode());
-    assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
+    Provider p = new FakeShaProvider();
+    try {
+      Security.insertProviderAt(p, 1);
+      Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
+      assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+      assertEquals(Rcode.SERVFAIL, response.getRcode());
+      assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
+    } finally {
+      Security.removeProvider(p.getName());
+    }
   }
 
   @Test

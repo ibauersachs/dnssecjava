@@ -8,7 +8,7 @@
  * http://www.eclipse.org/legal/epl-v10.html
  */
 
-package org.jitsi.dnssec;
+package org.jitsi.dnssec.validator;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -19,9 +19,10 @@ import java.io.IOException;
 import java.security.Security;
 import java.util.Properties;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.jitsi.dnssec.validator.ValUtils;
+import org.jitsi.dnssec.AlwaysOffline;
+import org.jitsi.dnssec.SRRset;
+import org.jitsi.dnssec.TestBase;
 import org.junit.Test;
-import org.powermock.reflect.Whitebox;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DSRecord;
@@ -90,7 +91,7 @@ public class TestAlgorithmSupport extends TestBase {
 
   @AlwaysOffline
   @Test
-  public void testFavoriteDigestNotInRRset() throws Exception {
+  public void testFavoriteDigestNotInRRset() {
     Properties config = new Properties();
     config.put("org.jitsi.dnssec.digest_preference", "4");
     ValUtils v = new ValUtils();
@@ -102,31 +103,31 @@ public class TestAlgorithmSupport extends TestBase {
     set.addRR(
         new DSRecord(
             Name.root, DClass.IN, 120, 1234, Algorithm.DSA, Digest.SHA256, new byte[] {1, 2, 3}));
-    int digestId = Whitebox.invokeMethod(v, "favoriteDSDigestID", set);
+    int digestId = v.favoriteDSDigestID(set);
     assertEquals(0, digestId);
   }
 
   @AlwaysOffline
   @Test
-  public void testOnlyUnsupportedDigestInRRset() throws Exception {
+  public void testOnlyUnsupportedDigestInRRset() {
     ValUtils v = new ValUtils();
     SRRset set = new SRRset();
     set.addRR(
         new DSRecord(
             Name.root, DClass.IN, 120, 1234, Algorithm.DSA, 3 /*GOST*/, new byte[] {1, 2, 3}));
-    int digestId = Whitebox.invokeMethod(v, "favoriteDSDigestID", set);
+    int digestId = v.favoriteDSDigestID(set);
     assertEquals(0, digestId);
   }
 
   @AlwaysOffline
   @Test
-  public void testOnlyUnsupportedAlgorithmInRRset() throws Exception {
+  public void testOnlyUnsupportedAlgorithmInRRset() {
     ValUtils v = new ValUtils();
     SRRset set = new SRRset();
     set.addRR(
         new DSRecord(
             Name.root, DClass.IN, 120, 1234, 0 /*Unknown alg*/, Digest.SHA1, new byte[] {1, 2, 3}));
-    int digestId = Whitebox.invokeMethod(v, "favoriteDSDigestID", set);
+    int digestId = v.favoriteDSDigestID(set);
     assertEquals(0, digestId);
   }
 }

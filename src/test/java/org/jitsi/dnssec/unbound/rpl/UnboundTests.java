@@ -169,6 +169,7 @@ public class UnboundTests extends TestBase {
 
     for (Check c : rpl.checks.values()) {
       Message s = resolver.send(c.query);
+      Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
       assertEquals(
           "AD Flag must match",
           c.response.getHeader().getFlag(Flags.AD),

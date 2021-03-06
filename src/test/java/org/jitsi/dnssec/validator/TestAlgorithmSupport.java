@@ -51,26 +51,32 @@ public class TestAlgorithmSupport extends TestBase {
 
   @Test
   public void testEd25519() throws IOException {
-    BouncyCastleProvider bc = new BouncyCastleProvider();
-    Security.addProvider(bc);
-    resolver.init(new Properties());
-    Message response = resolver.send(createMessage("ed25519.nl./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
-    assertEquals(Rcode.NOERROR, response.getRcode());
-    assertNull(getReason(response));
-    Security.removeProvider(bc.getName());
+    try {
+      BouncyCastleProvider bc = new BouncyCastleProvider();
+      Security.addProvider(bc);
+      resolver.init(new Properties());
+      Message response = resolver.send(createMessage("ed25519.nl./A"));
+      assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+      assertEquals(Rcode.NOERROR, response.getRcode());
+      assertNull(getReason(response));
+    } finally {
+      Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+    }
   }
 
   @Test
   public void testEd448() throws IOException {
-    BouncyCastleProvider bc = new BouncyCastleProvider();
-    Security.addProvider(bc);
-    resolver.init(new Properties());
-    Message response = resolver.send(createMessage("ed448.nl./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
-    assertEquals(Rcode.NOERROR, response.getRcode());
-    assertNull(getReason(response));
-    Security.removeProvider(bc.getName());
+    try {
+      BouncyCastleProvider bc = new BouncyCastleProvider();
+      Security.addProvider(bc);
+      resolver.init(new Properties());
+      Message response = resolver.send(createMessage("ed448.nl./A"));
+      assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+      assertEquals(Rcode.NOERROR, response.getRcode());
+      assertNull(getReason(response));
+    } finally {
+      Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+    }
   }
 
   @Test

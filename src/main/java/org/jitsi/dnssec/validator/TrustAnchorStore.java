@@ -40,6 +40,8 @@
 
 package org.jitsi.dnssec.validator;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.jitsi.dnssec.SRRset;
@@ -56,7 +58,7 @@ import org.xbill.DNS.Type;
  * @author davidb
  */
 public class TrustAnchorStore {
-  private Map<String, SRRset> map;
+  private final Map<String, SRRset> map;
 
   /** Creates a new instance of this class. */
   public TrustAnchorStore() {
@@ -120,11 +122,16 @@ public class TrustAnchorStore {
     this.map.clear();
   }
 
+  /** Gets all trust anchors currently in use. */
+  public Collection<SRRset> items() {
+    return Collections.unmodifiableCollection(this.map.values());
+  }
+
   private SRRset lookup(String key) {
     return this.map.get(key);
   }
 
   private String key(Name n, int dclass) {
-    return "T" + dclass + "/" + n;
+    return "T" + dclass + "/" + n.canonicalize();
   }
 }

@@ -10,10 +10,13 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.jitsi.dnssec.validator.TrustAnchorStore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DSRecord;
@@ -50,11 +53,11 @@ public class TestTrustAnchorStore {
     assertEquals(set.getName(), anchor.getName());
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testInvalidAnchorRecord() throws TextParseException {
     SRRset set = new SRRset(new TXTRecord(Name.fromString("bla."), DClass.IN, 0, "root"));
     TrustAnchorStore tas = new TrustAnchorStore();
-    tas.store(set);
+    assertThrows(IllegalArgumentException.class, () -> tas.store(set));
   }
 
   @Test

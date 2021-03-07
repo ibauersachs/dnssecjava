@@ -10,8 +10,8 @@
 
 package org.jitsi.dnssec.validator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 
@@ -22,7 +22,7 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.jitsi.dnssec.PrepareMocks;
 import org.jitsi.dnssec.TestBase;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DNSSEC.DNSSECException;
@@ -39,7 +39,7 @@ public class TestNsec3ValUtilsPublicKeyLoading extends TestBase {
     try {
       resolver.setTimeout(Duration.ofDays(1));
       Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
-      assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+      assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
       assertEquals(Rcode.NOERROR, response.getRcode());
       assertEquals("failed.nsec3_ignored", getReason(response));
     } finally {

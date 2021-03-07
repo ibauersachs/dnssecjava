@@ -10,10 +10,11 @@
 
 package org.jitsi.dnssec.validator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.security.Security;
@@ -22,7 +23,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.jitsi.dnssec.AlwaysOffline;
 import org.jitsi.dnssec.SRRset;
 import org.jitsi.dnssec.TestBase;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSSEC.Algorithm;
 import org.xbill.DNS.DSRecord;
@@ -36,7 +37,7 @@ public class TestAlgorithmSupport extends TestBase {
   @Test
   public void testMd5AlgRfc6944() throws IOException {
     Message response = resolver.send(createMessage("rsamd5.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertEquals("insecure.ds.noalgorithms:rsamd5.ingotronic.ch.", getReason(response));
   }
@@ -44,7 +45,7 @@ public class TestAlgorithmSupport extends TestBase {
   @Test
   public void testEccgostAlgIsUnknown() throws IOException {
     Message response = resolver.send(createMessage("eccgost.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertEquals("insecure.ds.noalgorithms:eccgost.ingotronic.ch.", getReason(response));
   }
@@ -56,7 +57,7 @@ public class TestAlgorithmSupport extends TestBase {
       Security.addProvider(bc);
       resolver.init(new Properties());
       Message response = resolver.send(createMessage("ed25519.nl./A"));
-      assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+      assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
       assertEquals(Rcode.NOERROR, response.getRcode());
       assertNull(getReason(response));
     } finally {
@@ -71,7 +72,7 @@ public class TestAlgorithmSupport extends TestBase {
       Security.addProvider(bc);
       resolver.init(new Properties());
       Message response = resolver.send(createMessage("ed448.nl./A"));
-      assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+      assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
       assertEquals(Rcode.NOERROR, response.getRcode());
       assertNull(getReason(response));
     } finally {
@@ -82,17 +83,17 @@ public class TestAlgorithmSupport extends TestBase {
   @Test
   public void testDigestIdIsUnknown() throws IOException {
     Message response = resolver.send(createMessage("unknown-alg.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertEquals("failed.ds.nodigest:unknown-alg.ingotronic.ch.", getReason(response));
   }
 
   @AlwaysOffline
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testUnsupportedDigestInDigestPreference() throws IOException {
     Properties config = new Properties();
     config.put("org.jitsi.dnssec.digest_preference", "1,2,0");
-    resolver.init(config);
+    assertThrows(IllegalArgumentException.class, () -> resolver.init(config));
   }
 
   @AlwaysOffline

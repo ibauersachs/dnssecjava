@@ -10,12 +10,13 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.Properties;
 import org.jitsi.dnssec.validator.KeyCache;
 import org.jitsi.dnssec.validator.KeyEntry;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.DNSKEYRecord;
 import org.xbill.DNS.DSRecord;

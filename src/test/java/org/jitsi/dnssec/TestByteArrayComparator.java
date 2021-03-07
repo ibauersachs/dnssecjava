@@ -10,10 +10,10 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.jitsi.dnssec.validator.ByteArrayComparator;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class TestByteArrayComparator {
   private ByteArrayComparator c = new ByteArrayComparator();

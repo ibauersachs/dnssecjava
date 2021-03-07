@@ -10,12 +10,14 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.AAAARecord;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DClass;
@@ -27,28 +29,28 @@ import org.xbill.DNS.TextParseException;
 import org.xbill.DNS.Type;
 
 public class TestSMessage {
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testGetUndefinedSectionBelow() {
     SMessage m = new SMessage(0, null);
-    m.getSectionRRsets(-1);
+    assertThrows(IllegalArgumentException.class, () -> m.getSectionRRsets(-1));
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testGetUndefinedSectionAtLowerBorder() {
     SMessage m = new SMessage(0, null);
-    m.getSectionRRsets(0);
+    assertThrows(IllegalArgumentException.class, () -> m.getSectionRRsets(0));
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testGetUndefinedSectionAtUpperBorder() {
     SMessage m = new SMessage(0, null);
-    m.getSectionRRsets(4);
+    assertThrows(IllegalArgumentException.class, () -> m.getSectionRRsets(4));
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testGetUndefinedSectionAbove() {
     SMessage m = new SMessage(0, null);
-    m.getSectionRRsets(100);
+    assertThrows(IllegalArgumentException.class, () -> m.getSectionRRsets(100));
   }
 
   @Test()

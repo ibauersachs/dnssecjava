@@ -10,15 +10,15 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Instant;
 import org.jitsi.dnssec.validator.DnsSecVerifier;
 import org.jitsi.dnssec.validator.ResponseClassification;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.Message;
@@ -37,7 +37,7 @@ import org.xbill.DNS.Type;
 public class TestNormallyUnreachableCode {
   private InetAddress localhost;
 
-  @Before
+  @BeforeEach
   public void setUp() throws UnknownHostException {
     localhost = InetAddress.getByAddress(new byte[] {127, 0, 0, 1});
   }

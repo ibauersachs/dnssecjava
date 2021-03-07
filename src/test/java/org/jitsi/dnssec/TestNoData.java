@@ -10,12 +10,12 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Rcode;
@@ -29,7 +29,7 @@ public class TestNoData extends TestBase {
     add("www.nsec3.ingotronic.ch./A", message);
 
     Message response = resolver.send(createMessage("www.nsec3.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertTrue(getReason(response).startsWith("failed.nodata"));
   }
@@ -41,7 +41,7 @@ public class TestNoData extends TestBase {
     add("www.nsec3.ingotronic.ch./A", message);
 
     Message response = resolver.send(createMessage("www.nsec3.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertTrue(getReason(response).startsWith("failed.nodata"));
   }

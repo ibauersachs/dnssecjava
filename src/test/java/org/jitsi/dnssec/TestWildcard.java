@@ -10,11 +10,13 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.ARecord;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.Flags;
@@ -80,7 +82,7 @@ public class TestWildcard extends TestBase {
     add(Name.fromString("\1.sub.wc.ingotronic.ch.").toString() + "/A", message);
 
     Message response = resolver.send(createMessage("\1.sub.wc.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.positive.wildcard_too_broad", getReason(response));
   }
@@ -94,7 +96,7 @@ public class TestWildcard extends TestBase {
     add("a.c.ingotronic.ch./A", message);
 
     Message response = resolver.send(createMessage("a.c.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertTrue(getReason(response).startsWith("failed.authority.positive"));
   }
@@ -107,7 +109,7 @@ public class TestWildcard extends TestBase {
     add(Name.fromString("\1.c.ingotronic.ch./MX").toString(), message);
 
     Message response = resolver.send(createMessage("\1.c.ingotronic.ch./MX"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertTrue(getReason(response).equals("failed.nodata"));
   }
@@ -121,7 +123,7 @@ public class TestWildcard extends TestBase {
     add(Name.fromString("\1.sub.wc.ingotronic.ch.").toString() + "/MX", message);
 
     Message response = resolver.send(createMessage("\1.sub.wc.ingotronic.ch./MX"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -136,7 +138,7 @@ public class TestWildcard extends TestBase {
     add(Name.fromString("\1.sub.wc.nsec3.ingotronic.ch.").toString() + "/MX", message);
 
     Message response = resolver.send(createMessage("\1.sub.wc.nsec3.ingotronic.ch./MX"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -153,7 +155,7 @@ public class TestWildcard extends TestBase {
     add("www.x.c.ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("www.x.c.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
   }
 
@@ -169,7 +171,7 @@ public class TestWildcard extends TestBase {
     add("www.x.ce.ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("www.x.ce.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
   }
 }

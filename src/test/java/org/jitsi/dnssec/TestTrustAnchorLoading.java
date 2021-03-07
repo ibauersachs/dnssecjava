@@ -10,18 +10,19 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.Properties;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
@@ -56,12 +57,12 @@ public class TestTrustAnchorLoading extends TestBase {
     assertNull(resolver.getTrustAnchors().find(Name.root, DClass.IN));
   }
 
-  @Test(expected = IOException.class)
+  @Test
   public void testInitializingWithNonExistingFileThrows() throws IOException {
     resolver.getTrustAnchors().clear();
     Properties config = new Properties();
     config.put("org.jitsi.dnssec.trust_anchor_file", "xyz");
-    resolver.init(config);
+    assertThrows(IOException.class, () -> resolver.init(config));
   }
 
   @Test
@@ -85,7 +86,7 @@ public class TestTrustAnchorLoading extends TestBase {
     assertNotNull(resolver.getTrustAnchors().find(Name.root, DClass.IN));
 
     Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
   }
@@ -97,7 +98,7 @@ public class TestTrustAnchorLoading extends TestBase {
     assertNotNull(resolver.getTrustAnchors().find(Name.root, DClass.IN));
 
     Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
   }
@@ -109,7 +110,7 @@ public class TestTrustAnchorLoading extends TestBase {
     assertNotNull(resolver.getTrustAnchors().find(Name.root, DClass.IN));
 
     Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("validate.bogus.badkey:.:dnskey.no_ds_match", getReason(response));
   }
@@ -136,7 +137,7 @@ public class TestTrustAnchorLoading extends TestBase {
     assertNull(resolver.getTrustAnchors().find(Name.root, DClass.IN));
 
     Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertEquals("validate.insecure", getReason(response));
   }

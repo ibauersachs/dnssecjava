@@ -10,6 +10,7 @@
 
 package org.jitsi.dnssec;
 
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,13 +34,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import org.jitsi.dnssec.validator.ValidatingResolver;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.rules.TestRule;
-import org.junit.rules.TestWatcher;
-import org.junit.runner.Description;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xbill.DNS.ARecord;
@@ -74,84 +72,91 @@ public abstract class TestBase {
   protected Clock resolverClock;
   protected String testName;
 
-  @Rule
-  public TestRule watcher =
-      new TestWatcher() {
-        @Override
-        protected void starting(Description description) {
-          unboundTest = false;
-          testName = description.getMethodName();
-          resolverClock = mock(Clock.class);
+  @BeforeEach
+  void beforeEach(TestInfo description) throws IOException, DNSSECException {
+    starting(description);
+    setup();
+  }
 
-          try {
-            // do not record or process unbound unit tests offline
-            alwaysOffline = description.getAnnotation(AlwaysOffline.class) != null;
-            if (description.getClassName().contains("unbound")) {
-              unboundTest = true;
-              return;
-            }
+  private void starting(TestInfo description) {
+    unboundTest = false;
+    testName = description.getTestMethod().orElseThrow(RuntimeException::new).getName();
+    resolverClock = mock(Clock.class);
 
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
-            String filename =
-                "/recordings/" + description.getClassName().replace(".", "_") + "/" + testName;
-            File f = new File("./src/test/resources" + filename);
-            if ((record || !f.exists()) && !alwaysOffline) {
-              resolverClock = Clock.systemUTC();
-              f.getParentFile().getParentFile().mkdir();
-              f.getParentFile().mkdir();
-              w = new FileWriter(f.getAbsoluteFile());
-              w.write("#Date: " + ZonedDateTime.now().format(formatter));
-              w.write("\n");
-            } else if (offline || partialOffline || alwaysOffline) {
-              PrepareMocks pm = description.getAnnotation(PrepareMocks.class);
-              if (pm != null) {
-                Method m = TestBase.this.getClass().getMethod(pm.value());
-                m.invoke(TestBase.this);
-              }
+    try {
+      // do not record or process unbound unit tests offline
+      alwaysOffline = description.getTestMethod().get().getAnnotation(AlwaysOffline.class) != null;
+      if (description
+          .getTestClass()
+          .orElseThrow(RuntimeException::new)
+          .getName()
+          .contains("unbound")) {
+        unboundTest = true;
+        return;
+      }
 
-              InputStream stream = getClass().getResourceAsStream(filename);
-              if (stream != null) {
-                BufferedReader r = new BufferedReader(new InputStreamReader(stream));
-                String date = r.readLine().substring("#Date: ".length());
-                when(resolverClock.instant())
-                    .thenReturn(ZonedDateTime.parse(date, formatter).toInstant());
-
-                Message m;
-                while ((m = messageReader.readMessage(r)) != null) {
-                  queryResponsePairs.put(key(m), m);
-                }
-
-                r.close();
-              }
-            }
-          } catch (Exception e) {
-            System.err.println(e);
-            throw new RuntimeException(e);
-          }
+      DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
+      String filename =
+          "/recordings/"
+              + description.getTestClass().get().getName().replace(".", "_")
+              + "/"
+              + testName;
+      File f = new File("./src/test/resources" + filename);
+      if ((record || !f.exists()) && !alwaysOffline) {
+        resolverClock = Clock.systemUTC();
+        f.getParentFile().getParentFile().mkdir();
+        f.getParentFile().mkdir();
+        w = new FileWriter(f.getAbsoluteFile());
+        w.write("#Date: " + ZonedDateTime.now().format(formatter));
+        w.write("\n");
+      } else if (offline || partialOffline || alwaysOffline) {
+        PrepareMocks pm = description.getTestMethod().get().getAnnotation(PrepareMocks.class);
+        if (pm != null) {
+          Method m = TestBase.this.getClass().getMethod(pm.value());
+          m.invoke(TestBase.this);
         }
 
-        @Override
-        protected void finished(Description description) {
-          try {
-            if (w != null) {
-              w.flush();
-              w.close();
-              w = null;
-            }
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        }
-      };
+        InputStream stream = getClass().getResourceAsStream(filename);
+        if (stream != null) {
+          BufferedReader r = new BufferedReader(new InputStreamReader(stream));
+          String date = r.readLine().substring("#Date: ".length());
+          when(resolverClock.instant())
+              .thenReturn(ZonedDateTime.parse(date, formatter).toInstant());
 
-  @BeforeClass
+          Message m;
+          while ((m = messageReader.readMessage(r)) != null) {
+            queryResponsePairs.put(key(m), m);
+          }
+
+          r.close();
+        }
+      }
+    } catch (Exception e) {
+      System.err.println(e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  @AfterEach
+  void finished() {
+    try {
+      if (w != null) {
+        w.flush();
+        w.close();
+        w = null;
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  @BeforeAll
   public static void setupClass() {
     R.setBundle(null);
     R.setUseNeutralMessages(true);
   }
 
-  @Before
-  public void setup() throws NumberFormatException, IOException, DNSSECException {
+  private void setup() throws NumberFormatException, IOException, DNSSECException {
     resolver =
         new ValidatingResolver(
             new SimpleResolver("8.8.4.4") {
@@ -162,7 +167,7 @@ public abstract class TestBase {
                 if (response != null) {
                   return CompletableFuture.completedFuture(response);
                 } else if ((offline && !partialOffline) || unboundTest || alwaysOffline) {
-                  Assert.fail("Response for " + key(query) + " not found.");
+                  fail("Response for " + key(query) + " not found.");
                 }
 
                 Message networkResult;

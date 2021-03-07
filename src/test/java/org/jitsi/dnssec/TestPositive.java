@@ -10,13 +10,13 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Rcode;
@@ -27,7 +27,7 @@ public class TestPositive extends TestBase {
   @Test
   public void testValidExising() throws IOException {
     Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertEquals(localhost, firstA(response));
     assertNull(getReason(response));
@@ -36,7 +36,7 @@ public class TestPositive extends TestBase {
   @Test
   public void testValidNonExising() throws IOException {
     Message response = resolver.send(createMessage("ingotronic.ch./ANY"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
   }
@@ -53,7 +53,7 @@ public class TestPositive extends TestBase {
 
     add("www.ingotronic.ch./A", message);
     Message response = resolver.send(createMessage("www.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("validate.response.unknown:UNKNOWN", getReason(response));
   }
@@ -69,7 +69,7 @@ public class TestPositive extends TestBase {
     Message query = createMessage("www.ingotronic.ch./A");
     query.getHeader().setFlag(Flags.CD);
     Message response = resolver.send(query);
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
   }

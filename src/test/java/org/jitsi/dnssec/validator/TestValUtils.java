@@ -10,16 +10,16 @@
 
 package org.jitsi.dnssec.validator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import org.jitsi.dnssec.SMessage;
 import org.jitsi.dnssec.SecurityStatus;
 import org.jitsi.dnssec.TestBase;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.DClass;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
@@ -61,7 +61,7 @@ public class TestValUtils extends TestBase {
     add("sub.ingotronic.ch./MX", message);
 
     Message response = resolver.send(createMessage("sub.ingotronic.ch./MX"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -86,7 +86,7 @@ public class TestValUtils extends TestBase {
     add("s.sub.ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("s.sub.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nxdomain.exists:s.sub.ingotronic.ch.", getReason(response));
   }
@@ -94,7 +94,7 @@ public class TestValUtils extends TestBase {
   @Test
   public void testNameErrorWhenNsecIsNotFromApex() throws IOException {
     Message response = resolver.send(createMessage("1.www.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NXDOMAIN, response.getRcode());
     assertNull(getReason(response));
   }
@@ -119,7 +119,7 @@ public class TestValUtils extends TestBase {
     add("y.ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("y.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nxdomain.exists:y.ingotronic.ch.", getReason(response));
   }
@@ -144,7 +144,7 @@ public class TestValUtils extends TestBase {
     add("zingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("zingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nxdomain.exists:zingotronic.ch.", getReason(response));
   }
@@ -169,7 +169,7 @@ public class TestValUtils extends TestBase {
     add("ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nxdomain.exists:ingotronic.ch.", getReason(response));
   }
@@ -181,7 +181,7 @@ public class TestValUtils extends TestBase {
     add("samekey.ingotronic.ch./DS", m, false);
 
     Message response = resolver.send(createMessage("samekey.ingotronic.ch./DS"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -189,7 +189,7 @@ public class TestValUtils extends TestBase {
   @Test
   public void testNoDataOfDSForRoot() throws IOException {
     Message response = resolver.send(createMessage("./DS"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
   }
@@ -200,7 +200,7 @@ public class TestValUtils extends TestBase {
         ValUtils.nsecProvesNoDS(
             new NSECRecord(Name.root, DClass.IN, 0, Name.root, new int[] {Type.SOA, Type.NS}),
             Name.root);
-    assertEquals("Root NSEC SOA and without DS must be secure", SecurityStatus.SECURE, s);
+    assertEquals(SecurityStatus.SECURE, s, "Root NSEC SOA and without DS must be secure");
   }
 
   @Test
@@ -210,7 +210,7 @@ public class TestValUtils extends TestBase {
             new NSECRecord(
                 Name.root, DClass.IN, 0, Name.root, new int[] {Type.SOA, Type.NS, Type.DS}),
             Name.root);
-    assertEquals("Root NSEC with DS must be bogus", SecurityStatus.BOGUS, s);
+    assertEquals(SecurityStatus.BOGUS, s, "Root NSEC with DS must be bogus");
   }
 
   @Test
@@ -219,7 +219,7 @@ public class TestValUtils extends TestBase {
     SecurityStatus s =
         ValUtils.nsecProvesNoDS(
             new NSECRecord(ch, DClass.IN, 0, ch, new int[] {Type.SOA, Type.NS}), ch);
-    assertEquals("Non-root NSEC with SOA must be bogus", SecurityStatus.BOGUS, s);
+    assertEquals(SecurityStatus.BOGUS, s, "Non-root NSEC with SOA must be bogus");
   }
 
   @Test
@@ -242,7 +242,7 @@ public class TestValUtils extends TestBase {
     add("ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -267,7 +267,7 @@ public class TestValUtils extends TestBase {
     add("www.ingotronic.ch./AAAA", m);
 
     Message response = resolver.send(createMessage("www.ingotronic.ch./AAAA"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -292,7 +292,7 @@ public class TestValUtils extends TestBase {
     add("csigned.ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("csigned.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -317,7 +317,7 @@ public class TestValUtils extends TestBase {
     add("a.c.ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("a.c.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -342,7 +342,7 @@ public class TestValUtils extends TestBase {
     add("a.cwv.ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("a.cwv.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -367,7 +367,7 @@ public class TestValUtils extends TestBase {
     add("b.d.ingotronic.ch./A", m);
 
     Message response = resolver.send(createMessage("b.d.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nodata", getReason(response));
   }
@@ -392,7 +392,7 @@ public class TestValUtils extends TestBase {
     add("sub.ingotronic.ch./DS", m);
 
     Message response = resolver.send(createMessage("sub.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals(
         "validate.bogus.badkey:sub.ingotronic.ch.:failed.ds.nsec.hasdata", getReason(response));

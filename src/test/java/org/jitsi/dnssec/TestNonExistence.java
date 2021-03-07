@@ -10,10 +10,13 @@
 
 package org.jitsi.dnssec;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.Rcode;
@@ -23,7 +26,7 @@ public class TestNonExistence extends TestBase {
   @Test
   public void testNonExistingBelowRoot() throws IOException {
     Message response = resolver.send(createMessage("gibtsnicht./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NXDOMAIN, response.getRcode());
     assertNull(getReason(response));
   }
@@ -31,7 +34,7 @@ public class TestNonExistence extends TestBase {
   @Test
   public void testSingleLabelABelowSigned() throws IOException {
     Message response = resolver.send(createMessage("gibtsnicht.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NXDOMAIN, response.getRcode());
     assertNull(getReason(response));
   }
@@ -39,7 +42,7 @@ public class TestNonExistence extends TestBase {
   @Test
   public void testSingleLabelABelowSignedNsec3() throws IOException {
     Message response = resolver.send(createMessage("gibtsnicht.nsec3.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NXDOMAIN, response.getRcode());
     assertNull(getReason(response));
   }
@@ -47,7 +50,7 @@ public class TestNonExistence extends TestBase {
   @Test
   public void testDoubleLabelABelowSigned() throws IOException {
     Message response = resolver.send(createMessage("gibtsnicht.gibtsnicht.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NXDOMAIN, response.getRcode());
     assertNull(getReason(response));
   }
@@ -55,7 +58,7 @@ public class TestNonExistence extends TestBase {
   @Test
   public void testDoubleLabelABelowSignedNsec3() throws IOException {
     Message response = resolver.send(createMessage("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NXDOMAIN, response.getRcode());
     assertNull(getReason(response));
   }
@@ -68,7 +71,7 @@ public class TestNonExistence extends TestBase {
     add("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A", message);
 
     Message response = resolver.send(createMessage("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nxdomain.nsec3_bogus", getReason(response));
   }
@@ -78,7 +81,7 @@ public class TestNonExistence extends TestBase {
     // the query name here must hash to a name BEFORE the first existing
     // NSEC3 owner name
     Message response = resolver.send(createMessage("alias.1gibtsnicht.nsec3.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NXDOMAIN, response.getRcode());
     assertNull(getReason(response));
   }
@@ -86,7 +89,7 @@ public class TestNonExistence extends TestBase {
   @Test
   public void testSingleLabelMXBelowSignedForExistingA() throws IOException {
     Message response = resolver.send(createMessage("www.ingotronic.ch./MX"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertTrue(response.getSectionRRsets(Section.ANSWER).isEmpty());
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
@@ -95,7 +98,7 @@ public class TestNonExistence extends TestBase {
   @Test
   public void testSingleLabelMXBelowSignedForExistingANsec3() throws IOException {
     Message response = resolver.send(createMessage("www.nsec3.ingotronic.ch./MX"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertTrue(response.getSectionRRsets(Section.ANSWER).isEmpty());
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
@@ -105,7 +108,7 @@ public class TestNonExistence extends TestBase {
   public void testDoubleLabelMXBelowSignedForExistingA() throws IOException {
     // a.b.ingotronic.ch./A exists
     Message response = resolver.send(createMessage("a.b.ingotronic.ch./MX"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertTrue(response.getSectionRRsets(Section.ANSWER).isEmpty());
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
@@ -115,7 +118,7 @@ public class TestNonExistence extends TestBase {
   public void testDoubleLabelMXBelowSignedForExistingANsec3() throws IOException {
     // a.b.nsec3.ingotronic.ch./A exists
     Message response = resolver.send(createMessage("a.b.nsec3.ingotronic.ch./MX"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertTrue(response.getSectionRRsets(Section.ANSWER).isEmpty());
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
@@ -125,7 +128,7 @@ public class TestNonExistence extends TestBase {
   public void testDoubleLabelMXBelowSignedForExistingWildcardA() throws IOException {
     // *.d.ingotronic.ch./A exists
     Message response = resolver.send(createMessage("b.d.ingotronic.ch./MX"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertTrue(response.getSectionRRsets(Section.ANSWER).isEmpty());
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
@@ -135,7 +138,7 @@ public class TestNonExistence extends TestBase {
   public void testDoubleLabelMXBelowSignedForExistingWildcardANsec3() throws IOException {
     // *.d.nsec3.ingotronic.ch./A exists
     Message response = resolver.send(createMessage("b.d.nsec3.ingotronic.ch./MX"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertTrue(response.getSectionRRsets(Section.ANSWER).isEmpty());
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertNull(getReason(response));
@@ -150,7 +153,7 @@ public class TestNonExistence extends TestBase {
     add("x.ingotronic.ch./A", message);
 
     Message response = resolver.send(createMessage("x.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertTrue(getReason(response).startsWith("failed.nxdomain.authority"));
   }
@@ -164,7 +167,7 @@ public class TestNonExistence extends TestBase {
     add("www.ingotronic.ch./MX", message);
 
     Message response = resolver.send(createMessage("www.ingotronic.ch./MX"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertTrue(getReason(response).startsWith("failed.authority.nodata"));
   }
@@ -172,7 +175,7 @@ public class TestNonExistence extends TestBase {
   @Test
   public void testNoDataOnENT() throws IOException {
     Message response = resolver.send(createMessage("b.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
   }
 }

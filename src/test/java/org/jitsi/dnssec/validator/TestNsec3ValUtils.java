@@ -10,9 +10,10 @@
 
 package org.jitsi.dnssec.validator;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.security.Provider;
@@ -20,8 +21,8 @@ import java.security.Security;
 import java.util.Properties;
 import org.jitsi.dnssec.AlwaysOffline;
 import org.jitsi.dnssec.TestBase;
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
 import org.xbill.DNS.Flags;
 import org.xbill.DNS.Message;
 import org.xbill.DNS.RRSIGRecord;
@@ -31,12 +32,12 @@ import org.xbill.DNS.Record;
 import org.xbill.DNS.Section;
 
 public class TestNsec3ValUtils extends TestBase {
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testTooLargeIterationCountMustThrow() {
     Properties config = new Properties();
     config.put("org.jitsi.dnssec.nsec3.iterations.512", Integer.MAX_VALUE);
     NSEC3ValUtils val = new NSEC3ValUtils();
-    val.init(config);
+    assertThrows(IllegalArgumentException.class, () -> val.init(config));
   }
 
   @Test
@@ -48,7 +49,7 @@ public class TestNsec3ValUtils extends TestBase {
     resolver.init(config);
 
     Message response = resolver.send(createMessage("www.wc.nsec3.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
     assertEquals("failed.nsec3_ignored", getReason(response));
   }
@@ -65,7 +66,7 @@ public class TestNsec3ValUtils extends TestBase {
     add("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A", message);
 
     Message response = resolver.send(createMessage("gibtsnicht.gibtsnicht.nsec3.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nxdomain.nsec3_bogus", getReason(response));
   }
@@ -78,7 +79,7 @@ public class TestNsec3ValUtils extends TestBase {
     add("a.b.nsec3.ingotronic.ch./A", message);
 
     Message response = resolver.send(createMessage("a.b.nsec3.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nxdomain.nsec3_bogus", getReason(response));
   }
@@ -108,7 +109,7 @@ public class TestNsec3ValUtils extends TestBase {
     add("a.sub.nsec3.ingotronic.ch./A", message);
 
     Message response = resolver.send(createMessage("a.sub.nsec3.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.SERVFAIL, response.getRcode());
     assertEquals("failed.nxdomain.nsec3_bogus", getReason(response));
   }
@@ -117,7 +118,7 @@ public class TestNsec3ValUtils extends TestBase {
   @AlwaysOffline
   public void testNsec3ClosestEncloserIsInsecureDelegation() throws IOException {
     Message response = resolver.send(createMessage("a.unsigned.nsec3.ingotronic.ch./A"));
-    assertFalse("AD flag must not be set", response.getHeader().getFlag(Flags.AD));
+    assertFalse(response.getHeader().getFlag(Flags.AD), "AD flag must not be set");
     assertEquals(Rcode.NXDOMAIN, response.getRcode());
     assertEquals("failed.nxdomain.nsec3_insecure", getReason(response));
   }
@@ -125,20 +126,20 @@ public class TestNsec3ValUtils extends TestBase {
   @Test
   public void testNsecEcdsa256() throws IOException {
     Provider[] providers = Security.getProviders("KeyFactory.EC");
-    Assume.assumeTrue(providers != null && providers.length > 0);
+    Assumptions.assumeTrue(providers != null && providers.length > 0);
 
     Message response = resolver.send(createMessage("www.wc.nsec3-ecdsa256.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
   }
 
   @Test
   public void testNsecEcdsa384() throws IOException {
     Provider[] providers = Security.getProviders("KeyFactory.EC");
-    Assume.assumeTrue(providers != null && providers.length > 0);
+    Assumptions.assumeTrue(providers != null && providers.length > 0);
 
     Message response = resolver.send(createMessage("www.wc.nsec3-ecdsa384.ingotronic.ch./A"));
-    assertTrue("AD flag must be set", response.getHeader().getFlag(Flags.AD));
+    assertTrue(response.getHeader().getFlag(Flags.AD), "AD flag must be set");
     assertEquals(Rcode.NOERROR, response.getRcode());
   }
 }

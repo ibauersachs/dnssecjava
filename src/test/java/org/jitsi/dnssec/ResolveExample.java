@@ -1,6 +1,7 @@
 package org.jitsi.dnssec;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import org.jitsi.dnssec.validator.ValidatingResolver;
 import org.xbill.DNS.*;

@@ -1,3 +1,10 @@
+# Archival notice
+**dnssecjava was [merged](https://github.com/dnsjava/dnsjava/pull/209) into
+[dnsjava](https://github.com/dnsjava/dnsjava) and is a built-in resolver
+from [v3.5.0](https://github.com/dnsjava/dnsjava/releases/tag/v3.5.0) on.**
+
+<hr/>
+
 dnssecjava
 ==========
 A DNSSEC validating stub resolver for Java.
@@ -5,7 +12,7 @@ A DNSSEC validating stub resolver for Java.
 [![Build Status](https://travis-ci.org/ibauersachs/dnssecjava.svg?branch=master)](https://travis-ci.org/ibauersachs/dnssecjava)
 [![Coverage Status](https://coveralls.io/repos/ibauersachs/dnssecjava/badge.svg)](https://coveralls.io/r/ibauersachs/dnssecjava)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.jitsi/dnssecjava/badge.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.jitsi%22%20AND%20a%3A%22dnssecjava%22)
-[![Javadocs](http://javadoc.io/badge/org.jitsi/dnssecjava.svg)](https://javadoc.io/doc/org.jitsi/dnssecjava)
+[![Javadocs](https://javadoc.io/badge/org.jitsi/dnssecjava.svg)](https://javadoc.io/doc/org.jitsi/dnssecjava)
 
 Is this library safe to use?
 ---------------------------
